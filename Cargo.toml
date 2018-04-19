@@ -1,0 +1,9 @@
+[package]
+name = "tcpsniff-rs"
+version = "0.1.0"
+authors = ["vagrant"]
+
+[dependencies]
+bcc = { path = "rust-bcc" }
+libc = "0.2"
+failure = "0.1"
