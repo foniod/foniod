@@ -36,7 +36,7 @@ struct Metrics<'a> {
 
 #[derive(Debug, Serialize)]
 struct Report<'a, T> where T: 'a {
-    timestamp: DateTime<chrono::offset::Utc>,
+    epoch: u64,
     count: usize,
     data: &'a [T],
 }
@@ -59,8 +59,11 @@ impl<'a> Envelope<'a> {
 
 impl<'a, T> Report<'a, T> {
     fn new(data: &'a [T]) -> Report<'a, T> {
+        let timestamp = chrono::Utc::now();
+        let nanos_since_epoch = timestamp.timestamp() as u64 * 1000 * 1000 * 1000 + timestamp.timestamp_subsec_nanos() as u64;
+
         Report {
-            timestamp: chrono::Utc::now(),
+            epoch: nanos_since_epoch,
             count: data.len(),
             data,
         }
