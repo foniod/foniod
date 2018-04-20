@@ -110,7 +110,7 @@ impl<'a> From<&'a [u8]> for data_t {
 
 fn do_main() -> Result<(), Error> {
     let instance_name = env::var("INSTANCE_NAME").expect("Need to set INSTANCE_NAME environment variable");
-    let url_base = env::var("SIFT_URL").expect("Need to set SIFT_URL environment variable");
+    let url_base = env::var("WEBHOOK").expect("Need to set SIFT_URL environment variable");
     let events: Arc<Mutex<Vec<Connection>>> = Arc::new(Mutex::default());
     let mut module = BPF::new(BPF_CODE)?;
 
