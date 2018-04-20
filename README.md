@@ -28,8 +28,8 @@ The usual Rust compilation ritual will produce a binary in `target/release`:
 
 Configuration is received through environment variables:
 
- * `INSTANCE_NAME`: the name to use in reports 
- * `WEBHOOK`: a URL stub where reports are sent to. `$WEBHOOK/<uuid v4>` is used as a destination.
+ * `TCPSNIFF_ID`: the name to use in reports 
+ * `TCPSNIFF_URL`: a URL stub where reports are sent to. `$WEBHOOK/<uuid v4>` is used as a destination.
  
 Because tcpsniff-rs messes with the kernel, it needs elevated privileges to run,
 or the `CAP_SYS_ADMIN` capability (for all BPF-related calls) and a
