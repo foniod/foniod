@@ -1,3 +1,2 @@
-/rust-bcc/target
-/target
+**/target
 **/*.rs.bk
