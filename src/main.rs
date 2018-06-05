@@ -2,7 +2,6 @@ extern crate bcc;
 extern crate chrono;
 extern crate failure;
 extern crate libc;
-extern crate reqwest;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -50,10 +49,6 @@ impl<'a> Envelope<'a> {
     }
 
     fn send(&self, base_url: &str) {
-        reqwest::Client::new()
-            .post(&format!("{}/{}", base_url, uuid::Uuid::new_v4()))
-            .json(&self)
-            .send();
     }
 }
 
