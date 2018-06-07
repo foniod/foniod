@@ -1,6 +1,16 @@
-#include <uapi/linux/ptrace.h>
+#include <linux/kconfig.h>
+#include <linux/types.h>
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
+#pragma clang diagnostic ignored "-Waddress-of-packed-member"
+#include <linux/ptrace.h>
 #include <net/sock.h>
-#include <bcc/proto.h>
+#pragma clang diagnostic pop
+#include <linux/version.h>
+
+#include <linux/bpf.h>
+#include "bpf_helpers.h"
 
 struct data_t {
   u64 id;
@@ -10,8 +20,10 @@ struct data_t {
   u32 daddr;
   u16 dport;
 };
+
 BPF_HASH(currsock, u32, struct sock *);
 BPF_PERF_OUTPUT(events);
+
 int trace_outbound_entry(struct pt_regs *ctx, struct sock *sk)
 {
 	u32 pid = bpf_get_current_pid_tgid();
