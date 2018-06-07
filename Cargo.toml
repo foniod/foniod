@@ -4,7 +4,6 @@ version = "0.1.0"
 authors = ["vagrant"]
 
 [dependencies]
-bcc = { path = "rust-bcc" }
 chrono = { version = "0.4", features = ["serde"] }
 failure = "0.1"
 libc = "0.2"
