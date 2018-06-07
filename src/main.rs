@@ -1,8 +1,6 @@
-extern crate bcc;
 extern crate chrono;
 extern crate failure;
 extern crate libc;
-extern crate reqwest;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -12,16 +10,12 @@ extern crate uuid;
 use std::env;
 use std::net::Ipv4Addr;
 use std::ptr;
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use bcc::core::BPF;
-use bcc::perf::init_perf_map;
 use chrono::DateTime;
 use failure::Error;
-
-const BPF_CODE: &'static str = include_str!("bpf.c");
 
 #[derive(Debug, Serialize)]
 struct Envelope<'a> {
@@ -35,7 +29,10 @@ struct Metrics<'a> {
 }
 
 #[derive(Debug, Serialize)]
-struct Report<'a, T> where T: 'a {
+struct Report<'a, T>
+where
+    T: 'a,
+{
     epoch: u64,
     count: usize,
     data: &'a [T],
@@ -45,22 +42,20 @@ impl<'a> Envelope<'a> {
     fn new(instance: String, outbound_connections: Report<'a, Connection>) -> Envelope {
         Envelope {
             instance,
-            metrics: Metrics { outbound_connections },
+            metrics: Metrics {
+                outbound_connections,
+            },
         }
     }
 
-    fn send(&self, base_url: &str) {
-        reqwest::Client::new()
-            .post(&format!("{}/{}", base_url, uuid::Uuid::new_v4()))
-            .json(&self)
-            .send();
-    }
+    fn send(&self, base_url: &str) {}
 }
 
 impl<'a, T> Report<'a, T> {
     fn new(data: &'a [T]) -> Report<'a, T> {
         let timestamp = chrono::Utc::now();
-        let nanos_since_epoch = timestamp.timestamp() as u64 * 1000 * 1000 * 1000 + timestamp.timestamp_subsec_nanos() as u64;
+        let nanos_since_epoch = timestamp.timestamp() as u64 * 1000 * 1000 * 1000
+            + timestamp.timestamp_subsec_nanos() as u64;
 
         Report {
             epoch: nanos_since_epoch,
@@ -112,50 +107,58 @@ impl<'a> From<&'a [u8]> for data_t {
 }
 
 fn do_main() -> Result<(), Error> {
-    let instance_name = env::var("TCPSNIFF_ID").expect("Need to set INSTANCE_NAME environment variable");
-    let url_base = env::var("TCPSNIFF_URL").expect("Need to set SIFT_URL environment variable");
-    let events: Arc<Mutex<Vec<Connection>>> = Arc::new(Mutex::default());
-    let mut module = BPF::new(BPF_CODE)?;
+    // let instance_name =
+    //     env::var("TCPSNIFF_ID").expect("Need to set INSTANCE_NAME environment variable");
+    // let url_base = env::var("TCPSNIFF_URL").expect("Need to set SIFT_URL environment variable");
+    // let events: Arc<Mutex<Vec<Connection>>> = Arc::new(Mutex::default());
+    // let mut module = BPF::new(BPF_CODE)?;
 
-    // load + attach kprobes!
-    let return_probe = module.load_kprobe("trace_outbound_return")?;
-    let entry_probe = module.load_kprobe("trace_outbound_entry")?;
-    module.attach_kprobe("tcp_v4_connect", entry_probe)?;
-    module.attach_kretprobe("tcp_v4_connect", return_probe)?;
+    // // load + attach kprobes!
+    // let return_probe = module.load_kprobe("trace_outbound_return")?;
+    // let entry_probe = module.load_kprobe("trace_outbound_entry")?;
+    // module.attach_kprobe("tcp_v4_connect", entry_probe)?;
+    // module.attach_kretprobe("tcp_v4_connect", return_probe)?;
 
-    // the "events" table is where the "open file" events get sent
-    let table = module.table("events");
+    // // the "events" table is where the "open file" events get sent
+    // let table = module.table("events");
 
-    // install a callback to print out file open events when they happen
-    let mut perf_map = init_perf_map(table, || {
-        let events = events.clone();
-        Box::new(move |x| {
-            // This callback
-            let data = Connection::from(data_t::from(x));
-            println!("{:-7} {:-16}: {:#?}", data.pid, &data.name, data);
+    // // install a callback to print out file open events when they happen
+    // let mut perf_map = init_perf_map(table, || {
+    //     let events = events.clone();
+    //     Box::new(move |x| {
+    //         // This callback
+    //         let data = Connection::from(data_t::from(x));
+    //         println!("{:-7} {:-16}: {:#?}", data.pid, &data.name, data);
 
-            events.lock().map(|mut e| {
-                e.push(data);
-            }).unwrap();
-        })
-    })?;
+    //         events
+    //             .lock()
+    //             .map(|mut e| {
+    //                 e.push(data);
+    //             })
+    //             .unwrap();
+    //     })
+    // })?;
 
-    let reporter = thread::spawn(move || {
-        let events = events.clone();
+    // let reporter = thread::spawn(move || {
+    //     let events = events.clone();
 
-        loop {
-            thread::sleep(Duration::from_secs(60));
+    //     loop {
+    //         thread::sleep(Duration::from_secs(60));
 
-            events.lock().map(|mut data| {
-                Envelope::new(instance_name.clone(), Report::new(&data)).send(&url_base);
-                data.clear();
-            }).unwrap();
-        }
-    });
+    //         events
+    //             .lock()
+    //             .map(|mut data| {
+    //                 Envelope::new(instance_name.clone(), Report::new(&data)).send(&url_base);
+    //                 data.clear();
+    //             })
+    //             .unwrap();
+    //     }
+    // });
 
-    loop {
-        perf_map.poll(200);
-    }
+    // loop {
+    //     perf_map.poll(200);
+    // }
+    Ok(())
 }
 
 fn to_ip(bytes: u32) -> Ipv4Addr {
