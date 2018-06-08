@@ -1,0 +1,6 @@
+[package]
+name = "redbpf"
+version = "0.1.0"
+authors = ["Peter Parkanyi <peter@redsift.io>"]
+
+[dependencies]
