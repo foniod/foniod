@@ -17,54 +17,6 @@ use std::time::Duration;
 use chrono::DateTime;
 use failure::Error;
 
-#[derive(Debug, Serialize)]
-struct Envelope<'a> {
-    instance: String,
-    metrics: Metrics<'a>,
-}
-
-#[derive(Debug, Serialize)]
-struct Metrics<'a> {
-    outbound_connections: Report<'a, Connection>,
-}
-
-#[derive(Debug, Serialize)]
-struct Report<'a, T>
-where
-    T: 'a,
-{
-    epoch: u64,
-    count: usize,
-    data: &'a [T],
-}
-
-impl<'a> Envelope<'a> {
-    fn new(instance: String, outbound_connections: Report<'a, Connection>) -> Envelope {
-        Envelope {
-            instance,
-            metrics: Metrics {
-                outbound_connections,
-            },
-        }
-    }
-
-    fn send(&self, base_url: &str) {}
-}
-
-impl<'a, T> Report<'a, T> {
-    fn new(data: &'a [T]) -> Report<'a, T> {
-        let timestamp = chrono::Utc::now();
-        let nanos_since_epoch = timestamp.timestamp() as u64 * 1000 * 1000 * 1000
-            + timestamp.timestamp_subsec_nanos() as u64;
-
-        Report {
-            epoch: nanos_since_epoch,
-            count: data.len(),
-            data,
-        }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 struct Connection {
     pid: u32,
@@ -106,7 +58,23 @@ impl<'a> From<&'a [u8]> for data_t {
     }
 }
 
-fn do_main() -> Result<(), Error> {
+fn to_ip(bytes: u32) -> Ipv4Addr {
+    let d = (bytes >> 24) as u8;
+    let c = (bytes >> 16) as u8;
+    let b = (bytes >> 8) as u8;
+    let a = bytes as u8;
+
+    Ipv4Addr::new(a, b, c, d)
+}
+
+fn get_string(x: &[u8]) -> String {
+    match x.iter().position(|&r| r == 0) {
+        Some(zero_pos) => String::from_utf8_lossy(&x[0..zero_pos]).to_string(),
+        None => String::from_utf8_lossy(x).to_string(),
+    }
+}
+
+fn main() -> Result<(), Error> {
     // let instance_name =
     //     env::var("TCPSNIFF_ID").expect("Need to set INSTANCE_NAME environment variable");
     // let url_base = env::var("TCPSNIFF_URL").expect("Need to set SIFT_URL environment variable");
@@ -159,31 +127,4 @@ fn do_main() -> Result<(), Error> {
     //     perf_map.poll(200);
     // }
     Ok(())
-}
-
-fn to_ip(bytes: u32) -> Ipv4Addr {
-    let d = (bytes >> 24) as u8;
-    let c = (bytes >> 16) as u8;
-    let b = (bytes >> 8) as u8;
-    let a = bytes as u8;
-
-    Ipv4Addr::new(a, b, c, d)
-}
-
-fn get_string(x: &[u8]) -> String {
-    match x.iter().position(|&r| r == 0) {
-        Some(zero_pos) => String::from_utf8_lossy(&x[0..zero_pos]).to_string(),
-        None => String::from_utf8_lossy(x).to_string(),
-    }
-}
-
-fn main() {
-    match do_main() {
-        Err(x) => {
-            eprintln!("Error: {}", x);
-            eprintln!("{}", x.backtrace());
-            std::process::exit(1);
-        }
-        _ => {}
-    }
 }
