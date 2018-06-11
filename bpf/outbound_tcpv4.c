@@ -1,25 +1,14 @@
-#include <linux/kconfig.h>
-#include <linux/types.h>
+#include "outbound_tcpv4.h"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
 #pragma clang diagnostic ignored "-Waddress-of-packed-member"
-#include <linux/ptrace.h>
 #include <net/sock.h>
 #pragma clang diagnostic pop
-#include <linux/version.h>
 
+#include <linux/version.h>
 #include <linux/bpf.h>
 #include "bpf_helpers.h"
-
-struct data_t {
-  u64 id;
-  u64 ts;
-  char comm[TASK_COMM_LEN];
-  u32 saddr;
-  u32 daddr;
-  u16 dport;
-};
 
 BPF_HASH(currsock, u32, struct sock *);
 BPF_PERF_OUTPUT(events);
@@ -38,7 +27,7 @@ int trace_outbound_return(struct pt_regs *ctx)
 {
 	int ret = PT_REGS_RC(ctx);
 	u32 pid = bpf_get_current_pid_tgid();
-  struct data_t data = {};
+  struct _data_connect data = {};
 
 	struct sock **skpp;
 	skpp = currsock.lookup(&pid);
