@@ -1,7 +1,8 @@
-extern crate failure;
 extern crate bindgen;
+extern crate failure;
 extern crate regex;
-#[macro_use] extern crate lazy_static;
+#[macro_use]
+extern crate lazy_static;
 
 use failure::{err_msg, Error};
 use regex::Regex;
@@ -10,7 +11,6 @@ use std::ffi::OsString;
 use std::fs::{self, read_dir};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
 
 fn kernel_headers() -> Result<Vec<OsString>, Error> {
     let uname = Command::new("uname").arg("-r").output()?;
@@ -89,7 +89,8 @@ fn generate_bindings(flags: &[String], out_dir: &Path, source: &Path) -> Result<
         .header(source.to_str().expect("Filename conversion error!"))
         .clang_args(flags)
         .whitelist_type(TYPE_REGEX)
-        .generate().expect("Unable to generate bindings!");
+        .generate()
+        .expect("Unable to generate bindings!");
 
     let mut code = bindings.to_string();
     for data_type in RE.captures_iter(&code.clone()) {
@@ -99,7 +100,8 @@ impl<'a> From<&'a [u8]> for ### {
         unsafe { ptr::read(x.as_ptr() as *const ###) }
     }
 }
-".replace("###", &data_type[2]);
+"
+            .replace("###", &data_type[2]);
         code.push_str(&trait_impl);
     }
 
@@ -131,13 +133,17 @@ fn main() -> Result<(), Error> {
             "-O2",
             "-emit-llvm",
             "-c",
-        ].iter().map(OsString::from).collect();
+        ].iter()
+            .map(OsString::from)
+            .collect();
 
         cflags.append(&mut headers.clone());
         cflags
     };
-    let bindgen_flags: Vec<String> = flags.iter().map(|f| f.clone().into_string().unwrap()).collect();
-
+    let bindgen_flags: Vec<String> = flags
+        .iter()
+        .map(|f| f.clone().into_string().unwrap())
+        .collect();
 
     for file in read_dir("./bpf")?
         .filter(|entry| entry.is_ok())
@@ -148,10 +154,11 @@ fn main() -> Result<(), Error> {
                 .and_then(|ext| if ext == "c" { Some(()) } else { None })
                 .is_some()
         }) {
-            build(&flags[..], out_dir, &file).expect("Failed building BPF plugin!");
+        build(&flags[..], out_dir, &file).expect("Failed building BPF plugin!");
 
-            let data_header = file.with_extension("h");
-            generate_bindings(&bindgen_flags[..], out_dir, &data_header).expect("Failed generating data bindings!");
+        let data_header = file.with_extension("h");
+        generate_bindings(&bindgen_flags[..], out_dir, &data_header)
+            .expect("Failed generating data bindings!");
     }
 
     Ok(())
