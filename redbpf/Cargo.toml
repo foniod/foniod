@@ -5,3 +5,5 @@ authors = ["Peter Parkanyi <peter@redsift.io>"]
 
 [dependencies]
 bpf-sys = { path = "../bpf-sys" }
+goblin = "^0.0.15"
+zero = "0.1"
