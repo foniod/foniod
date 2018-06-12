@@ -1,0 +1,11 @@
+[[package]]
+name = "bpf-sys"
+version = "0.1.0"
+
+[[package]]
+name = "redbpf"
+version = "0.1.0"
+dependencies = [
+ "bpf-sys 0.1.0",
+]
+

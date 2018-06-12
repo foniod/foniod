@@ -1,3 +1,4 @@
-/rust-bcc/target
+/redbpf/target
+/bpf-sys/target
 /target
 **/*.rs.bk
