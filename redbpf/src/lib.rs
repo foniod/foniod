@@ -10,40 +10,97 @@ use std::ffi::{CString, NulError};
 use std::mem;
 use std::os::unix::io::RawFd;
 
+pub type Result<T> = std::result::Result<T, LoadError>;
+
 struct Module {
     bytes: Vec<u8>,
-    programs: Vec<Program>,
+    programs: Vec<Function>,
     perfs: Vec<PerfMap>,
     license: String,
     kernel_version: u32,
 }
 
-struct Probe {
+enum FunctionKind {
+    Kprobe,
+    Kretprobe,
+}
+
+impl FunctionKind {
+    fn to_prog_type(&self) -> bpf_sys::bpf_prog_type {
+        use FunctionKind::*;
+        match self {
+            Kprobe | Kretprobe => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_KPROBE,
+        }
+    }
+
+    fn to_attach_type(&self) -> bpf_sys::bpf_probe_attach_type {
+        use FunctionKind::*;
+        match self {
+            Kprobe => bpf_sys::bpf_probe_attach_type_BPF_PROBE_ENTRY,
+            Kretprobe => bpf_sys::bpf_probe_attach_type_BPF_PROBE_RETURN,
+        }
+    }
+
+    fn from_section_name(section: &str) -> Result<FunctionKind> {
+        use FunctionKind::*;
+        match section {
+            "kretprobe" => Ok(Kretprobe),
+            "kprobe" => Ok(Kprobe),
+            sec => Err(LoadError::Section(sec.to_string())),
+        }
+    }
+}
+
+struct Function {
+    kind: FunctionKind,
     name: String,
     code: Vec<bpf_insn>,
 }
 
 #[derive(Debug)]
 enum LoadError {
-    ConversionError,
-    BPFError,
+    StringConversion,
+    BPF,
+    Section(String),
+    Parse(goblin::error::Error),
+}
+
+impl From<goblin::error::Error> for LoadError {
+    fn from(e: goblin::error::Error) -> LoadError {
+        LoadError::Parse(e)
+    }
 }
 
 impl From<NulError> for LoadError {
     fn from(e: NulError) -> LoadError {
-        LoadError::ConversionError
+        LoadError::StringConversion
     }
 }
 
-impl Probe {
-    fn load(self, kernel_version: u32, license: String) -> Result<RawFd, LoadError> {
+impl Function {
+    fn new(name: &str, code: &[u8]) -> Result<Function> {
+        let code = zero::read_array(code).to_vec();
+        let mut names = name.splitn(2, '/');
+
+        let kind = names.next().ok_or(parse_fail("section type"))?;
+        let name = names.next().ok_or(parse_fail("section name"))?.to_string();
+        let kind = FunctionKind::from_section_name(kind)?;
+
+        Ok(Function {
+            kind,
+            name,
+            code
+        })
+    }
+
+    fn load(self, kernel_version: u32, license: String) -> Result<RawFd> {
         let clicense = CString::new(license)?;
         let cname = CString::new(self.name)?;
         let mut log_buffer = [0u8; 65535];
 
         let inserted = unsafe {
             bpf_sys::bpf_prog_load(
-                bpf_sys::bpf_prog_type_BPF_PROG_TYPE_KPROBE,
+                self.kind.to_prog_type(),
                 cname.as_ptr() as *const i8,
                 self.code.as_ptr(),
                 self.code.len() as i32,
@@ -56,40 +113,15 @@ impl Probe {
         };
 
         if inserted < 0 {
-            Err(LoadError::BPFError)
+            Err(LoadError::BPF)
         } else {
             Ok(inserted)
         }
     }
-}
 
-enum Program {
-    Kprobe(Probe),
-    Kretprobe(Probe),
-}
-
-impl Program {
-    fn new(name: &str, code: &[u8]) -> error::Result<Program> {
-        let code = zero::read_array(code).to_vec();
-        let mut names = name.splitn(2, '/');
-
-        let kind = names.next().ok_or(parse_fail("section type"))?;
-        let name = names.next().ok_or(parse_fail("section name"))?.to_string();
-        let probe = Probe { name, code };
-
-        match kind {
-            "kretprobe" => Ok(Program::Kretprobe(probe)),
-            "kprobe" => Ok(Program::Kprobe(probe)),
-            _ => Err(error::Error::Malformed("Unknown program type".to_string())),
-        }
-    }
-
-    fn load(self, kernel_version: u32, license: String) -> Result<RawFd, LoadError> {
-        use Program::*;
-        match self {
-            Kprobe(p) | Kretprobe(p) => p.load(kernel_version, license),
-        }
-    }
+    // fn attach() -> Result<()> {
+    //     bpf_sys::bpf_attach_kprobe()
+    // }
 }
 
 struct Map {
@@ -106,7 +138,7 @@ struct PerfMap {
 }
 
 impl Module {
-    fn parse(bytes: Vec<u8>) -> error::Result<Module> {
+    fn parse(bytes: Vec<u8>) -> Result<Module> {
         let object = Elf::parse(&bytes[..])?;
         let strings = object.shdr_strtab.to_vec()?;
 
@@ -125,7 +157,7 @@ impl Module {
                 (hdr::SHT_PROGBITS, "version") => {
                     kernel_version = resolve_version(zero::read::<u32>(content).clone())
                 }
-                (hdr::SHT_PROGBITS, name) => programs.push(Program::new(&name, &content)?),
+                (hdr::SHT_PROGBITS, name) => programs.push(Function::new(&name, &content)?),
                 _ => unreachable!(),
             }
         }
