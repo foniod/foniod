@@ -27,14 +27,16 @@ enum Program {
 impl Program {
     fn new(name: &str, code: &[u8]) -> error::Result<Program> {
         let code = zero::read_array(code).to_vec();
-        let mut names: Vec<&str> = name.splitn(2, '/').collect();
+        let mut names = name.splitn(2, '/');
 
+        let kind = names.next().ok_or(parse_fail("section type"))?;
+        let name = names.next().ok_or(parse_fail("section name"))?.to_string();
         let probe = Probe {
-            name: names[1].to_string(),
-            code: code,
+            name,
+            code,
         };
 
-        match names[0] {
+        match kind {
             "kretprobe" => Ok(Program::Kretprobe(probe)),
             "kprobe" => Ok(Program::Kprobe(probe)),
             _ => Err(error::Error::Malformed("Unknown program type".to_string())),
@@ -87,4 +89,9 @@ fn data<'d>(bytes: &'d [u8], shdr: &SectionHeader) -> &'d [u8] {
     let end = (shdr.sh_offset + shdr.sh_size) as usize;
 
     &bytes[offset..end]
+}
+
+#[inline]
+fn parse_fail(reason: &str) -> error::Error {
+    error::Error::Malformed(format!("Failed to parse: {}", reason))
 }
