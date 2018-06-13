@@ -13,6 +13,12 @@
 BPF_HASH(currsock, u32, struct sock *);
 BPF_PERF_OUTPUT(events);
 
+// Version number to stay compatible with gobpf-elf-loader
+// This should be resolved to running kernel version
+__u32 _version SEC("version") = 0xFFFFFFFE;
+char _license[] SEC("license") = "Apache2";
+
+SEC("kprobe/tcp_v4_connect")
 int trace_outbound_entry(struct pt_regs *ctx, struct sock *sk)
 {
 	u32 pid = bpf_get_current_pid_tgid();
@@ -23,6 +29,7 @@ int trace_outbound_entry(struct pt_regs *ctx, struct sock *sk)
 	return 0;
 };
 
+SEC("kretprobe/tcp_v4_connect")
 int trace_outbound_return(struct pt_regs *ctx)
 {
 	int ret = PT_REGS_RC(ctx);
