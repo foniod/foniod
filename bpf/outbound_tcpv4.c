@@ -28,8 +28,27 @@
 #include <linux/bpf.h>
 #include "bpf_helpers.h"
 
-BPF_HASH(currsock, u32, struct sock *);
-BPF_PERF_OUTPUT(events);
+struct bpf_map_def SEC("maps/currsock") currsock = {
+    .type = BPF_MAP_TYPE_HASH,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(struct sock *),
+    .max_entries = 1024,
+    .pinning = 0,
+    .namespace = "",
+};
+
+
+struct bpf_map_def SEC("maps/events") events = {
+    .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(u32),
+    .max_entries = 1024,
+    .pinning = 0,
+    .namespace = "",
+};
+
+/* BPF_HASH(currsock, u32, struct sock *); */
+/* BPF_PERF_OUTPUT(events); */
 
 // Version number to stay compatible with gobpf-elf-loader
 // This should be resolved to running kernel version
@@ -42,7 +61,7 @@ int trace_outbound_entry(struct pt_regs *ctx, struct sock *sk)
 	u32 pid = bpf_get_current_pid_tgid();
 
 	// stash the sock ptr for lookup on return
-	currsock.update(&pid, &sk);
+  bpf_map_update_elem(&currsock, &pid, &sk, BPF_ANY);
 
 	return 0;
 };
@@ -55,7 +74,7 @@ int trace_outbound_return(struct pt_regs *ctx)
   struct _data_connect data = {};
 
 	struct sock **skpp;
-	skpp = currsock.lookup(&pid);
+	skpp = bpf_map_lookup_elem(&currsock, &pid);
 	if (skpp == 0) {
 		return 0;	// missed entry
 	}
@@ -63,8 +82,7 @@ int trace_outbound_return(struct pt_regs *ctx)
 	if (ret != 0) {
 		// failed to send SYNC packet, may not have populated
 		// socket __sk_common.{skc_rcv_saddr, ...}
-		currsock.delete(&pid);
-		return 0;
+    goto cleanup;
 	}
 
   data.id = pid;
@@ -78,9 +96,10 @@ int trace_outbound_return(struct pt_regs *ctx)
 	data.daddr = skp->__sk_common.skc_daddr;
 	data.dport = skp->__sk_common.skc_dport;
 
-  events.perf_submit(ctx, &data, sizeof(data));
+	u32 cpu = bpf_get_smp_processor_id();
+  bpf_perf_event_output(ctx, &events, cpu, &data, sizeof(data));
 
-	currsock.delete(&pid);
-
+ cleanup:
+  bpf_map_delete_elem(&currsock, &pid);
 	return 0;
 }
