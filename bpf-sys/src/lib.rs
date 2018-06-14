@@ -1,5 +1,16 @@
 extern crate zero;
 
+pub const BUF_SIZE_MAP_NS: usize = 256;
+pub struct bpf_map_def {
+	  pub kind: u32,
+	  pub key_size: u32,
+	  pub value_size: u32,
+	  pub max_entries: u32,
+	  pub map_flags: u32,
+	  pub pinning: u32,
+	  pub namespace: [i8; BUF_SIZE_MAP_NS]
+}
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct __BindgenBitfieldUnit<Storage, Align>
