@@ -14,58 +14,8 @@ use std::str::FromStr;
 
 pub type Result<T> = std::result::Result<T, LoadError>;
 
-struct Module {
-    bytes: Vec<u8>,
-    programs: Vec<Program>,
-    perfs: Vec<PerfMap>,
-    license: String,
-    kernel_version: u32,
-}
-
-enum FunctionKind {
-    Kprobe,
-    Kretprobe,
-}
-
-impl FunctionKind {
-    fn to_prog_type(&self) -> bpf_sys::bpf_prog_type {
-        use FunctionKind::*;
-        match self {
-            Kprobe | Kretprobe => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_KPROBE,
-        }
-    }
-
-    fn to_attach_type(&self) -> bpf_sys::bpf_probe_attach_type {
-        use FunctionKind::*;
-        match self {
-            Kprobe => bpf_sys::bpf_probe_attach_type_BPF_PROBE_ENTRY,
-            Kretprobe => bpf_sys::bpf_probe_attach_type_BPF_PROBE_RETURN,
-        }
-    }
-
-    fn from_section(section: &str) -> Result<FunctionKind> {
-        use FunctionKind::*;
-        match section {
-            "kretprobe" => Ok(Kretprobe),
-            "kprobe" => Ok(Kprobe),
-            sec => Err(LoadError::Section(sec.to_string())),
-        }
-    }
-}
-
-struct Function {
-    kind: FunctionKind,
-    name: String,
-    code: Vec<bpf_insn>,
-}
-
-struct Program {
-    fd: RawFd,
-    function: Function,
-}
-
 #[derive(Debug)]
-enum LoadError {
+pub enum LoadError {
     StringConversion,
     BPF,
     Section(String),
@@ -81,21 +31,79 @@ impl From<goblin::error::Error> for LoadError {
 }
 
 impl From<NulError> for LoadError {
-    fn from(e: NulError) -> LoadError {
+    fn from(_e: NulError) -> LoadError {
         LoadError::StringConversion
     }
 }
 
-impl Function {
-    fn new(name: &str, code: &[u8]) -> Result<Function> {
+struct Module {
+    bytes: Vec<u8>,
+    programs: Vec<Program>,
+    perfs: Vec<PerfMap>,
+    license: String,
+    kernel_version: u32,
+}
+
+struct Map {
+    name: String,
+    kind: u32,
+    fd: u32,
+}
+
+struct PerfMap {
+    fd: u32,
+    name: String,
+    page_count: u32,
+    callback: Box<FnMut(&[u8])>,
+}
+
+enum ProgramKind {
+    Kprobe,
+    Kretprobe,
+}
+
+struct Program {
+    kind: ProgramKind,
+    name: String,
+    code: Vec<bpf_insn>,
+}
+
+impl ProgramKind {
+    fn to_prog_type(&self) -> bpf_sys::bpf_prog_type {
+        use ProgramKind::*;
+        match self {
+            Kprobe | Kretprobe => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_KPROBE,
+        }
+    }
+
+    fn to_attach_type(&self) -> bpf_sys::bpf_probe_attach_type {
+        use ProgramKind::*;
+        match self {
+            Kprobe => bpf_sys::bpf_probe_attach_type_BPF_PROBE_ENTRY,
+            Kretprobe => bpf_sys::bpf_probe_attach_type_BPF_PROBE_RETURN,
+        }
+    }
+
+    fn from_section(section: &str) -> Result<ProgramKind> {
+        use ProgramKind::*;
+        match section {
+            "kretprobe" => Ok(Kretprobe),
+            "kprobe" => Ok(Kprobe),
+            sec => Err(LoadError::Section(sec.to_string())),
+        }
+    }
+}
+
+impl Program {
+    fn new(name: &str, code: &[u8]) -> Result<Program> {
         let code = zero::read_array(code).to_vec();
         let mut names = name.splitn(2, '/');
 
         let kind = names.next().ok_or(parse_fail("section type"))?;
         let name = names.next().ok_or(parse_fail("section name"))?.to_string();
-        let kind = FunctionKind::from_section(kind)?;
+        let kind = ProgramKind::from_section(kind)?;
 
-        Ok(Function { kind, name, code })
+        Ok(Program { kind, name, code })
     }
 
     fn load(self, kernel_version: u32, license: String) -> Result<RawFd> {
@@ -125,19 +133,6 @@ impl Function {
     }
 }
 
-struct Map {
-    name: String,
-    kind: u32,
-    fd: u32,
-}
-
-struct PerfMap {
-    fd: u32,
-    name: String,
-    pageCount: u32,
-    callback: Box<FnMut(&[u8])>,
-}
-
 impl Module {
     fn parse(bytes: Vec<u8>) -> Result<Module> {
         let object = Elf::parse(&bytes[..])?;
@@ -158,7 +153,7 @@ impl Module {
                 (hdr::SHT_PROGBITS, "version") => {
                     kernel_version = resolve_version(zero::read::<u32>(content).clone())
                 }
-                (hdr::SHT_PROGBITS, name) => programs.push(Function::new(&name, &content)?),
+                (hdr::SHT_PROGBITS, name) => programs.push(Program::new(&name, &content)?),
                 _ => unreachable!(),
             }
         }
@@ -201,8 +196,8 @@ fn get_kernel_version() -> Result<u32> {
     let err = || LoadError::KernelRelease(urelease.to_string());
     let err_ = |_| LoadError::KernelRelease(urelease.to_string());
 
-    let release_package = urelease.splitn(2, '-');
-    let release = release_package.next().ok_or(err())?.splitn(3, '.');
+    let mut release_package = urelease.splitn(2, '-');
+    let mut release = release_package.next().ok_or(err())?.splitn(3, '.');
 
     let major = u32::from_str(release.next().ok_or(err())?).map_err(err_)?;
     let minor = u32::from_str(release.next().ok_or(err())?).map_err(err_)?;
