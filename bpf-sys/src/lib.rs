@@ -14,6 +14,7 @@ pub struct bpf_map_def {
 	  pub pinning: u32,
 	  pub namespace: [i8; BUF_SIZE_MAP_NS]
 }
+unsafe impl ::zero::Pod for bpf_map_def {}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]

@@ -3,7 +3,7 @@ extern crate goblin;
 extern crate libc;
 extern crate zero;
 
-use bpf_sys::bpf_insn;
+use bpf_sys::{bpf_insn, bpf_map_def};
 use goblin::elf::section_header as hdr;
 use goblin::{elf::Elf, elf::SectionHeader, error};
 
@@ -42,19 +42,6 @@ struct Module {
     perfs: Vec<PerfMap>,
     license: String,
     kernel_version: u32,
-}
-
-struct Map {
-    name: String,
-    kind: u32,
-    fd: u32,
-}
-
-struct PerfMap {
-    fd: u32,
-    name: String,
-    page_count: u32,
-    callback: Box<FnMut(&[u8])>,
 }
 
 enum ProgramKind {
@@ -105,7 +92,13 @@ impl Program {
         let name = names.next().ok_or(parse_fail("section name"))?.to_string();
         let kind = ProgramKind::from_section(kind)?;
 
-        Ok(Program { pfd: None, fd: None, kind, name, code })
+        Ok(Program {
+            pfd: None,
+            fd: None,
+            kind,
+            name,
+            code,
+        })
     }
 
     fn load(&mut self, kernel_version: u32, license: String) -> Result<RawFd> {
@@ -148,11 +141,13 @@ impl Program {
 
         unsafe {
             let cname = CString::new(self.name.clone()).unwrap();
-            let pfd = bpf_sys::bpf_attach_kprobe(self.fd.unwrap(),
-                                       self.kind.to_attach_type(),
-                                       cname.as_ptr(),
-                                       cname.as_ptr(),
-                                       0);
+            let pfd = bpf_sys::bpf_attach_kprobe(
+                self.fd.unwrap(),
+                self.kind.to_attach_type(),
+                cname.as_ptr(),
+                cname.as_ptr(),
+                0,
+            );
             self.pfd = Some(pfd);
         }
     }
@@ -161,23 +156,26 @@ impl Program {
 impl Module {
     fn parse(bytes: Vec<u8>) -> Result<Module> {
         let object = Elf::parse(&bytes[..])?;
-        let strings = object.shdr_strtab.to_vec()?;
+        let hdr_strings = object.shdr_strtab.to_vec()?;
+        let strings = object.strtab.to_vec()?;
+        let symtab = object.syms.to_vec();
 
-        let mut maps: Vec<PerfMap> = vec![];
+        let mut maps: Vec<Map> = vec![];
         let mut programs = vec![];
         let mut license = String::new();
         let mut kernel_version = 0u32;
 
         for shdr in object.section_headers.iter() {
-            let name = strings[shdr.sh_name];
+            let name = hdr_strings[shdr.sh_name];
             let kind = shdr.sh_type;
             let content = data(&bytes, &shdr);
 
             match (kind, name) {
                 (hdr::SHT_PROGBITS, "license") => license.insert_str(0, zero::read_str(content)),
                 (hdr::SHT_PROGBITS, "version") => {
-                    kernel_version = resolve_version(zero::read::<u32>(content).clone())
+                    kernel_version = get_version(&zero::read::<u32>(content))
                 }
+                (hdr::SHT_PROGBITS, "maps") => maps.push(Map::new(&name, &content)?),
                 (hdr::SHT_PROGBITS, name) => programs.push(Program::new(&name, &content)?),
                 _ => unreachable!(),
             }
@@ -193,11 +191,50 @@ impl Module {
     }
 }
 
+struct Map {
+    name: String,
+    kind: u32,
+    fd: RawFd,
+}
+
+impl Map {
+    fn new(name: &str, code: &[u8]) -> Result<Map> {
+        let config: &bpf_map_def = zero::read(code);
+        let cname = CString::new(name.clone())?;
+        let fd = unsafe {
+            bpf_sys::bpf_create_map(
+                config.kind,
+                cname.as_ptr(),
+                config.key_size as i32,
+                config.value_size as i32,
+                config.max_entries as i32,
+                config.map_flags as i32,
+            )
+        };
+        if fd < 0 {
+            return Err(LoadError::BPF);
+        }
+
+        Ok(Map {
+            name: name.to_string(),
+            kind: config.kind,
+            fd
+        })
+    }
+}
+
+struct PerfMap {
+    fd: u32,
+    name: String,
+    page_count: u32,
+    callback: Box<FnMut(&[u8])>,
+}
+
 #[inline]
-fn resolve_version(version: u32) -> u32 {
+fn get_version(version: &u32) -> u32 {
     match version {
         0xFFFFFFFE => get_kernel_version().unwrap(),
-        _ => version,
+        _ => version.clone(),
     }
 }
 
