@@ -7,3 +7,4 @@ authors = ["Peter Parkanyi <peter@redsift.io>"]
 bpf-sys = { path = "../bpf-sys" }
 goblin = "^0.0.15"
 zero = "0.1"
+libc = "0.2"

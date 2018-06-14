@@ -1,20 +1,22 @@
 extern crate bpf_sys;
 extern crate goblin;
+extern crate libc;
 extern crate zero;
 
 use bpf_sys::bpf_insn;
 use goblin::elf::section_header as hdr;
 use goblin::{elf::Elf, elf::SectionHeader, error};
 
-use std::ffi::{CString, NulError};
+use std::ffi::{CStr, CString, NulError};
 use std::mem;
 use std::os::unix::io::RawFd;
+use std::str::FromStr;
 
 pub type Result<T> = std::result::Result<T, LoadError>;
 
 struct Module {
     bytes: Vec<u8>,
-    programs: Vec<Function>,
+    programs: Vec<Program>,
     perfs: Vec<PerfMap>,
     license: String,
     kernel_version: u32,
@@ -57,12 +59,19 @@ struct Function {
     code: Vec<bpf_insn>,
 }
 
+struct Program {
+    fd: RawFd,
+    function: Function,
+}
+
 #[derive(Debug)]
 enum LoadError {
     StringConversion,
     BPF,
     Section(String),
     Parse(goblin::error::Error),
+    KernelRelease(String),
+    Uname,
 }
 
 impl From<goblin::error::Error> for LoadError {
@@ -86,11 +95,7 @@ impl Function {
         let name = names.next().ok_or(parse_fail("section name"))?.to_string();
         let kind = FunctionKind::from_section_name(kind)?;
 
-        Ok(Function {
-            kind,
-            name,
-            code
-        })
+        Ok(Function { kind, name, code })
     }
 
     fn load(self, kernel_version: u32, license: String) -> Result<RawFd> {
@@ -118,10 +123,6 @@ impl Function {
             Ok(inserted)
         }
     }
-
-    // fn attach() -> Result<()> {
-    //     bpf_sys::bpf_attach_kprobe()
-    // }
 }
 
 struct Map {
@@ -175,15 +176,47 @@ impl Module {
 #[inline]
 fn resolve_version(version: u32) -> u32 {
     match version {
-        0xFFFFFFFE => get_kernel_version(),
+        0xFFFFFFFE => get_kernel_version().unwrap(),
         _ => version,
     }
 }
 
 #[inline]
-fn get_kernel_version() -> u32 {
-    // TODO
-    1u32
+fn get_kernel_version() -> Result<u32> {
+    let mut uname = libc::utsname {
+        sysname: [0; 65],
+        nodename: [0; 65],
+        release: [0; 65],
+        version: [0; 65],
+        machine: [0; 65],
+        domainname: [0; 65],
+    };
+
+    let res = unsafe { libc::uname(&mut uname) };
+    if res < 0 {
+        return Err(LoadError::Uname);
+    }
+
+    let urelease = to_str(&uname.release);
+    let err = || LoadError::KernelRelease(urelease.to_string());
+    let err_ = |_| LoadError::KernelRelease(urelease.to_string());
+
+    let release_package = urelease.splitn(2, '-');
+    let release = release_package.next().ok_or(err())?.splitn(3, '.');
+
+    let major = u32::from_str(release.next().ok_or(err())?).map_err(err_)?;
+    let minor = u32::from_str(release.next().ok_or(err())?).map_err(err_)?;
+    let patch = u32::from_str(release.next().ok_or(err())?).map_err(err_)?;
+
+    Ok(major << 16 | minor << 8 | patch)
+}
+
+#[inline]
+fn to_str(bytes: &[i8]) -> &str {
+    unsafe {
+        let cstr = CStr::from_ptr(bytes.as_ptr());
+        std::str::from_utf8_unchecked(cstr.to_bytes())
+    }
 }
 
 #[inline]
