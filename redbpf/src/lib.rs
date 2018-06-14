@@ -63,6 +63,8 @@ enum ProgramKind {
 }
 
 struct Program {
+    pfd: Option<RawFd>,
+    fd: Option<RawFd>,
     kind: ProgramKind,
     name: String,
     code: Vec<bpf_insn>,
@@ -103,12 +105,12 @@ impl Program {
         let name = names.next().ok_or(parse_fail("section name"))?.to_string();
         let kind = ProgramKind::from_section(kind)?;
 
-        Ok(Program { kind, name, code })
+        Ok(Program { pfd: None, fd: None, kind, name, code })
     }
 
-    fn load(self, kernel_version: u32, license: String) -> Result<RawFd> {
+    fn load(&mut self, kernel_version: u32, license: String) -> Result<RawFd> {
         let clicense = CString::new(license)?;
-        let cname = CString::new(self.name)?;
+        let cname = CString::new(self.name.clone())?;
         let mut log_buffer = [0u8; 65535];
 
         let fd = unsafe {
@@ -128,7 +130,30 @@ impl Program {
         if fd < 0 {
             Err(LoadError::BPF)
         } else {
+            self.fd = Some(fd);
             Ok(fd)
+        }
+    }
+
+    fn attach(&mut self) {
+        // TODO how do i bind callbacks?
+
+        // for callback: bpf_open_perf_buffer
+        //
+        // pfd is open from attach
+        // perf_reader_new()
+        // perf_reader_set_fd(reader, pfd)
+        // perf_reader_mmap
+        // ioctl PERF_EVENT_IOC_ENABLE
+
+        unsafe {
+            let cname = CString::new(self.name.clone()).unwrap();
+            let pfd = bpf_sys::bpf_attach_kprobe(self.fd.unwrap(),
+                                       self.kind.to_attach_type(),
+                                       cname.as_ptr(),
+                                       cname.as_ptr(),
+                                       0);
+            self.pfd = Some(pfd);
         }
     }
 }
