@@ -43,7 +43,7 @@ impl FunctionKind {
         }
     }
 
-    fn from_section_name(section: &str) -> Result<FunctionKind> {
+    fn from_section(section: &str) -> Result<FunctionKind> {
         use FunctionKind::*;
         match section {
             "kretprobe" => Ok(Kretprobe),
@@ -93,7 +93,7 @@ impl Function {
 
         let kind = names.next().ok_or(parse_fail("section type"))?;
         let name = names.next().ok_or(parse_fail("section name"))?.to_string();
-        let kind = FunctionKind::from_section_name(kind)?;
+        let kind = FunctionKind::from_section(kind)?;
 
         Ok(Function { kind, name, code })
     }
@@ -103,7 +103,7 @@ impl Function {
         let cname = CString::new(self.name)?;
         let mut log_buffer = [0u8; 65535];
 
-        let inserted = unsafe {
+        let fd = unsafe {
             bpf_sys::bpf_prog_load(
                 self.kind.to_prog_type(),
                 cname.as_ptr() as *const i8,
@@ -117,10 +117,10 @@ impl Function {
             )
         };
 
-        if inserted < 0 {
+        if fd < 0 {
             Err(LoadError::BPF)
         } else {
-            Ok(inserted)
+            Ok(fd)
         }
     }
 }
