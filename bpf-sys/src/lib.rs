@@ -1,3 +1,7 @@
+#![allow(non_camel_case_types)]
+#![allow(non_upper_case_globals)]
+#![allow(non_snake_case)]
+
 extern crate zero;
 
 pub const BUF_SIZE_MAP_NS: usize = 256;
