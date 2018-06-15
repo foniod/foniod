@@ -4,9 +4,10 @@ extern crate libc;
 extern crate zero;
 
 use bpf_sys::{bpf_insn, bpf_map_def};
-use goblin::elf::section_header as hdr;
-use goblin::{elf::Elf, elf::SectionHeader, error};
+use goblin::elf::{section_header as hdr, Elf, SectionHeader, Sym};
+use goblin::error;
 
+use std::collections::HashMap;
 use std::ffi::{CStr, CString, NulError};
 use std::mem;
 use std::os::unix::io::RawFd;
@@ -22,6 +23,7 @@ pub enum LoadError {
     Parse(goblin::error::Error),
     KernelRelease(String),
     Uname,
+    Reloc,
 }
 
 impl From<goblin::error::Error> for LoadError {
@@ -39,7 +41,7 @@ impl From<NulError> for LoadError {
 struct Module {
     bytes: Vec<u8>,
     programs: Vec<Program>,
-    perfs: Vec<PerfMap>,
+    maps: Vec<Map>,
     license: String,
     kernel_version: u32,
 }
@@ -156,17 +158,19 @@ impl Program {
 impl Module {
     fn parse(bytes: Vec<u8>) -> Result<Module> {
         let object = Elf::parse(&bytes[..])?;
-        let hdr_strings = object.shdr_strtab.to_vec()?;
-        let strings = object.strtab.to_vec()?;
+        let strings = object.shdr_strtab.to_vec()?;
         let symtab = object.syms.to_vec();
+        let shdr_relocs = &object.shdr_relocs;
 
-        let mut maps: Vec<Map> = vec![];
-        let mut programs = vec![];
+        let mut rels = vec![];
+        let mut programs = HashMap::new();
+        let mut maps = HashMap::new();
+
         let mut license = String::new();
         let mut kernel_version = 0u32;
 
-        for shdr in object.section_headers.iter() {
-            let name = hdr_strings[shdr.sh_name];
+        for (shndx, shdr) in object.section_headers.iter().enumerate() {
+            let name = strings[shdr.sh_name];
             let kind = shdr.sh_type;
             let content = data(&bytes, &shdr);
 
@@ -175,19 +179,62 @@ impl Module {
                 (hdr::SHT_PROGBITS, "version") => {
                     kernel_version = get_version(&zero::read::<u32>(content))
                 }
-                (hdr::SHT_PROGBITS, "maps") => maps.push(Map::new(&name, &content)?),
-                (hdr::SHT_PROGBITS, name) => programs.push(Program::new(&name, &content)?),
+                (hdr::SHT_PROGBITS, "maps") => {
+                    // Maps are immediately bpf_create_map'd
+                    maps.insert(shndx, Map::load(&name, &content)?);
+                }
+                (hdr::SHT_PROGBITS, name) => {
+                    programs.insert(shndx, Program::new(&name, &content)?);
+                }
+                (hdr::SHT_REL, _) => {
+                    // if unwrap blows up, something's really bad
+                    let section_rels = &shdr_relocs.iter().find(|(idx, _)| idx == &shndx).unwrap().1;
+                    rels.extend(section_rels.iter().map(|rel| Rel {
+                        shndx,
+                        target: shdr.sh_info as usize,
+                        sym: rel.r_sym,
+                        offset: rel.r_offset
+                    }));
+                }
                 _ => unreachable!(),
             }
         }
 
+        // Rewrite programs with relocation data
+        for rel in rels.iter() {
+            rel.apply(&mut programs, &maps, &symtab)?;
+        }
+
+        let programs = programs.drain().map(|(_, v)| v).collect();
+        let maps = maps.drain().map(|(_, v)| v).collect();
         Ok(Module {
             bytes: bytes.clone(),
             programs,
-            perfs: vec![],
+            maps,
             license,
             kernel_version,
         })
+    }
+}
+
+struct Rel {
+    shndx: usize,
+    target: usize,
+    offset: u64,
+    sym: usize,
+}
+
+impl Rel {
+    #[inline]
+    fn apply(&self, programs: &mut HashMap<usize, Program>, maps: &HashMap<usize, Map>, symtab: &Vec<Sym>) -> Result<()>{
+        let prog = programs.get_mut(&self.target).ok_or(LoadError::Reloc)?;
+        let map = maps.get(&symtab[self.sym].st_shndx).ok_or(LoadError::Reloc)?;
+        let insn_idx = (self.offset / std::mem::size_of::<bpf_insn>() as u64) as usize;
+
+        prog.code[insn_idx].set_src_reg(bpf_sys::BPF_PSEUDO_MAP_FD as u8);
+        prog.code[insn_idx].imm = map.fd;
+
+        Ok(())
     }
 }
 
@@ -198,7 +245,7 @@ struct Map {
 }
 
 impl Map {
-    fn new(name: &str, code: &[u8]) -> Result<Map> {
+    fn load(name: &str, code: &[u8]) -> Result<Map> {
         let config: &bpf_map_def = zero::read(code);
         let cname = CString::new(name.clone())?;
         let fd = unsafe {
@@ -218,7 +265,7 @@ impl Map {
         Ok(Map {
             name: name.to_string(),
             kind: config.kind,
-            fd
+            fd,
         })
     }
 }
