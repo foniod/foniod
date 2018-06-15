@@ -1,11 +1,12 @@
+#![cfg_attr(feature = "cargo-clippy", allow(clippy))]
+
 extern crate bpf_sys;
 extern crate goblin;
 extern crate libc;
 extern crate zero;
 
 use bpf_sys::{bpf_insn, bpf_map_def};
-use goblin::elf::{section_header as hdr, Elf, SectionHeader, Sym};
-use goblin::error;
+use goblin::elf::{section_header as hdr, Elf, Reloc, SectionHeader, Sym};
 
 use std::collections::HashMap;
 use std::ffi::{CStr, CString, NulError};
@@ -43,12 +44,7 @@ struct Module {
     programs: Vec<Program>,
     maps: Vec<Map>,
     license: String,
-    kernel_version: u32,
-}
-
-enum ProgramKind {
-    Kprobe,
-    Kretprobe,
+    version: u32,
 }
 
 struct Program {
@@ -57,6 +53,31 @@ struct Program {
     kind: ProgramKind,
     name: String,
     code: Vec<bpf_insn>,
+}
+
+enum ProgramKind {
+    Kprobe,
+    Kretprobe,
+}
+
+struct Map {
+    name: String,
+    kind: u32,
+    fd: RawFd,
+}
+
+struct Rel {
+    shndx: usize,
+    target: usize,
+    offset: u64,
+    sym: usize,
+}
+
+struct PerfMap {
+    fd: u32,
+    name: String,
+    page_count: u32,
+    callback: Box<FnMut(&[u8])>,
 }
 
 impl ProgramKind {
@@ -101,6 +122,14 @@ impl Program {
             name,
             code,
         })
+    }
+
+    fn is_loaded(&self) -> bool {
+        self.fd.is_some()
+    }
+
+    fn is_attached(&self) -> bool {
+        self.pfd.is_some()
     }
 
     fn load(&mut self, kernel_version: u32, license: String) -> Result<RawFd> {
@@ -167,7 +196,7 @@ impl Module {
         let mut maps = HashMap::new();
 
         let mut license = String::new();
-        let mut kernel_version = 0u32;
+        let mut version = 0u32;
 
         for (shndx, shdr) in object.section_headers.iter().enumerate() {
             let name = strings[shdr.sh_name];
@@ -175,10 +204,9 @@ impl Module {
             let content = data(&bytes, &shdr);
 
             match (kind, name) {
+                (hdr::SHT_REL, _) => add_rel(&mut rels, shndx, &shdr, &shdr_relocs),
                 (hdr::SHT_PROGBITS, "license") => license.insert_str(0, zero::read_str(content)),
-                (hdr::SHT_PROGBITS, "version") => {
-                    kernel_version = get_version(&zero::read::<u32>(content))
-                }
+                (hdr::SHT_PROGBITS, "version") => version = get_version(&content),
                 (hdr::SHT_PROGBITS, "maps") => {
                     // Maps are immediately bpf_create_map'd
                     maps.insert(shndx, Map::load(&name, &content)?);
@@ -186,17 +214,7 @@ impl Module {
                 (hdr::SHT_PROGBITS, name) => {
                     programs.insert(shndx, Program::new(&name, &content)?);
                 }
-                (hdr::SHT_REL, _) => {
-                    // if unwrap blows up, something's really bad
-                    let section_rels = &shdr_relocs.iter().find(|(idx, _)| idx == &shndx).unwrap().1;
-                    rels.extend(section_rels.iter().map(|rel| Rel {
-                        shndx,
-                        target: shdr.sh_info as usize,
-                        sym: rel.r_sym,
-                        offset: rel.r_offset
-                    }));
-                }
-                _ => unreachable!(),
+                _ => {}
             }
         }
 
@@ -212,23 +230,23 @@ impl Module {
             programs,
             maps,
             license,
-            kernel_version,
+            version,
         })
     }
 }
 
-struct Rel {
-    shndx: usize,
-    target: usize,
-    offset: u64,
-    sym: usize,
-}
-
 impl Rel {
     #[inline]
-    fn apply(&self, programs: &mut HashMap<usize, Program>, maps: &HashMap<usize, Map>, symtab: &Vec<Sym>) -> Result<()>{
+    fn apply(
+        &self,
+        programs: &mut HashMap<usize, Program>,
+        maps: &HashMap<usize, Map>,
+        symtab: &Vec<Sym>,
+    ) -> Result<()> {
         let prog = programs.get_mut(&self.target).ok_or(LoadError::Reloc)?;
-        let map = maps.get(&symtab[self.sym].st_shndx).ok_or(LoadError::Reloc)?;
+        let map = maps
+            .get(&symtab[self.sym].st_shndx)
+            .ok_or(LoadError::Reloc)?;
         let insn_idx = (self.offset / std::mem::size_of::<bpf_insn>() as u64) as usize;
 
         prog.code[insn_idx].set_src_reg(bpf_sys::BPF_PSEUDO_MAP_FD as u8);
@@ -236,12 +254,6 @@ impl Rel {
 
         Ok(())
     }
-}
-
-struct Map {
-    name: String,
-    kind: u32,
-    fd: RawFd,
 }
 
 impl Map {
@@ -270,15 +282,26 @@ impl Map {
     }
 }
 
-struct PerfMap {
-    fd: u32,
-    name: String,
-    page_count: u32,
-    callback: Box<FnMut(&[u8])>,
+#[inline]
+fn add_rel(
+    rels: &mut Vec<Rel>,
+    shndx: usize,
+    shdr: &SectionHeader,
+    shdr_relocs: &Vec<(usize, Vec<Reloc>)>,
+) {
+    // if unwrap blows up, something's really bad
+    let section_rels = &shdr_relocs.iter().find(|(idx, _)| idx == &shndx).unwrap().1;
+    rels.extend(section_rels.iter().map(|rel| Rel {
+        shndx,
+        target: shdr.sh_info as usize,
+        sym: rel.r_sym,
+        offset: rel.r_offset,
+    }));
 }
 
 #[inline]
-fn get_version(version: &u32) -> u32 {
+fn get_version(bytes: &[u8]) -> u32 {
+    let version = zero::read::<u32>(bytes);
     match version {
         0xFFFFFFFE => get_kernel_version().unwrap(),
         _ => version.clone(),
@@ -332,6 +355,6 @@ fn data<'d>(bytes: &'d [u8], shdr: &SectionHeader) -> &'d [u8] {
 }
 
 #[inline]
-fn parse_fail(reason: &str) -> error::Error {
-    error::Error::Malformed(format!("Failed to parse: {}", reason))
+fn parse_fail(reason: &str) -> goblin::error::Error {
+    goblin::error::Error::Malformed(format!("Failed to parse: {}", reason))
 }
