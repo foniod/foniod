@@ -6,6 +6,7 @@ extern crate libc;
 extern crate zero;
 
 mod cpus;
+mod perf;
 
 use bpf_sys::{bpf_insn, bpf_map_def};
 use goblin::elf::{section_header as hdr, Elf, Reloc, SectionHeader, Sym};
@@ -17,6 +18,7 @@ use std::os::unix::io::RawFd;
 use std::str::FromStr;
 
 pub type Result<T> = std::result::Result<T, LoadError>;
+pub type VoidPtr = *mut std::os::raw::c_void;
 
 #[derive(Debug)]
 pub enum LoadError {
@@ -73,13 +75,6 @@ struct Rel {
     target: usize,
     offset: u64,
     sym: usize,
-}
-
-struct PerfMap {
-    fd: u32,
-    name: String,
-    page_count: u32,
-    callback: Box<FnMut(&[u8])>,
 }
 
 impl ProgramKind {
@@ -277,6 +272,33 @@ impl Map {
             kind: config.kind,
             fd,
         })
+    }
+
+    fn set(&mut self, key: &mut [u8], value: &mut [u8]) {
+        unsafe {
+            bpf_sys::bpf_update_elem(
+                self.fd,
+                key.as_mut_ptr() as VoidPtr,
+                value.as_mut_ptr() as VoidPtr,
+                0,
+            );
+        }
+    }
+
+    fn get(&mut self, key: &mut [u8], value: &mut [u8]) {
+        unsafe {
+            bpf_sys::bpf_lookup_elem(
+                self.fd,
+                key.as_mut_ptr() as VoidPtr,
+                value.as_mut_ptr() as VoidPtr,
+            );
+        }
+    }
+
+    fn delete(&mut self, key: &mut [u8]) {
+        unsafe {
+            bpf_sys::bpf_delete_elem(self.fd, key.as_mut_ptr() as VoidPtr);
+        }
     }
 }
 
