@@ -4,6 +4,8 @@ use std::str::FromStr;
 
 const SYS_CPU_ONLINE: &'static str = "/sys/devices/system/cpu/online";
 
+pub type CpuId = i32;
+
 /// Returns a list of online CPU IDs.
 ///
 /// Error handling in this function is deliberately crashy
@@ -13,16 +15,16 @@ const SYS_CPU_ONLINE: &'static str = "/sys/devices/system/cpu/online";
 ///
 /// The only time an error is reported is when
 /// `/sys/devices/system/cpu/online` can't be opened.
-pub fn get_online() -> Result<Vec<u8>, Error> {
+pub fn get_online() -> Result<Vec<CpuId>, Error> {
     let cpus = unsafe { String::from_utf8_unchecked(read(SYS_CPU_ONLINE)?) };
     Ok(list_from_string(&cpus))
 }
 
-fn list_from_string(cpus: &str) -> Vec<u8> {
+fn list_from_string(cpus: &str) -> Vec<CpuId> {
     let cpu_list = cpus.split(',').flat_map(|group| {
         let mut split = group.split('-');
-        let start = u8::from_str(split.next().unwrap()).unwrap();
-        let end = u8::from_str(split.next().unwrap()).unwrap();
+        let start = CpuId::from_str(split.next().unwrap()).unwrap();
+        let end = CpuId::from_str(split.next().unwrap()).unwrap();
         (start..=end)
     });
     cpu_list.collect()
