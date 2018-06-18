@@ -11,7 +11,7 @@ const SYS_CPU_ONLINE: &'static str = "/sys/devices/system/cpu/online";
 /// If the kernel returns with different data format, it's OK to crash
 /// If the user is trying to feed us invalid data, it's OK to crash
 ///
-/// The only time an error is reported is when 
+/// The only time an error is reported is when
 /// `/sys/devices/system/cpu/online` can't be opened.
 pub fn get_online() -> Result<Vec<u8>, Error> {
     let cpus = unsafe { String::from_utf8_unchecked(read(SYS_CPU_ONLINE)?) };
