@@ -162,22 +162,22 @@ impl Program {
     }
 
     fn attach(&mut self) -> Result<RawFd> {
-        unsafe {
-            let cname = CString::new(self.name.clone()).unwrap();
-            let pfd = bpf_sys::bpf_attach_kprobe(
+        let cname = CString::new(self.name.clone()).unwrap();
+        let pfd = unsafe {
+            bpf_sys::bpf_attach_kprobe(
                 self.fd.unwrap(),
                 self.kind.to_attach_type(),
                 cname.as_ptr(),
                 cname.as_ptr(),
                 0,
-            );
+            )
+        };
 
-            if pfd < 0 {
-                Err(LoadError::BPF)
-            } else {
-                self.pfd = Some(pfd);
-                Ok(pfd)
-            }
+        if pfd < 0 {
+            Err(LoadError::BPF)
+        } else {
+            self.pfd = Some(pfd);
+            Ok(pfd)
         }
     }
 }
