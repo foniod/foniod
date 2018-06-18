@@ -14,7 +14,7 @@ use std::process::Command;
 
 fn kernel_headers() -> Result<Vec<OsString>, Error> {
     let uname = Command::new("uname").arg("-r").output()?;
-    let release = String::from_utf8(uname.stdout)?.replace("\n", "");
+    let release = String::from_utf8(uname.stdout)?.trim();
 
     if release.ends_with("-ARCH") {
         // Support for building on Arch Linux
