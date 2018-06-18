@@ -161,17 +161,7 @@ impl Program {
         }
     }
 
-    fn attach(&mut self) {
-        // TODO how do i bind callbacks?
-
-        // for callback: bpf_open_perf_buffer
-        //
-        // pfd is open from attach
-        // perf_reader_new()
-        // perf_reader_set_fd(reader, pfd)
-        // perf_reader_mmap
-        // ioctl PERF_EVENT_IOC_ENABLE
-
+    fn attach(&mut self) -> Result<RawFd> {
         unsafe {
             let cname = CString::new(self.name.clone()).unwrap();
             let pfd = bpf_sys::bpf_attach_kprobe(
@@ -181,7 +171,13 @@ impl Program {
                 cname.as_ptr(),
                 0,
             );
-            self.pfd = Some(pfd);
+
+            if pfd < 0 {
+                Err(LoadError::BPF)
+            } else {
+                self.pfd = Some(pfd);
+                Ok(pfd)
+            }
         }
     }
 }
