@@ -5,6 +5,8 @@ extern crate goblin;
 extern crate libc;
 extern crate zero;
 
+mod cpus;
+
 use bpf_sys::{bpf_insn, bpf_map_def};
 use goblin::elf::{section_header as hdr, Elf, Reloc, SectionHeader, Sym};
 
