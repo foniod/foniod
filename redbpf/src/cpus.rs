@@ -17,7 +17,7 @@ pub type CpuId = i32;
 /// `/sys/devices/system/cpu/online` can't be opened.
 pub fn get_online() -> Result<Vec<CpuId>, Error> {
     let cpus = unsafe { String::from_utf8_unchecked(read(SYS_CPU_ONLINE)?) };
-    Ok(list_from_string(&cpus))
+    Ok(list_from_string(&cpus.trim()))
 }
 
 fn list_from_string(cpus: &str) -> Vec<CpuId> {
