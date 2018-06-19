@@ -111,12 +111,9 @@ impl ProgramKind {
 }
 
 impl Program {
-    pub fn new(name: &str, code: &[u8]) -> Result<Program> {
+    pub fn new(kind: &str, name: &str, code: &[u8]) -> Result<Program> {
         let code = zero::read_array(code).to_vec();
-        let mut names = name.splitn(2, '/');
-
-        let kind = names.next().ok_or(parse_fail("section type"))?;
-        let name = names.next().ok_or(parse_fail("section name"))?.to_string();
+        let name = name.to_string();
         let kind = ProgramKind::from_section(kind)?;
 
         Ok(Program {
@@ -187,7 +184,7 @@ impl Program {
 impl Module {
     pub fn parse(bytes: &[u8]) -> Result<Module> {
         let object = Elf::parse(&bytes[..])?;
-        let strings = object.shdr_strtab.to_vec()?;
+        let strings = object.shdr_strtab;
         let symtab = object.syms.to_vec();
         let shdr_relocs = &object.shdr_relocs;
 
@@ -199,20 +196,29 @@ impl Module {
         let mut version = 0u32;
 
         for (shndx, shdr) in object.section_headers.iter().enumerate() {
-            let name = strings[shdr.sh_name];
-            let kind = shdr.sh_type;
+            let name = strings
+                .get_unsafe(shdr.sh_name)
+                .ok_or(LoadError::Section(format!(
+                    "Section name not found: {}",
+                    shndx
+                )))?;
+            let section_type = shdr.sh_type;
             let content = data(&bytes, &shdr);
 
-            match (kind, name) {
-                (hdr::SHT_REL, _) => add_rel(&mut rels, shndx, &shdr, &shdr_relocs),
-                (hdr::SHT_PROGBITS, "license") => license.insert_str(0, zero::read_str(content)),
-                (hdr::SHT_PROGBITS, "version") => version = get_version(&content),
-                (hdr::SHT_PROGBITS, "maps") => {
-                    // Maps are immediately bpf_create_map'd
-                    maps.insert(shndx, Map::load(&name, &content)?);
+            let (main_name, secondary_name) = parse_name(name);
+            match (section_type, main_name, secondary_name) {
+                (hdr::SHT_REL, _, _) => add_rel(&mut rels, shndx, &shdr, &shdr_relocs),
+                (hdr::SHT_PROGBITS, Some("version"), _) => version = get_version(&content),
+                (hdr::SHT_PROGBITS, Some("license"), _) => {
+                    license.insert_str(0, zero::read_str(content))
                 }
-                (hdr::SHT_PROGBITS, name) => {
-                    programs.insert(shndx, Program::new(&name, &content)?);
+                (hdr::SHT_PROGBITS, Some("maps"), Some(name)) => {
+                    // Maps are immediately bpf_create_map'd
+                    maps.insert(shndx, Map::load(name, &content)?);
+                }
+                (hdr::SHT_PROGBITS, Some(kind @ "kprobe"), Some(name))
+                | (hdr::SHT_PROGBITS, Some(kind @ "kretprobe"), Some(name)) => {
+                    programs.insert(shndx, Program::new(kind, name, &content)?);
                 }
                 _ => {}
             }
@@ -297,6 +303,16 @@ impl Map {
             bpf_sys::bpf_delete_elem(self.fd, key);
         }
     }
+}
+
+#[inline]
+fn parse_name(name: &str) -> (Option<&str>, Option<&str>) {
+    let mut names = name.splitn(2, '/');
+
+    let kind = names.next();
+    let name = names.next();
+
+    (kind, name)
 }
 
 #[inline]
