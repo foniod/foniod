@@ -1,5 +1,5 @@
 [package]
-name = "netagentd"
+name = "ingraind"
 version = "0.1.0"
 authors = ["vagrant"]
 build = "build.rs"
