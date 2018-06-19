@@ -5,7 +5,7 @@ extern crate goblin;
 extern crate libc;
 extern crate zero;
 
-mod cpus;
+pub mod cpus;
 mod perf;
 
 use bpf_sys::{bpf_insn, bpf_map_def};
@@ -17,6 +17,7 @@ use std::mem;
 use std::os::unix::io::RawFd;
 use std::str::FromStr;
 
+pub use perf::*;
 pub type Result<T> = std::result::Result<T, LoadError>;
 pub type VoidPtr = *mut std::os::raw::c_void;
 
@@ -50,34 +51,34 @@ impl From<std::io::Error> for LoadError {
     }
 }
 
-struct Module {
-    bytes: Vec<u8>,
-    programs: Vec<Program>,
-    maps: Vec<Map>,
-    license: String,
-    version: u32,
+pub struct Module {
+    pub bytes: Vec<u8>,
+    pub programs: Vec<Program>,
+    pub maps: Vec<Map>,
+    pub license: String,
+    pub version: u32,
 }
 
-struct Program {
+pub struct Program {
     pfd: Option<RawFd>,
     fd: Option<RawFd>,
-    kind: ProgramKind,
-    name: String,
+    pub kind: ProgramKind,
+    pub name: String,
     code: Vec<bpf_insn>,
 }
 
-enum ProgramKind {
+pub enum ProgramKind {
     Kprobe,
     Kretprobe,
 }
 
-struct Map {
-    name: String,
-    kind: u32,
+pub struct Map {
+    pub name: String,
+    pub kind: u32,
     fd: RawFd,
 }
 
-struct Rel {
+pub struct Rel {
     shndx: usize,
     target: usize,
     offset: u64,
@@ -85,14 +86,14 @@ struct Rel {
 }
 
 impl ProgramKind {
-    fn to_prog_type(&self) -> bpf_sys::bpf_prog_type {
+    pub fn to_prog_type(&self) -> bpf_sys::bpf_prog_type {
         use ProgramKind::*;
         match self {
             Kprobe | Kretprobe => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_KPROBE,
         }
     }
 
-    fn to_attach_type(&self) -> bpf_sys::bpf_probe_attach_type {
+    pub fn to_attach_type(&self) -> bpf_sys::bpf_probe_attach_type {
         use ProgramKind::*;
         match self {
             Kprobe => bpf_sys::bpf_probe_attach_type_BPF_PROBE_ENTRY,
@@ -100,7 +101,7 @@ impl ProgramKind {
         }
     }
 
-    fn from_section(section: &str) -> Result<ProgramKind> {
+    pub fn from_section(section: &str) -> Result<ProgramKind> {
         use ProgramKind::*;
         match section {
             "kretprobe" => Ok(Kretprobe),
@@ -111,7 +112,7 @@ impl ProgramKind {
 }
 
 impl Program {
-    fn new(name: &str, code: &[u8]) -> Result<Program> {
+    pub fn new(name: &str, code: &[u8]) -> Result<Program> {
         let code = zero::read_array(code).to_vec();
         let mut names = name.splitn(2, '/');
 
@@ -128,15 +129,15 @@ impl Program {
         })
     }
 
-    fn is_loaded(&self) -> bool {
+    pub fn is_loaded(&self) -> bool {
         self.fd.is_some()
     }
 
-    fn is_attached(&self) -> bool {
+    pub fn is_attached(&self) -> bool {
         self.pfd.is_some()
     }
 
-    fn load(&mut self, kernel_version: u32, license: String) -> Result<RawFd> {
+    pub fn load(&mut self, kernel_version: u32, license: String) -> Result<RawFd> {
         let clicense = CString::new(license)?;
         let cname = CString::new(self.name.clone())?;
         let mut log_buffer = [0u8; 65535];
@@ -163,7 +164,7 @@ impl Program {
         }
     }
 
-    fn attach(&mut self) -> Result<RawFd> {
+    pub fn attach(&mut self) -> Result<RawFd> {
         let cname = CString::new(self.name.clone()).unwrap();
         let pfd = unsafe {
             bpf_sys::bpf_attach_kprobe(
@@ -185,7 +186,7 @@ impl Program {
 }
 
 impl Module {
-    fn parse(bytes: Vec<u8>) -> Result<Module> {
+    pub fn parse(bytes: Vec<u8>) -> Result<Module> {
         let object = Elf::parse(&bytes[..])?;
         let strings = object.shdr_strtab.to_vec()?;
         let symtab = object.syms.to_vec();
@@ -237,7 +238,7 @@ impl Module {
 
 impl Rel {
     #[inline]
-    fn apply(
+    pub fn apply(
         &self,
         programs: &mut HashMap<usize, Program>,
         maps: &HashMap<usize, Map>,
@@ -257,7 +258,7 @@ impl Rel {
 }
 
 impl Map {
-    fn load(name: &str, code: &[u8]) -> Result<Map> {
+    pub fn load(name: &str, code: &[u8]) -> Result<Map> {
         let config: &bpf_map_def = zero::read(code);
         let cname = CString::new(name.clone())?;
         let fd = unsafe {
@@ -281,19 +282,19 @@ impl Map {
         })
     }
 
-    fn set(&mut self, key: VoidPtr, value: VoidPtr) {
+    pub fn set(&mut self, key: VoidPtr, value: VoidPtr) {
         unsafe {
             bpf_sys::bpf_update_elem(self.fd, key, value, 0);
         }
     }
 
-    fn get(&mut self, key: VoidPtr, value: VoidPtr) {
+    pub fn get(&mut self, key: VoidPtr, value: VoidPtr) {
         unsafe {
             bpf_sys::bpf_lookup_elem(self.fd, key, value);
         }
     }
 
-    fn delete(&mut self, key: VoidPtr) {
+    pub fn delete(&mut self, key: VoidPtr) {
         unsafe {
             bpf_sys::bpf_delete_elem(self.fd, key);
         }
