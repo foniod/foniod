@@ -1,6 +1,22 @@
 ingrainD
 ========
 
+Data-first monitoring.
+
+InGrain is a security monitoring software for complex containerized
+environments and endpoints. The ingraind agent is built around eBPF probes to
+provide safe and performant instrumentation for any Linux-based environment.
+
+In conjunction with the RedSift Cloud, InGrain provides oversight of assets and
+risks:
+ * Your customer data - an employee copying your customer database to their
+   personal cloud store.
+ * Your infrastructure - an attacker executing a zero day attack to gain access
+   to your web servers.
+ * Your resources - malware using your users machines compute resources to mine
+   cryptocurrency.
+
+
 ## Requirements
  
  * LLVM/Clang
@@ -104,6 +120,13 @@ These `perf_reader`s need to be `perf_reader_poll`'d periodically, and the
 
 Therefore, there's a `perf_reader` and an associated ringbuffer *per CPU*, *per
 PID*, or other meaningful categorisation for the usecase.
+
+Per-CPU aggregation is meaningful when monitoring an entire system. The
+perf_event output in this case is necessarily bound to CPUs, therefore it makes
+sense to use CPU-local ring buffers to maximise throughput.
+
+Per-PID aggregation are useful when running process/socket-specific tracers. The
+performance implication of this strategy is unclear at this point.
     
 ### ELF parsing
 
