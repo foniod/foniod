@@ -52,7 +52,6 @@ impl From<std::io::Error> for LoadError {
 }
 
 pub struct Module {
-    pub bytes: Vec<u8>,
     pub programs: Vec<Program>,
     pub maps: Vec<Map>,
     pub license: String,
@@ -186,7 +185,7 @@ impl Program {
 }
 
 impl Module {
-    pub fn parse(bytes: Vec<u8>) -> Result<Module> {
+    pub fn parse(bytes: &[u8]) -> Result<Module> {
         let object = Elf::parse(&bytes[..])?;
         let strings = object.shdr_strtab.to_vec()?;
         let symtab = object.syms.to_vec();
@@ -227,7 +226,6 @@ impl Module {
         let programs = programs.drain().map(|(_, v)| v).collect();
         let maps = maps.drain().map(|(_, v)| v).collect();
         Ok(Module {
-            bytes: bytes.clone(),
             programs,
             maps,
             license,
