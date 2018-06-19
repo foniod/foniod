@@ -107,7 +107,7 @@ impl<'m> PerfMap<'m> {
         })
     }
 
-    fn poll(&mut self, timeout: i32) {
+    pub fn poll(&mut self, timeout: i32) {
         unsafe {
             perf_reader_poll(
                 self.readers.len() as i32,
