@@ -27,6 +27,7 @@ pub enum LoadError {
     Section(String),
     Parse(goblin::error::Error),
     KernelRelease(String),
+    IO(std::io::Error),
     Uname,
     Reloc,
 }
@@ -40,6 +41,12 @@ impl From<goblin::error::Error> for LoadError {
 impl From<NulError> for LoadError {
     fn from(_e: NulError) -> LoadError {
         LoadError::StringConversion
+    }
+}
+
+impl From<std::io::Error> for LoadError {
+    fn from(e: std::io::Error) -> LoadError {
+        LoadError::IO(e)
     }
 }
 
@@ -274,30 +281,21 @@ impl Map {
         })
     }
 
-    fn set(&mut self, key: &mut [u8], value: &mut [u8]) {
+    fn set(&mut self, key: VoidPtr, value: VoidPtr) {
         unsafe {
-            bpf_sys::bpf_update_elem(
-                self.fd,
-                key.as_mut_ptr() as VoidPtr,
-                value.as_mut_ptr() as VoidPtr,
-                0,
-            );
+            bpf_sys::bpf_update_elem(self.fd, key, value, 0);
         }
     }
 
-    fn get(&mut self, key: &mut [u8], value: &mut [u8]) {
+    fn get(&mut self, key: VoidPtr, value: VoidPtr) {
         unsafe {
-            bpf_sys::bpf_lookup_elem(
-                self.fd,
-                key.as_mut_ptr() as VoidPtr,
-                value.as_mut_ptr() as VoidPtr,
-            );
+            bpf_sys::bpf_lookup_elem(self.fd, key, value);
         }
     }
 
-    fn delete(&mut self, key: &mut [u8]) {
+    fn delete(&mut self, key: VoidPtr) {
         unsafe {
-            bpf_sys::bpf_delete_elem(self.fd, key.as_mut_ptr() as VoidPtr);
+            bpf_sys::bpf_delete_elem(self.fd, key);
         }
     }
 }
