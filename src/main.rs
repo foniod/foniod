@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-mod bpf;
+mod grains;
 
 use chrono::DateTime;
 use failure::Error;
