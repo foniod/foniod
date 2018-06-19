@@ -81,9 +81,9 @@ fn build(flags: &[OsString], out_dir: &Path, source: &Path) -> Result<PathBuf, E
 }
 
 fn generate_bindings(flags: &[String], out_dir: &Path, source: &Path) -> Result<(), Error> {
-    const TYPE_REGEX: &str = "_data_.*";
+    const TYPE_REGEX: &str = "_data_[^{}]*";
     lazy_static! {
-        static ref RE: Regex = Regex::new(&format!("struct \\({}\\)", TYPE_REGEX)).unwrap();
+        static ref RE: Regex = Regex::new(&format!(r"struct ({})", TYPE_REGEX)).unwrap();
     }
 
     let bindings = bindgen::builder()
@@ -102,7 +102,7 @@ impl<'a> From<&'a [u8]> for ### {
     }
 }
 "
-            .replace("###", &data_type[2]);
+            .replace("###", &data_type[1]);
         code.push_str(&trait_impl);
     }
 
