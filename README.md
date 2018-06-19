@@ -36,7 +36,7 @@ These are:
  
 ## How it all works
 
-![./architecture.png]
+![](./architecture.png)
 
 ### Build
 
