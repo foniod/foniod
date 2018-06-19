@@ -22,7 +22,7 @@ unsafe extern "C" fn raw_callback(pc: VoidPtr, ptr: VoidPtr, size: i32) {
 pub type PerfCallback = Box<FnMut(&[u8]) + Send>;
 struct PerfCallbackWrapper(PerfCallback);
 
-pub struct PerfReader(*mut perf_reader);
+struct PerfReader(*mut perf_reader);
 impl PerfReader {
     fn new(
         pid: i32,
@@ -66,7 +66,7 @@ pub struct PerfMap<'m> {
 }
 
 impl<'m> PerfMap<'m> {
-    fn new<CB>(
+    pub fn new<CB>(
         map: &'m mut Map,
         pid: i32,
         cpu: i32,
