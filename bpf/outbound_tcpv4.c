@@ -56,9 +56,10 @@ __u32 _version SEC("version") = 0xFFFFFFFE;
 char _license[] SEC("license") = "GPL";
 
 SEC("kprobe/tcp_v4_connect")
-int trace_outbound_entry(struct pt_regs *ctx, struct sock *sk)
+int trace_outbound_entry(struct pt_regs *ctx)
 {
 	u32 pid = bpf_get_current_pid_tgid();
+  struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
 
 	// stash the sock ptr for lookup on return
   bpf_map_update_elem(&currsock, &pid, &sk, BPF_ANY);
@@ -91,10 +92,18 @@ int trace_outbound_return(struct pt_regs *ctx)
   bpf_get_current_comm(&data.comm, sizeof(data.comm));
 
 	// pull in details
-	struct sock *skp = *skpp;
-	data.saddr = skp->__sk_common.skc_rcv_saddr;
-	data.daddr = skp->__sk_common.skc_daddr;
-	data.dport = skp->__sk_common.skc_dport;
+  struct sock *skp = *skpp;
+	struct sock_common skc;
+
+  ret = bpf_probe_read(&skc, sizeof(struct sock_common), skp);
+  if (ret < 0) {
+    goto cleanup;
+  }
+
+	data.saddr = skc.skc_rcv_saddr;
+	data.daddr = skc.skc_daddr;
+	data.sport = skc.skc_sport;
+	data.dport = skc.skc_dport;
 
 	u32 cpu = bpf_get_smp_processor_id();
   bpf_perf_event_output(ctx, &events, cpu, &data, sizeof(data));
