@@ -67,6 +67,7 @@ pub struct Program {
     code_bytes: i32,
 }
 
+#[derive(Debug)]
 pub enum ProgramKind {
     Kprobe,
     Kretprobe,
@@ -164,12 +165,13 @@ impl Program {
     }
 
     pub fn attach(&mut self) -> Result<RawFd> {
+        let ev_name = CString::new(format!("{}{}", self.name, self.kind.to_attach_type())).unwrap();
         let cname = CString::new(self.name.clone()).unwrap();
         let pfd = unsafe {
             bpf_sys::bpf_attach_kprobe(
                 self.fd.unwrap(),
                 self.kind.to_attach_type(),
-                cname.as_ptr(),
+                ev_name.as_ptr(),
                 cname.as_ptr(),
                 0,
             )
@@ -229,7 +231,9 @@ impl Module {
 
         // Rewrite programs with relocation data
         for rel in rels.iter() {
-            rel.apply(&mut programs, &maps, &symtab)?;
+            if programs.contains_key(&rel.target) {
+                rel.apply(&mut programs, &maps, &symtab)?;
+            }
         }
 
         let programs = programs.drain().map(|(_, v)| v).collect();
