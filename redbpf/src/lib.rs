@@ -64,6 +64,7 @@ pub struct Program {
     pub kind: ProgramKind,
     pub name: String,
     code: Vec<bpf_insn>,
+    code_bytes: i32,
 }
 
 pub enum ProgramKind {
@@ -112,6 +113,7 @@ impl ProgramKind {
 
 impl Program {
     pub fn new(kind: &str, name: &str, code: &[u8]) -> Result<Program> {
+        let code_bytes = code.len() as i32;
         let code = zero::read_array(code).to_vec();
         let name = name.to_string();
         let kind = ProgramKind::from_section(kind)?;
@@ -122,6 +124,7 @@ impl Program {
             kind,
             name,
             code,
+            code_bytes,
         })
     }
 
@@ -143,7 +146,7 @@ impl Program {
                 self.kind.to_prog_type(),
                 cname.as_ptr() as *const i8,
                 self.code.as_ptr(),
-                self.code.len() as i32,
+                self.code_bytes,
                 clicense.as_ptr() as *const i8,
                 kernel_version as u32,
                 0 as i32,
