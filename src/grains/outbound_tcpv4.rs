@@ -10,10 +10,12 @@ use std::ptr;
 use std::thread;
 use std::time::Duration;
 
+use cadence::StatsdClient;
+
 pub struct OutboundTCP4;
 
 impl Grain for OutboundTCP4 {
-    fn start() {
+    fn start(statsd: &StatsdClient) {
         // let mut f = File::open(env::var("MOD").unwrap()).unwrap();
         // let mut bytes = vec![];
         // f.read_to_end(&mut bytes);
@@ -36,9 +38,19 @@ impl Grain for OutboundTCP4 {
             .iter_mut()
             .map(|m| {
                 PerfMap::new(m, -1, 0, 16, || {
-                    Box::new(|raw| {
+                    let statsd = statsd.clone();
+                    Box::new(move |raw| {
+                        use cadence::prelude::*;
+                        use cadence::Metric;
+
                         let lowlevel = _data_connect::from(raw);
                         let connection = Connection::from(lowlevel);
+                        let sent = statsd.incr_with_tags("ingrain.outbound_tcpv4")
+                            .with_tag("host", &format!("{}", connection.destnection.destination_ip))
+                            .with_tag("port", &format!("{}", connection.destination_port))
+                            .with_tag("name", &format!("{}", connection.name))
+                            .try_send().unwrap();
+
                         println!("{:?}", connection);
                     })
                 }).unwrap()
@@ -76,7 +88,7 @@ impl From<_data_connect> for Connection {
             name: get_string(unsafe { &*(&data.comm as *const [i8] as *const [u8]) }),
             source_ip: to_ip(data.saddr),
             destination_ip: to_ip(data.daddr),
-            destination_port: data.dport,
+            destination_port: (data.dport >> 8) | (data.dport << 8),
         }
     }
 }

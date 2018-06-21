@@ -13,6 +13,10 @@ use std::env;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+use std::net::UdpSocket;
+
+use cadence::prelude::*;
+use cadence::{StatsdClient, QueuingMetricSink, BufferedUdpMetricSink, DEFAULT_PORT};
 
 use chrono::DateTime;
 use failure::Error;
@@ -22,7 +26,15 @@ mod grains;
 use grains::Grain;
 
 fn main() -> Result<(), Error> {
-    grains::outbound_tcpv4::OutboundTCP4::start();
+    let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
+    socket.set_nonblocking(true).unwrap();
+
+    let host = ("127.0.0.1", DEFAULT_PORT);
+    let udp_sink = BufferedUdpMetricSink::from(host, socket).unwrap();
+    let queuing_sink = QueuingMetricSink::from(udp_sink);
+    let client = StatsdClient::from_udp_host("ingraind.metrics", host).unwrap();
+
+    grains::outbound_tcpv4::OutboundTCP4::start(&client);
 
     // let instance_name =
     //     env::var("TCPSNIFF_ID").expect("Need to set INSTANCE_NAME environment variable");
