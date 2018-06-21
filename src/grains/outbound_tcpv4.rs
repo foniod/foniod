@@ -2,9 +2,9 @@ use grains::Grain;
 use redbpf::{LoadError, Module, PerfMap};
 use serde::{Deserialize, Serialize};
 
-use std::io::Read;
-use std::fs::File;
 use std::env;
+use std::fs::File;
+use std::io::Read;
 use std::net::Ipv4Addr;
 use std::ptr;
 use std::thread;
@@ -14,15 +14,21 @@ pub struct OutboundTCP4;
 
 impl Grain for OutboundTCP4 {
     fn start() {
-        let mut f = File::open(env::var("MOD").unwrap()).unwrap();
-        let mut bytes = vec![];
-        f.read_to_end(&mut bytes);
+        // let mut f = File::open(env::var("MOD").unwrap()).unwrap();
+        // let mut bytes = vec![];
+        // f.read_to_end(&mut bytes);
 
-        let mut module = Module::parse(&mut bytes).unwrap();
-        // let mut module = Module::parse(OUTBOUND_TCPV4).unwrap();
+        // let mut module = Module::parse(&mut bytes).unwrap();
+        let mut module = Module::parse(OUTBOUND_TCPV4).unwrap();
+
         for prog in module.programs.iter_mut() {
             prog.load(module.version, module.license.clone()).unwrap();
-            prog.attach().unwrap();
+            println!(
+                "prog loaded: {} {} {:?}",
+                prog.attach().is_ok(),
+                prog.name,
+                prog.kind
+            );
         }
 
         let mut perfmaps: Vec<PerfMap> = module
@@ -38,7 +44,6 @@ impl Grain for OutboundTCP4 {
                 }).unwrap()
             })
             .collect();
-
 
         loop {
             thread::sleep(Duration::from_secs(1));

@@ -4,6 +4,7 @@ extern crate libc;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate cadence;
 extern crate redbpf;
 extern crate serde_json;
 extern crate uuid;
@@ -21,7 +22,6 @@ mod grains;
 use grains::Grain;
 
 fn main() -> Result<(), Error> {
-
     grains::outbound_tcpv4::OutboundTCP4::start();
 
     // let instance_name =
