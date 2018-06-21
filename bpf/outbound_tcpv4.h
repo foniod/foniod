@@ -34,7 +34,6 @@ struct _data_connect {
   char comm[TASK_COMM_LEN];
   u32 saddr;
   u32 daddr;
-  u16 sport;
   u16 dport;
 };
 

@@ -83,7 +83,8 @@ int trace_outbound_return(struct pt_regs *ctx)
 	if (ret != 0) {
 		// failed to send SYNC packet, may not have populated
 		// socket __sk_common.{skc_rcv_saddr, ...}
-    goto cleanup;
+    bpf_map_delete_elem(&currsock, &pid);
+    return 0;
 	}
 
   data.id = pid;
@@ -97,18 +98,17 @@ int trace_outbound_return(struct pt_regs *ctx)
 
   ret = bpf_probe_read(&skc, sizeof(struct sock_common), skp);
   if (ret < 0) {
-    goto cleanup;
+    bpf_map_delete_elem(&currsock, &pid);
+    return 0;
   }
 
 	data.saddr = skc.skc_rcv_saddr;
 	data.daddr = skc.skc_daddr;
-	data.sport = skc.skc_sport;
 	data.dport = skc.skc_dport;
 
 	u32 cpu = bpf_get_smp_processor_id();
   bpf_perf_event_output(ctx, &events, cpu, &data, sizeof(data));
 
- cleanup:
   bpf_map_delete_elem(&currsock, &pid);
 	return 0;
 }
