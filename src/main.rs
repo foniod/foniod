@@ -10,13 +10,12 @@ extern crate serde_json;
 extern crate uuid;
 
 use std::env;
+use std::net::UdpSocket;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use std::net::UdpSocket;
 
-use cadence::prelude::*;
-use cadence::{StatsdClient, QueuingMetricSink, BufferedUdpMetricSink, DEFAULT_PORT};
+use cadence::{BufferedUdpMetricSink, QueuingMetricSink, StatsdClient, DEFAULT_PORT};
 
 use chrono::DateTime;
 use failure::Error;
