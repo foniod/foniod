@@ -118,6 +118,7 @@ fn main() -> Result<(), Error> {
     let headers = kernel_headers()?;
     let flags = {
         let mut cflags: Vec<OsString> = vec![
+            "-D__BPF_TRACING__",
             "-D__KERNEL__",
             "-D__ASM_SYSREG_H",
             "-Wno-unused-value",
