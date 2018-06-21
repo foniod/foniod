@@ -39,7 +39,7 @@ struct bpf_map_def SEC("maps/currsock") currsock = {
 };
 
 
-struct bpf_map_def SEC("maps/events") events = {
+struct bpf_map_def SEC("maps/tcp4_connections") tcp4_connections = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(u32),
     .value_size = sizeof(u32),
@@ -48,13 +48,78 @@ struct bpf_map_def SEC("maps/events") events = {
     .namespace = "",
 };
 
-/* BPF_HASH(currsock, u32, struct sock *); */
-/* BPF_PERF_OUTPUT(events); */
+struct bpf_map_def SEC("maps/tcp4_volume") tcp4_volume = {
+    .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(u32),
+    .max_entries = 1024,
+    .pinning = 0,
+    .namespace = "",
+};
 
 // Version number to stay compatible with gobpf-elf-loader
 // This should be resolved to running kernel version
 __u32 _version SEC("version") = 0xFFFFFFFE;
 char _license[] SEC("license") = "GPL";
+
+static __inline__
+struct _data_connect get_connection_details(struct sock **skpp, u32 pid) {
+  struct _data_connect data = {};
+  struct inet_sock *skp = inet_sk(*skpp);
+
+  data.id = pid;
+  data.ts = bpf_ktime_get_ns();
+
+  bpf_get_current_comm(&data.comm, sizeof(data.comm));
+
+  bpf_probe_read(&data.saddr, sizeof(u32), &skp->inet_saddr);
+  bpf_probe_read(&data.daddr, sizeof(u32), &skp->inet_daddr);
+  bpf_probe_read(&data.dport, sizeof(u32), &skp->inet_dport);
+  bpf_probe_read(&data.sport, sizeof(u32), &skp->inet_sport);
+
+  return data;
+}
+
+SEC("kprobe/tcp_sendmsg")
+int trace_sendmsg_entry(struct pt_regs *ctx)
+{
+	u32 pid = bpf_get_current_pid_tgid();
+  struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
+  size_t size = (size_t) PT_REGS_PARM3(ctx);
+
+  struct _data_volume data = {
+    .conn = get_connection_details(&sk, pid),
+    .send = size,
+    .recv = 0
+  };
+
+  u32 cpu = bpf_get_smp_processor_id();
+  bpf_perf_event_output(ctx, &tcp4_volume, cpu, &data, sizeof(data));
+
+
+	return 0;
+};
+
+
+SEC("kprobe/tcp_recvmsg")
+int trace_recvmsg_entry(struct pt_regs *ctx)
+{
+	u32 pid = bpf_get_current_pid_tgid();
+  struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
+  size_t size = (size_t) PT_REGS_PARM3(ctx);
+
+  struct _data_volume data = {
+                              .conn = get_connection_details(&sk, pid),
+                              .send = 0,
+                              .recv = size
+  };
+
+  u32 cpu = bpf_get_smp_processor_id();
+  bpf_perf_event_output(ctx, &tcp4_volume, cpu, &data, sizeof(data));
+
+	return 0;
+};
+
 
 SEC("kprobe/tcp_v4_connect")
 int trace_outbound_entry(struct pt_regs *ctx)
@@ -73,7 +138,6 @@ int trace_outbound_return(struct pt_regs *ctx)
 {
 	int ret = PT_REGS_RC(ctx);
 	u32 pid = bpf_get_current_pid_tgid();
-  struct _data_connect data = {};
 
 	struct sock **skpp;
 	skpp = bpf_map_lookup_elem(&currsock, &pid);
@@ -88,27 +152,15 @@ int trace_outbound_return(struct pt_regs *ctx)
     return 0;
 	}
 
-  data.id = pid;
-  data.ts = bpf_ktime_get_ns();
+  struct _data_connect data = get_connection_details(skpp, pid);
 
-  bpf_get_current_comm(&data.comm, sizeof(data.comm));
-
-	// pull in details
-  struct inet_sock *skp = inet_sk(*skpp);
-
-  ret = 0;
-  ret |= bpf_probe_read(&data.saddr, sizeof(u32), &skp->inet_saddr);
-  ret |= bpf_probe_read(&data.daddr, sizeof(u32), &skp->inet_daddr);
-  ret |= bpf_probe_read(&data.dport, sizeof(u32), &skp->inet_dport);
-  ret |= bpf_probe_read(&data.sport, sizeof(u32), &skp->inet_sport);
-
-  if (ret < 0) {
+  if (data.saddr == 0 || data.daddr == 0 || data.dport == 0 || data.sport == 0) {
     bpf_map_delete_elem(&currsock, &pid);
     return 0;
   }
 
 	u32 cpu = bpf_get_smp_processor_id();
-  bpf_perf_event_output(ctx, &events, cpu, &data, sizeof(data));
+  bpf_perf_event_output(ctx, &tcp4_connections, cpu, &data, sizeof(data));
 
   bpf_map_delete_elem(&currsock, &pid);
 	return 0;
