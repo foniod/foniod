@@ -38,4 +38,10 @@ struct _data_connect {
   u16 sport;
 };
 
+struct _data_volume {
+  struct _data_connect conn;
+  size_t send;
+  size_t recv;
+};
+
 #endif

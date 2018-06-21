@@ -33,35 +33,57 @@ impl Grain for OutboundTCP4 {
             );
         }
 
-        let mut perfmaps: Vec<PerfMap> = module
+        let mut perfmaps = module
             .maps
             .iter_mut()
-            .map(|m| {
-                PerfMap::new(m, -1, 0, 16, || {
+            .map(|m| match m.name.as_str() {
+                "tcp4_connections" => PerfMap::new(m, -1, 0, 16, || {
                     let statsd = statsd.clone();
                     Box::new(move |raw| {
                         use cadence::prelude::*;
                         use cadence::Metric;
 
-                        let lowlevel = _data_connect::from(raw);
-                        let connection = Connection::from(lowlevel);
-                        let sent = statsd.incr_with_tags("ingrain.outbound_tcpv4")
+                        let connection = Connection::from(_data_connect::from(raw));
+                        let sent = statsd
+                            .incr_with_tags("connection.{}")
                             .with_tag("host", &format!("{}", connection.destination_ip))
                             .with_tag("port", &format!("{}", connection.destination_port))
                             .with_tag("name", &format!("{}", connection.name))
-                            .try_send().unwrap();
-
-                        println!("{:?}", connection);
+                            .try_send()
+                            .unwrap();
                     })
-                }).unwrap()
+                }),
+                "tcp4_volume" => PerfMap::new(m, -1, 0, 128, || {
+                    let statsd = statsd.clone();
+                    Box::new(move |raw| {
+                        use cadence::prelude::*;
+                        use cadence::Metric;
+                        let volume = Volume::from(_data_volume::from(raw));
+
+                        let vol = if volume.send > 0 { volume.send } else { volume.recv };
+                        let stat = statsd
+                            .count_with_tags(&format!(
+                                "volume.{}",
+                                if volume.send > 0 { "out" } else { "in" }
+                            ), vol as i64)
+                            .with_tag("host", &format!("{}", volume.connection.destination_ip))
+                            .with_tag("port", &format!("{}", volume.connection.destination_port))
+                            .with_tag("name", &format!("{}", volume.connection.name))
+                            .try_send()
+                            .unwrap();
+                    })
+                }),
+                _ => Err(LoadError::BPF),
             })
-            .collect();
+            .filter(Result::is_ok)
+            .map(Result::unwrap)
+            .collect::<Vec<PerfMap>>();
 
         loop {
             thread::sleep(Duration::from_secs(1));
 
             for pm in perfmaps.iter_mut() {
-                pm.poll(100)
+                pm.poll(10)
             }
         }
     }
@@ -71,6 +93,23 @@ impl Grain for OutboundTCP4 {
 const OUTBOUND_TCPV4: &'static [u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/outbound_tcpv4.elf"));
 include!(concat!(env!("OUT_DIR"), "/outbound_tcpv4.rs"));
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Volume {
+    connection: Connection,
+    send: usize,
+    recv: usize,
+}
+
+impl From<_data_volume> for Volume {
+    fn from(data: _data_volume) -> Volume {
+        Volume {
+            connection: Connection::from(data.conn),
+            send: data.send,
+            recv: data.recv,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Connection {
