@@ -35,6 +35,7 @@ struct _data_connect {
   u32 saddr;
   u32 daddr;
   u16 dport;
+  u16 sport;
 };
 
 #endif

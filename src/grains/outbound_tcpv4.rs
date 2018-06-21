@@ -46,7 +46,7 @@ impl Grain for OutboundTCP4 {
                         let lowlevel = _data_connect::from(raw);
                         let connection = Connection::from(lowlevel);
                         let sent = statsd.incr_with_tags("ingrain.outbound_tcpv4")
-                            .with_tag("host", &format!("{}", connection.destnection.destination_ip))
+                            .with_tag("host", &format!("{}", connection.destination_ip))
                             .with_tag("port", &format!("{}", connection.destination_port))
                             .with_tag("name", &format!("{}", connection.name))
                             .try_send().unwrap();
@@ -79,6 +79,7 @@ struct Connection {
     source_ip: Ipv4Addr,
     destination_ip: Ipv4Addr,
     destination_port: u16,
+    source_port: u16,
 }
 
 impl From<_data_connect> for Connection {
@@ -89,6 +90,7 @@ impl From<_data_connect> for Connection {
             source_ip: to_ip(data.saddr),
             destination_ip: to_ip(data.daddr),
             destination_port: (data.dport >> 8) | (data.dport << 8),
+            source_port: (data.sport >> 8) | (data.sport << 8),
         }
     }
 }

@@ -22,6 +22,7 @@
 #pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
 #pragma clang diagnostic ignored "-Waddress-of-packed-member"
 #include <net/sock.h>
+#include <net/inet_sock.h>
 #pragma clang diagnostic pop
 
 #include <linux/version.h>
@@ -93,18 +94,18 @@ int trace_outbound_return(struct pt_regs *ctx)
   bpf_get_current_comm(&data.comm, sizeof(data.comm));
 
 	// pull in details
-  struct sock *skp = *skpp;
-	struct sock_common skc;
+  struct inet_sock *skp = inet_sk(*skpp);
 
-  ret = bpf_probe_read(&skc, sizeof(struct sock_common), skp);
+  ret = 0;
+  ret |= bpf_probe_read(&data.saddr, sizeof(u32), &skp->inet_saddr);
+  ret |= bpf_probe_read(&data.daddr, sizeof(u32), &skp->inet_daddr);
+  ret |= bpf_probe_read(&data.dport, sizeof(u32), &skp->inet_dport);
+  ret |= bpf_probe_read(&data.sport, sizeof(u32), &skp->inet_sport);
+
   if (ret < 0) {
     bpf_map_delete_elem(&currsock, &pid);
     return 0;
   }
-
-	data.saddr = skc.skc_rcv_saddr;
-	data.daddr = skc.skc_daddr;
-	data.dport = skc.skc_dport;
 
 	u32 cpu = bpf_get_smp_processor_id();
   bpf_perf_event_output(ctx, &events, cpu, &data, sizeof(data));
