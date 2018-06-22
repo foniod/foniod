@@ -60,12 +60,16 @@ impl Grain for OutboundTCP4 {
                         use cadence::prelude::*;
                         let volume = Volume::from(_data_volume::from(raw));
 
-                        let vol = if volume.send > 0 { volume.send } else { volume.recv };
+                        let vol = if volume.send > 0 {
+                            volume.send
+                        } else {
+                            volume.recv
+                        };
                         let stat = statsd
-                            .count_with_tags(&format!(
-                                "volume.{}",
-                                if volume.send > 0 { "out" } else { "in" }
-                            ), vol as i64)
+                            .count_with_tags(
+                                &format!("volume.{}", if volume.send > 0 { "out" } else { "in" }),
+                                vol as i64,
+                            )
                             .with_tag("host", &format!("{}", volume.connection.destination_ip))
                             .with_tag("port", &format!("{}", volume.connection.destination_port))
                             .with_tag("name", &format!("{}", volume.connection.name))
