@@ -8,3 +8,6 @@ bpf-sys = { path = "../bpf-sys" }
 goblin = "^0.0.15"
 zero = "0.1"
 libc = "0.2"
+bindgen = "0.37"
+regex = "1.0"
+lazy_static = "1.0"
