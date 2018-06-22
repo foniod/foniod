@@ -2,15 +2,13 @@
 // Any similarities are probably not accidental.
 //
 
+use bpf_sys::bpf_open_perf_buffer;
 use bpf_sys::perf_reader::*;
-use bpf_sys::{bpf_open_perf_buffer, bpf_update_elem};
 
 use cpus::{self, CpuId};
 use {LoadError, Map, Result, VoidPtr};
 
-use std::ffi::{CStr, CString, NulError};
 use std::os::unix::io::RawFd;
-use std::ptr::null_mut;
 
 unsafe extern "C" fn raw_callback(pc: VoidPtr, ptr: VoidPtr, size: i32) {
     let slice = ::std::slice::from_raw_parts(ptr as *const u8, size as usize);
@@ -32,7 +30,7 @@ impl PerfReader {
     ) -> Result<(PerfReader, RawFd, Box<PerfCallbackWrapper>)> {
         let mut wrapped_cb = Box::new(PerfCallbackWrapper(callback));
         let reader = unsafe {
-            ::bpf_sys::bpf_open_perf_buffer(
+            bpf_open_perf_buffer(
                 Some(raw_callback),
                 None,
                 wrapped_cb.as_mut() as *mut _ as VoidPtr,

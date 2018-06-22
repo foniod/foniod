@@ -93,7 +93,9 @@ fn generate_bindings(flags: &[String], out_dir: &Path, source: &Path) -> Result<
         .generate()
         .expect("Unable to generate bindings!");
 
-    let mut code = bindings.to_string();
+    let mut code = "".to_owned();
+
+    code.push_str(&bindings.to_string());
     for data_type in RE.captures_iter(&code.clone()) {
         let trait_impl = r"
 impl<'a> From<&'a [u8]> for ### {
