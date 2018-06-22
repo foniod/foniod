@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::env;
 use std::ffi::{OsStr, OsString};
 use std::process::Command;
 
@@ -39,7 +40,7 @@ pub enum Error {
 }
 
 pub fn headers() -> Result<Vec<OsString>, Error> {
-    let headers_base_path = arch_kernel_path()?;
+    let headers_base_path = env_kernel_path().or_else(|_| arch_kernel_path())?;
 
     Ok(KERNEL_HEADERS
         .iter()
@@ -47,8 +48,11 @@ pub fn headers() -> Result<Vec<OsString>, Error> {
         .collect())
 }
 
-pub fn arch_kernel_path() -> Result<String, Error> {
+pub fn env_kernel_path() -> Result<String, Error> {
+    env::var("KERNEL_SOURCE").map_err(|_| Error::KernelHeadersNotFound)
+}
 
+pub fn arch_kernel_path() -> Result<String, Error> {
     let pacman = Command::new("pacman")
         .args(vec!["-Ql", "linux-headers"])
         .output()
@@ -78,8 +82,10 @@ fn arch_filter_output(output: &str) -> Result<String, Error> {
 mod test {
     #[test]
     fn test_arch_output() {
-        use ::build::arch_filter_output;
-        assert_eq!(arch_filter_output(r"
+        use build::arch_filter_output;
+        assert_eq!(
+            arch_filter_output(
+                r"
 linux-headers /usr/
 linux-headers /usr/lib/
 linux-headers /usr/lib/modules/
@@ -90,6 +96,9 @@ linux-headers /usr/lib/modules/4.17.2-1-ARCH/build/.tmp_versions/
 linux-headers /usr/lib/modules/4.17.2-1-ARCH/build/Kconfig
 linux-headers /usr/lib/modules/4.17.2-1-ARCH/build/Makefile
 linux-headers /usr/lib/modules/4.17.2-1-ARCH/build/Module.symvers
-").unwrap(), "/usr/lib/modules/4.17.2-1-ARCH/build/")
+"
+            ).unwrap(),
+            "/usr/lib/modules/4.17.2-1-ARCH/build/"
+        )
     }
 }
