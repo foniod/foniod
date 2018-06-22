@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "cargo-clippy", allow(clippy))]
+
 extern crate chrono;
 extern crate failure;
 extern crate libc;

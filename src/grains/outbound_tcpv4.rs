@@ -1,3 +1,5 @@
+#![allow(non_camel_case_types)]
+
 use grains::Grain;
 use redbpf::{LoadError, Module, PerfMap};
 use serde::{Deserialize, Serialize};
@@ -41,7 +43,6 @@ impl Grain for OutboundTCP4 {
                     let statsd = statsd.clone();
                     Box::new(move |raw| {
                         use cadence::prelude::*;
-                        use cadence::Metric;
 
                         let connection = Connection::from(_data_connect::from(raw));
                         let sent = statsd
@@ -57,7 +58,6 @@ impl Grain for OutboundTCP4 {
                     let statsd = statsd.clone();
                     Box::new(move |raw| {
                         use cadence::prelude::*;
-                        use cadence::Metric;
                         let volume = Volume::from(_data_volume::from(raw));
 
                         let vol = if volume.send > 0 { volume.send } else { volume.recv };
@@ -89,7 +89,6 @@ impl Grain for OutboundTCP4 {
     }
 }
 
-#[allow(non_camel_case_types)]
 const OUTBOUND_TCPV4: &'static [u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/outbound_tcpv4.elf"));
 include!(concat!(env!("OUT_DIR"), "/outbound_tcpv4.rs"));

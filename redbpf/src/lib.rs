@@ -189,7 +189,6 @@ impl Program {
 impl Module {
     pub fn parse(bytes: &[u8]) -> Result<Module> {
         let object = Elf::parse(&bytes[..])?;
-        let strings = object.shdr_strtab;
         let symtab = object.syms.to_vec();
         let shdr_relocs = &object.shdr_relocs;
 
@@ -201,21 +200,16 @@ impl Module {
         let mut version = 0u32;
 
         for (shndx, shdr) in object.section_headers.iter().enumerate() {
-            let name = strings
-                .get_unsafe(shdr.sh_name)
-                .ok_or(LoadError::Section(format!(
-                    "Section name not found: {}",
-                    shndx
-                )))?;
+            let (kind, name) = get_split_section_name(&object, &shdr, shndx)?;
+
             let section_type = shdr.sh_type;
             let content = data(&bytes, &shdr);
 
-            let (main_name, secondary_name) = parse_name(name);
-            match (section_type, main_name, secondary_name) {
+            match (section_type, kind, name) {
                 (hdr::SHT_REL, _, _) => add_rel(&mut rels, shndx, &shdr, &shdr_relocs),
                 (hdr::SHT_PROGBITS, Some("version"), _) => version = get_version(&content),
                 (hdr::SHT_PROGBITS, Some("license"), _) => {
-                    license.insert_str(0, zero::read_str(content))
+                    license = zero::read_str(content).to_string()
                 }
                 (hdr::SHT_PROGBITS, Some("maps"), Some(name)) => {
                     // Maps are immediately bpf_create_map'd
@@ -245,6 +239,28 @@ impl Module {
             version,
         })
     }
+}
+
+#[inline]
+fn get_split_section_name<'o>(
+    object: &'o Elf,
+    shdr: &'o SectionHeader,
+    shndx: usize,
+) -> Result<(Option<&'o str>, Option<&'o str>)> {
+    let name = object
+        .shdr_strtab
+        .get_unsafe(shdr.sh_name)
+        .ok_or(LoadError::Section(format!(
+            "Section name not found: {}",
+            shndx
+        )))?;
+
+    let mut names = name.splitn(2, '/');
+
+    let kind = names.next();
+    let name = names.next();
+
+    Ok((kind, name))
 }
 
 impl Rel {
@@ -313,16 +329,6 @@ impl Map {
 }
 
 #[inline]
-fn parse_name(name: &str) -> (Option<&str>, Option<&str>) {
-    let mut names = name.splitn(2, '/');
-
-    let kind = names.next();
-    let name = names.next();
-
-    (kind, name)
-}
-
-#[inline]
 fn add_rel(
     rels: &mut Vec<Rel>,
     shndx: usize,
@@ -350,15 +356,7 @@ fn get_version(bytes: &[u8]) -> u32 {
 
 #[inline]
 fn get_kernel_version() -> Result<u32> {
-    let mut uname = libc::utsname {
-        sysname: [0; 65],
-        nodename: [0; 65],
-        release: [0; 65],
-        version: [0; 65],
-        machine: [0; 65],
-        domainname: [0; 65],
-    };
-
+    let mut uname = unsafe { std::mem::zeroed() };
     let res = unsafe { libc::uname(&mut uname) };
     if res < 0 {
         return Err(LoadError::Uname);
@@ -392,9 +390,4 @@ fn data<'d>(bytes: &'d [u8], shdr: &SectionHeader) -> &'d [u8] {
     let end = (shdr.sh_offset + shdr.sh_size) as usize;
 
     &bytes[offset..end]
-}
-
-#[inline]
-fn parse_fail(reason: &str) -> goblin::error::Error {
-    goblin::error::Error::Malformed(format!("Failed to parse: {}", reason))
 }
