@@ -6,50 +6,22 @@ extern crate libc;
 extern crate zero;
 
 pub mod cpus;
+mod error;
 mod perf;
+pub mod uname;
 
 use bpf_sys::{bpf_insn, bpf_map_def};
+use error::{LoadError, Result};
 use goblin::elf::{section_header as hdr, Elf, Reloc, SectionHeader, Sym};
+use uname::get_kernel_internal_version;
 
 use std::collections::HashMap;
-use std::ffi::{CStr, CString, NulError};
+use std::ffi::CString;
 use std::mem;
 use std::os::unix::io::RawFd;
-use std::str::FromStr;
 
 pub use perf::*;
-pub type Result<T> = std::result::Result<T, LoadError>;
 pub type VoidPtr = *mut std::os::raw::c_void;
-
-#[derive(Debug)]
-pub enum LoadError {
-    StringConversion,
-    BPF,
-    Section(String),
-    Parse(goblin::error::Error),
-    KernelRelease(String),
-    IO(std::io::Error),
-    Uname,
-    Reloc,
-}
-
-impl From<goblin::error::Error> for LoadError {
-    fn from(e: goblin::error::Error) -> LoadError {
-        LoadError::Parse(e)
-    }
-}
-
-impl From<NulError> for LoadError {
-    fn from(_e: NulError) -> LoadError {
-        LoadError::StringConversion
-    }
-}
-
-impl From<std::io::Error> for LoadError {
-    fn from(e: std::io::Error) -> LoadError {
-        LoadError::IO(e)
-    }
-}
 
 pub struct Module {
     pub programs: Vec<Program>,
@@ -349,38 +321,8 @@ fn add_rel(
 fn get_version(bytes: &[u8]) -> u32 {
     let version = zero::read::<u32>(bytes);
     match version {
-        0xFFFFFFFE => get_kernel_version().unwrap(),
+        0xFFFFFFFE => get_kernel_internal_version().unwrap(),
         _ => version.clone(),
-    }
-}
-
-#[inline]
-fn get_kernel_version() -> Result<u32> {
-    let mut uname = unsafe { std::mem::zeroed() };
-    let res = unsafe { libc::uname(&mut uname) };
-    if res < 0 {
-        return Err(LoadError::Uname);
-    }
-
-    let urelease = to_str(&uname.release);
-    let err = || LoadError::KernelRelease(urelease.to_string());
-    let err_ = |_| LoadError::KernelRelease(urelease.to_string());
-
-    let mut release_package = urelease.splitn(2, '-');
-    let mut release = release_package.next().ok_or(err())?.splitn(3, '.');
-
-    let major = u32::from_str(release.next().ok_or(err())?).map_err(err_)?;
-    let minor = u32::from_str(release.next().ok_or(err())?).map_err(err_)?;
-    let patch = u32::from_str(release.next().ok_or(err())?).map_err(err_)?;
-
-    Ok(major << 16 | minor << 8 | patch)
-}
-
-#[inline]
-fn to_str(bytes: &[i8]) -> &str {
-    unsafe {
-        let cstr = CStr::from_ptr(bytes.as_ptr());
-        std::str::from_utf8_unchecked(cstr.to_bytes())
     }
 }
 
