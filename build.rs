@@ -97,7 +97,8 @@ fn main() -> Result<(), Error> {
 
     let headers = redbpf::build::headers().unwrap();
     let flags = {
-        let mut cflags: Vec<OsString> = redbpf::build::BUILD_FLAGS.iter()
+        let mut cflags: Vec<OsString> = redbpf::build::BUILD_FLAGS
+            .iter()
             .map(OsString::from)
             .collect();
 
