@@ -9,6 +9,7 @@ failure = "0.1"
 bindgen = "0.37"
 regex = "1.0"
 lazy_static = "1.0"
+redbpf = { path = "./redbpf" }
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }

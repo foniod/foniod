@@ -368,9 +368,12 @@ dependencies = [
 name = "redbpf"
 version = "0.1.0"
 dependencies = [
+ "bindgen 0.37.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bpf-sys 0.1.0",
  "goblin 0.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "zero 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

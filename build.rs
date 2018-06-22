@@ -3,6 +3,7 @@ extern crate failure;
 extern crate regex;
 #[macro_use]
 extern crate lazy_static;
+extern crate redbpf;
 
 use failure::{err_msg, Error};
 use regex::Regex;
@@ -11,29 +12,6 @@ use std::ffi::OsString;
 use std::fs::{self, read_dir};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
-fn kernel_headers() -> Result<Vec<OsString>, Error> {
-    let uname = Command::new("uname").arg("-r").output()?;
-    let release = String::from_utf8(uname.stdout)?;
-    let release = release.trim();
-
-    if release.ends_with("-ARCH") {
-        // Support for building on Arch Linux
-        let headers_path = format!("/lib/modules/{}/build", release);
-
-        Ok(vec![
-            format!("-I{}/arch/x86/include", headers_path).into(),
-            format!("-I{}/arch/x86/include/generated", headers_path).into(),
-            format!("-I{}/include", headers_path).into(),
-            format!("-I{}/arch/include/generated/uapi", headers_path).into(),
-            format!("-I{}/arch/x86/include/uapi", headers_path).into(),
-            format!("-I{}/include/uapi", headers_path).into(),
-            OsString::from("-Ibpf"),
-        ])
-    } else {
-        Err(err_msg(format!("Unsupported kernel version: {}", release)))
-    }
-}
 
 fn compile_target(out_dir: &Path, source: &Path) -> Option<PathBuf> {
     let basename = source.file_stem()?;
@@ -117,27 +95,9 @@ fn main() -> Result<(), Error> {
     let _out_dir = env::var("OUT_DIR")?;
     let out_dir = Path::new(&_out_dir);
 
-    let headers = kernel_headers()?;
+    let headers = redbpf::build::headers().unwrap();
     let flags = {
-        let mut cflags: Vec<OsString> = vec![
-            "-D__BPF_TRACING__",
-            "-D__KERNEL__",
-            "-D__ASM_SYSREG_H",
-            "-Wno-unused-value",
-            "-Wno-pointer-sign",
-            "-Wno-compare-distinct-pointer-types",
-            "-Wno-unused-parameter",
-            "-Wno-missing-field-initializers",
-            "-Wno-initializer-overrides",
-            "-fno-builtin",
-            "-fno-stack-protector",
-            "-Wunused",
-            "-Wall",
-            "-Werror",
-            "-O2",
-            "-emit-llvm",
-            "-c",
-        ].iter()
+        let mut cflags: Vec<OsString> = redbpf::build::BUILD_FLAGS.iter()
             .map(OsString::from)
             .collect();
 

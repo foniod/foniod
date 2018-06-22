@@ -1,17 +1,23 @@
 #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
 
+extern crate bindgen;
+extern crate regex;
+#[macro_use]
+extern crate lazy_static;
+
 extern crate bpf_sys;
 extern crate goblin;
 extern crate libc;
 extern crate zero;
 
+pub mod build;
 pub mod cpus;
 mod error;
 mod perf;
 pub mod uname;
 
 use bpf_sys::{bpf_insn, bpf_map_def};
-use error::{LoadError, Result};
+pub use error::{LoadError, Result};
 use goblin::elf::{section_header as hdr, Elf, Reloc, SectionHeader, Sym};
 use uname::get_kernel_internal_version;
 
