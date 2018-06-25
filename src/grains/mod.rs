@@ -1,4 +1,4 @@
-pub mod outbound_tcpv4;
+pub mod tcpv4;
 use cadence::StatsdClient;
 
 pub trait Grain {

@@ -35,7 +35,7 @@ fn main() -> Result<(), Error> {
     let queuing_sink = QueuingMetricSink::from(udp_sink);
     let client = StatsdClient::from_udp_host("ingraind.metrics", host).unwrap();
 
-    grains::outbound_tcpv4::OutboundTCP4::start(&client);
+    grains::tcpv4::TCP4::start(&client);
 
     // let instance_name =
     //     env::var("TCPSNIFF_ID").expect("Need to set INSTANCE_NAME environment variable");
