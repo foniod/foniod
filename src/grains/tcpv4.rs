@@ -1,12 +1,10 @@
 #![allow(non_camel_case_types)]
 
 use grains::*;
-use redbpf::{LoadError, Module, PerfMap};
+use redbpf::{LoadError, PerfMap, Result};
 use serde::{Deserialize, Serialize};
 
 use std::env;
-use std::fs::File;
-use std::io::Read;
 use std::net::Ipv4Addr;
 use std::ptr;
 use std::thread;
@@ -14,84 +12,61 @@ use std::time::Duration;
 
 use cadence::StatsdClient;
 
-pub struct TCP4(Module);
+pub struct TCP4;
 
-impl Grain<TCP4> for TCP4 {
-    fn start() -> TCP4 {
-        let mut module = Module::parse(MODULE_TCPV4).unwrap();
-
-        for prog in module.programs.iter_mut() {
-            prog.load(module.version, module.license.clone()).unwrap();
-            println!(
-                "prog loaded: {} {} {:?}",
-                prog.attach().is_ok(),
-                prog.name,
-                prog.kind
-            );
-        }
-
-        TCP4(module)
-    }
-}
-
-impl PerfReporter for TCP4 {
-    fn perfmaps(&mut self, statsd: &StatsdClient) -> Vec<PerfMap> {
-        let perfmaps = self.0
-            .maps
-            .iter_mut()
-            .map(|m| match m.name.as_str() {
-                "tcp4_connections" => PerfMap::new(m, -1, 0, 16, || {
-                    let statsd = statsd.clone();
-                    Box::new(move |raw| {
-                        use cadence::prelude::*;
-
-                        let connection = Connection::from(_data_connect::from(raw));
-                        let sent = statsd
-                            .incr_with_tags("connection.{}")
-                            .with_tag("host", &format!("{}", connection.destination_ip))
-                            .with_tag("port", &format!("{}", connection.destination_port))
-                            .with_tag("name", &format!("{}", connection.name))
-                            .try_send()
-                            .unwrap();
-                    })
-                }),
-                "tcp4_volume" => PerfMap::new(m, -1, 0, 128, || {
-                    let statsd = statsd.clone();
-                    Box::new(move |raw| {
-                        use cadence::prelude::*;
-                        let volume = Volume::from(_data_volume::from(raw));
-
-                        let vol = if volume.send > 0 {
-                            volume.send
-                        } else {
-                            volume.recv
-                        };
-                        let stat = statsd
-                            .count_with_tags(
-                                &format!("volume.{}", if volume.send > 0 { "out" } else { "in" }),
-                                vol as i64,
-                            )
-                            .with_tag("host", &format!("{}", volume.connection.destination_ip))
-                            .with_tag("port", &format!("{}", volume.connection.destination_port))
-                            .with_tag("name", &format!("{}", volume.connection.name))
-                            .with_tag("proto", "tcpv4")
-                            .try_send()
-                            .unwrap();
-                    })
-                }),
-                _ => Err(LoadError::BPF),
-            })
-            .filter(Result::is_ok)
-            .map(Result::unwrap)
-            .collect::<Vec<PerfMap>>();
-
-        perfmaps
-    }
-}
-
-const MODULE_TCPV4: &'static [u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/tcpv4.elf"));
+const MODULE_TCPV4: &'static [u8] = include_bytes!(concat!(env!("OUT_DIR"), "/tcpv4.elf"));
 include!(concat!(env!("OUT_DIR"), "/tcpv4.rs"));
+
+impl<'m> EBPFModule<'static, 'm> for TCP4 {
+    fn code() -> &'static [u8] {
+        MODULE_TCPV4
+    }
+
+    fn handler(m: &'m mut Map, statsd: &StatsdClient) -> Result<PerfMap<'m>> {
+        match m.name.as_str() {
+            "tcp4_connections" => PerfMap::new(m, -1, 0, 16, || {
+                let statsd = statsd.clone();
+                Box::new(move |raw| {
+                    use cadence::prelude::*;
+
+                    let connection = Connection::from(_data_connect::from(raw));
+                    let sent = statsd
+                        .incr_with_tags("connection.{}")
+                        .with_tag("host", &format!("{}", connection.destination_ip))
+                        .with_tag("port", &format!("{}", connection.destination_port))
+                        .with_tag("name", &format!("{}", connection.name))
+                        .try_send()
+                        .unwrap();
+                })
+            }),
+            "tcp4_volume" => PerfMap::new(m, -1, 0, 128, || {
+                let statsd = statsd.clone();
+                Box::new(move |raw| {
+                    use cadence::prelude::*;
+                    let volume = Volume::from(_data_volume::from(raw));
+
+                    let vol = if volume.send > 0 {
+                        volume.send
+                    } else {
+                        volume.recv
+                    };
+                    let _stat = statsd
+                        .count_with_tags(
+                            &format!("volume.{}", if volume.send > 0 { "out" } else { "in" }),
+                            vol as i64,
+                        )
+                        .with_tag("host", &format!("{}", volume.connection.destination_ip))
+                        .with_tag("port", &format!("{}", volume.connection.destination_port))
+                        .with_tag("name", &format!("{}", volume.connection.name))
+                        .with_tag("proto", "tcpv4")
+                        .try_send()
+                        .unwrap();
+                })
+            }),
+            _ => Err(LoadError::BPF),
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Volume {
