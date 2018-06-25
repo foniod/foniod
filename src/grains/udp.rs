@@ -14,13 +14,17 @@ use std::time::Duration;
 
 use cadence::StatsdClient;
 
-pub struct TCP4(Module);
+pub struct UDP(Module);
 
-impl Grain<TCP4> for TCP4 {
-    fn start() -> TCP4 {
-        let mut module = Module::parse(MODULE_TCPV4).unwrap();
+const MODULE_UDP: &'static [u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/udp.elf"));
+include!(concat!(env!("OUT_DIR"), "/udp.rs"));
 
+impl Grain<UDP> for UDP {
+    fn start() -> UDP {
+        let mut module = Module::parse(MODULE_UDP).unwrap();
         for prog in module.programs.iter_mut() {
+            println!("Loading UDP");
             prog.load(module.version, module.license.clone()).unwrap();
             println!(
                 "prog loaded: {} {} {:?}",
@@ -30,32 +34,17 @@ impl Grain<TCP4> for TCP4 {
             );
         }
 
-        TCP4(module)
+        UDP(module)
     }
 }
 
-impl PerfReporter for TCP4 {
+impl PerfReporter for UDP {
     fn perfmaps(&mut self, statsd: &StatsdClient) -> Vec<PerfMap> {
         let perfmaps = self.0
             .maps
             .iter_mut()
             .map(|m| match m.name.as_str() {
-                "tcp4_connections" => PerfMap::new(m, -1, 0, 16, || {
-                    let statsd = statsd.clone();
-                    Box::new(move |raw| {
-                        use cadence::prelude::*;
-
-                        let connection = Connection::from(_data_connect::from(raw));
-                        let sent = statsd
-                            .incr_with_tags("connection.{}")
-                            .with_tag("host", &format!("{}", connection.destination_ip))
-                            .with_tag("port", &format!("{}", connection.destination_port))
-                            .with_tag("name", &format!("{}", connection.name))
-                            .try_send()
-                            .unwrap();
-                    })
-                }),
-                "tcp4_volume" => PerfMap::new(m, -1, 0, 128, || {
+                "udp_volume" => PerfMap::new(m, -1, 0, 128, || {
                     let statsd = statsd.clone();
                     Box::new(move |raw| {
                         use cadence::prelude::*;
@@ -74,9 +63,11 @@ impl PerfReporter for TCP4 {
                             .with_tag("host", &format!("{}", volume.connection.destination_ip))
                             .with_tag("port", &format!("{}", volume.connection.destination_port))
                             .with_tag("name", &format!("{}", volume.connection.name))
-                            .with_tag("proto", "tcpv4")
+                            .with_tag("proto", "udp")
                             .try_send()
                             .unwrap();
+
+                        println!("{:?}", volume)
                     })
                 }),
                 _ => Err(LoadError::BPF),
@@ -88,10 +79,6 @@ impl PerfReporter for TCP4 {
         perfmaps
     }
 }
-
-const MODULE_TCPV4: &'static [u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/tcpv4.elf"));
-include!(concat!(env!("OUT_DIR"), "/tcpv4.rs"));
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Volume {
