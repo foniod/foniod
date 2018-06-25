@@ -16,8 +16,8 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef __OUTBOUND_TCPV4_H
-#define __OUTBOUND_TCPV4_H
+#ifndef __TCPV4_H
+#define __TCPV4_H
 
 #include <linux/kconfig.h>
 #include <linux/types.h>

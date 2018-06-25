@@ -14,16 +14,16 @@ use std::time::Duration;
 
 use cadence::StatsdClient;
 
-pub struct OutboundTCP4;
+pub struct TCP4;
 
-impl Grain for OutboundTCP4 {
+impl Grain for TCP4 {
     fn start(statsd: &StatsdClient) {
         // let mut f = File::open(env::var("MOD").unwrap()).unwrap();
         // let mut bytes = vec![];
         // f.read_to_end(&mut bytes);
 
         // let mut module = Module::parse(&mut bytes).unwrap();
-        let mut module = Module::parse(OUTBOUND_TCPV4).unwrap();
+        let mut module = Module::parse(MODULE_TCPV4).unwrap();
 
         for prog in module.programs.iter_mut() {
             prog.load(module.version, module.license.clone()).unwrap();
@@ -93,9 +93,9 @@ impl Grain for OutboundTCP4 {
     }
 }
 
-const OUTBOUND_TCPV4: &'static [u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/outbound_tcpv4.elf"));
-include!(concat!(env!("OUT_DIR"), "/outbound_tcpv4.rs"));
+const MODULE_TCPV4: &'static [u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/tcpv4.elf"));
+include!(concat!(env!("OUT_DIR"), "/tcpv4.rs"));
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Volume {
