@@ -24,7 +24,7 @@ use failure::Error;
 
 mod grains;
 
-use grains::Grain;
+use grains::*;
 
 fn main() -> Result<(), Error> {
     let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
@@ -35,58 +35,22 @@ fn main() -> Result<(), Error> {
     let queuing_sink = QueuingMetricSink::from(udp_sink);
     let client = StatsdClient::from_udp_host("ingraind.metrics", host).unwrap();
 
-    grains::tcpv4::TCP4::start(&client);
+    let mut mod_udp = grains::udp::UDP::start();
+    let mut perf_udp = mod_udp.perfmaps(&client);
 
-    // let instance_name =
-    //     env::var("TCPSNIFF_ID").expect("Need to set INSTANCE_NAME environment variable");
-    // let url_base = env::var("TCPSNIFF_URL").expect("Need to set SIFT_URL environment variable");
-    // let events: Arc<Mutex<Vec<Connection>>> = Arc::new(Mutex::default());
-    // let mut module = BPF::new(BPF_CODE)?;
+    let mut mod_tcp4 = grains::tcpv4::TCP4::start();
+    let mut perf_tcp4 = mod_tcp4.perfmaps(&client);
 
-    // // load + attach kprobes!
-    // let return_probe = module.load_kprobe("trace_outbound_return")?;
-    // let entry_probe = module.load_kprobe("trace_outbound_entry")?;
-    // module.attach_kprobe("tcp_v4_connect", entry_probe)?;
-    // module.attach_kretprobe("tcp_v4_connect", return_probe)?;
+    loop {
+        thread::sleep(Duration::from_secs(1));
 
-    // // the "events" table is where the "open file" events get sent
-    // let table = module.table("events");
+        for pm in perf_udp.iter_mut() {
+            pm.poll(10)
+        }
+        for pm in perf_tcp4.iter_mut() {
+            pm.poll(10)
+        }
+    }
 
-    // // install a callback to print out file open events when they happen
-    // let mut perf_map = init_perf_map(table, || {
-    //     let events = events.clone();
-    //     Box::new(move |x| {
-    //         // This callback
-    //         let data = Connection::from(data_t::from(x));
-    //         println!("{:-7} {:-16}: {:#?}", data.pid, &data.name, data);
-
-    //         events
-    //             .lock()
-    //             .map(|mut e| {
-    //                 e.push(data);
-    //             })
-    //             .unwrap();
-    //     })
-    // })?;
-
-    // let reporter = thread::spawn(move || {
-    //     let events = events.clone();
-
-    //     loop {
-    //         thread::sleep(Duration::from_secs(60));
-
-    //         events
-    //             .lock()
-    //             .map(|mut data| {
-    //                 Envelope::new(instance_name.clone(), Report::new(&data)).send(&url_base);
-    //                 data.clear();
-    //             })
-    //             .unwrap();
-    //     }
-    // });
-
-    // loop {
-    //     perf_map.poll(200);
-    // }
     Ok(())
 }
