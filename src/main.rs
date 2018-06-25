@@ -11,9 +11,7 @@ extern crate redbpf;
 extern crate serde_json;
 extern crate uuid;
 
-use std::env;
 use std::net::UdpSocket;
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -23,7 +21,6 @@ use chrono::DateTime;
 use failure::Error;
 
 mod grains;
-
 use grains::*;
 
 fn main() -> Result<(), Error> {
@@ -35,11 +32,11 @@ fn main() -> Result<(), Error> {
     let queuing_sink = QueuingMetricSink::from(udp_sink);
     let client = StatsdClient::from_udp_host("ingraind.metrics", host).unwrap();
 
-    let mut mod_udp = grains::udp::UDP::start();
-    let mut perf_udp = mod_udp.perfmaps(&client);
+    let mut mod_tcp4 = grains::tcpv4::TCP4::load().unwrap();
+    let mut perf_tcp4 = grains::tcpv4::TCP4::bind(&mut mod_tcp4, &client);
 
-    let mut mod_tcp4 = grains::tcpv4::TCP4::start();
-    let mut perf_tcp4 = mod_tcp4.perfmaps(&client);
+    let mut mod_udp = grains::udp::UDP::load().unwrap();
+    let mut perf_udp = grains::udp::UDP::bind(&mut mod_udp, &client);
 
     loop {
         thread::sleep(Duration::from_secs(1));
