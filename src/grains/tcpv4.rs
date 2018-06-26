@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 
+use grains::connection::{Connection, Volume, _data_connect, _data_volume};
 use grains::*;
-use grains::connection::{Volume, Connection, _data_volume, _data_connect};
 use redbpf::{LoadError, PerfMap, Result};
 use serde::{Deserialize, Serialize};
 
