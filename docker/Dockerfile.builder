@@ -7,7 +7,8 @@ RUN echo "deb http://httpredir.debian.org/debian/ stable main non-free" >> /etc/
     && apt-get -y install debhelper cmake libllvm3.8 llvm-3.8-dev libclang-3.8-dev \
        libelf-dev bison flex libedit-dev clang-format-3.8 python python-netaddr \
        python-pyroute2 luajit libluajit-5.1-dev arping iperf netperf ethtool \
-       devscripts zlib1g-dev libfl-dev 
+       devscripts zlib1g-dev libfl-dev \
+       clang
 
 WORKDIR /tmp
 RUN git clone https://github.com/iovisor/bcc.git \

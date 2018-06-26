@@ -1,5 +1,7 @@
 FROM ingraind-build AS build
 
+ARG KERNEL_SOURCE=/build/kernel/
+
 ADD . /build/
 RUN cargo build --release
 
