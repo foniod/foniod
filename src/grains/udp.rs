@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 
-use grains::*;
 use grains::connection::{Volume, _data_volume};
+use grains::*;
 use redbpf::{LoadError, PerfMap};
 
 use cadence::StatsdClient;

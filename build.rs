@@ -124,14 +124,23 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn source_files(dir: &'static str, only_extension: &'static str) -> ::std::io::Result<impl Iterator<Item=::std::path::PathBuf>>  {
+fn source_files(
+    dir: &'static str,
+    only_extension: &'static str,
+) -> ::std::io::Result<impl Iterator<Item = ::std::path::PathBuf>> {
     Ok(read_dir(dir)?
         .filter(|entry| entry.is_ok())
         .map(|entry| entry.unwrap().path())
         .filter(move |path| {
             path.extension()
                 .and_then(|ext| ext.to_str())
-                .and_then(|ext| if ext == only_extension { Some(()) } else { None })
+                .and_then(|ext| {
+                    if ext == only_extension {
+                        Some(())
+                    } else {
+                        None
+                    }
+                })
                 .is_some()
         }))
 }
