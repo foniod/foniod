@@ -1,3 +1,4 @@
+mod connection;
 pub mod tcpv4;
 pub mod udp;
 use cadence::StatsdClient;

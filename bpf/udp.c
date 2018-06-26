@@ -16,7 +16,7 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include "udp.h"
+#include "connection.h"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
@@ -28,7 +28,7 @@
 #include <linux/skbuff.h>
 #include <linux/version.h>
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include "include/bpf_helpers.h"
 
 struct bpf_map_def SEC("maps/udp_volume") udp_volume = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
