@@ -17,4 +17,6 @@ RUN git clone https://github.com/iovisor/bcc.git \
     && make \
     && make install
 
+RUN cargo install bindgen
+
 WORKDIR /build
