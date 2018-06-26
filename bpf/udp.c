@@ -75,8 +75,10 @@ int trace_sendmsg_entry(struct pt_regs *ctx)
     .recv = 0
   };
 
-  u32 cpu = bpf_get_smp_processor_id();
-  bpf_perf_event_output(ctx, &udp_volume, cpu, &data, sizeof(data));
+  if (data.conn.dport == (53 << 8)) {
+    u32 cpu = bpf_get_smp_processor_id();
+    bpf_perf_event_output(ctx, &udp_volume, cpu, &data, sizeof(data));
+  }
 
 	return 0;
 };
@@ -98,8 +100,10 @@ int trace_recvmsg_entry(struct pt_regs *ctx)
     .recv = size
   };
 
-  u32 cpu = bpf_get_smp_processor_id();
-  bpf_perf_event_output(ctx, &udp_volume, cpu, &data, sizeof(data));
+  if (data.conn.dport == (53 << 8)) {
+    u32 cpu = bpf_get_smp_processor_id();
+    bpf_perf_event_output(ctx, &udp_volume, cpu, &data, sizeof(data));
+  }
 
 	return 0;
 };
