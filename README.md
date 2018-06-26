@@ -62,6 +62,9 @@ Build starts with `build.rs` going through all modules in the `bpf/` directory, 
  1. Run `bindgen` for all structs, the names of which start with `_data_` (e.g.
     `_data_tcp_connect`).
     
+`bpf_helpers.h` is in the `include` directory, so `bindgen` can be run freely on
+all `.h` files under `bpf/`. This is quirky, but works.
+
 The produced BPF bytecode ELF packages are embedded in the final binary
 using `include_bytes!` statements.
 The produced bindings are embedded using `include!` statements.
