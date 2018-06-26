@@ -59,6 +59,9 @@ fn build(flags: &[OsString], out_dir: &Path, source: &Path) -> Result<PathBuf, E
 }
 
 fn generate_bindings(flags: &[String], out_dir: &Path, source: &Path) -> Result<(), Error> {
+    println!("Building eBPF module: {:?} ", source);
+    println!("Flags: {:?}", &flags);
+
     const TYPE_REGEX: &str = "_data_[^{}]*";
     lazy_static! {
         static ref RE: Regex = Regex::new(&format!(r"struct ({})", TYPE_REGEX)).unwrap();
@@ -110,21 +113,25 @@ fn main() -> Result<(), Error> {
         .map(|f| f.clone().into_string().unwrap())
         .collect();
 
-    for file in read_dir("./bpf")?
-        .filter(|entry| entry.is_ok())
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| {
-            path.extension()
-                .and_then(|ext| ext.to_str())
-                .and_then(|ext| if ext == "c" { Some(()) } else { None })
-                .is_some()
-        }) {
+    for file in source_files("./bpf", "c")? {
         build(&flags[..], out_dir, &file).expect("Failed building BPF plugin!");
-
-        let data_header = file.with_extension("h");
-        generate_bindings(&bindgen_flags[..], out_dir, &data_header)
+    }
+    for file in source_files("./bpf", "h")? {
+        generate_bindings(&bindgen_flags[..], out_dir, &file)
             .expect("Failed generating data bindings!");
     }
 
     Ok(())
+}
+
+fn source_files(dir: &'static str, only_extension: &'static str) -> ::std::io::Result<impl Iterator<Item=::std::path::PathBuf>>  {
+    Ok(read_dir(dir)?
+        .filter(|entry| entry.is_ok())
+        .map(|entry| entry.unwrap().path())
+        .filter(move |path| {
+            path.extension()
+                .and_then(|ext| ext.to_str())
+                .and_then(|ext| if ext == only_extension { Some(()) } else { None })
+                .is_some()
+        }))
 }
