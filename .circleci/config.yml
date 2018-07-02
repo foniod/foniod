@@ -1,32 +1,38 @@
 version: 2
 jobs:
   build:
+    environment:
+      CONTAINER_NAME: "quay.io/redsift/ingraind"
+
+    working_directory: /tmp/ws/build
     docker:
-      - image: rust:1
+      - image: docker:latest
     steps:
       - checkout
+      - attach_workspace:
+          at: /tmp/ws
+
+      - setup_remote_docker:
+          docker_layer_caching: true
+
       - run:
-          name: Install clang & linux-headers
-          command: apt-get update && apt-get -y install clang linux-headers-amd64
+          name: Login to a regsitry
+          command: |
+            echo ${QUAY_PASS} | docker login --username ${QUAY_USER} --password-stdin quay.io
+
       - run:
-          name: Version information
-          command: rustc --version; rustup --version; cargo --version
-      - run:
-          name: Calculate dependencies
-          command: cargo generate-lockfile --verbose
-      - restore_cache:
-          keys:
-            - v4-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-      - run:
-          name: Build all targets
-          command: cargo build --release --verbose
-      - save_cache:
-          paths:
-            - /usr/local/cargo/registry
-            - target/release/.fingerprint
-            - target/release/build
-            - target/release/deps
-          key: v4-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-      - run:
-          name: Run all tests
-          command: cargo test --verbose
+          name: Build Docker image
+          command: |
+            export TAG=${CIRCLE_TAG:-unknown}
+            export SHA=${CIRCLE_SHA1:0:7}
+            sh docker/build.sh -t $CONTAINER_NAME:latest -t $CONTAINER_NAME:$SHA -t $CONTAINER_NAME:$TAG
+
+            echo "Total sizes"
+            docker images $CONTAINER_NAME
+            docker push $CONTAINER_NAME 
+
+workflows:
+  version: 2
+  build_pack:
+    jobs:
+      - build
