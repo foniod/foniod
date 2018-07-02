@@ -7,7 +7,9 @@ RUN cargo build --release
 
 FROM debian:stable
 
-COPY --from=build /usr/lib/libbpf.so.* /usr/lib/
+COPY --from=build /usr/lib/x86_64-linux-gnu/libbpf.so /usr/lib/
+COPY --from=build /usr/lib/x86_64-linux-gnu/libbpf.so.0  /usr/lib/
+COPY --from=build /usr/lib/x86_64-linux-gnu/libbpf.so.0.6.0  /usr/lib/
 COPY --from=build /build/target/release/ingraind /bin
 
 CMD /bin/ingraind
