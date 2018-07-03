@@ -1,7 +1,8 @@
 mod connection;
 pub mod tcpv4;
-pub mod udp;
-use cadence::StatsdClient;
+// pub mod udp;
+use actix::Recipient;
+use metrics::Measurement;
 use redbpf::{Map, Module, PerfMap, Result};
 
 pub trait EBPFModule<'c, 'm> {
@@ -20,7 +21,7 @@ pub trait EBPFModule<'c, 'm> {
         Ok(module)
     }
 
-    fn bind(module: &'m mut Module, client: &StatsdClient) -> Vec<PerfMap<'m>> {
+    fn bind(module: &'m mut Module, client: &Recipient<Measurement>) -> Vec<PerfMap<'m>> {
         module
             .maps
             .iter_mut()
@@ -31,5 +32,5 @@ pub trait EBPFModule<'c, 'm> {
     }
 
     fn code() -> &'c [u8];
-    fn handler(map: &'m mut Map, client: &StatsdClient) -> Result<PerfMap<'m>>;
+    fn handler(map: &'m mut Map, client: &Recipient<Measurement>) -> Result<PerfMap<'m>>;
 }
