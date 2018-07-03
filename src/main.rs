@@ -8,49 +8,42 @@ extern crate libc;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_millis;
 extern crate cadence;
 extern crate redbpf;
 extern crate serde_json;
 extern crate uuid;
 
-use std::net::UdpSocket;
 use std::thread;
 use std::time::Duration;
 
-use cadence::{BufferedUdpMetricSink, QueuingMetricSink, StatsdClient, DEFAULT_PORT};
-
-use failure::Error;
-
+mod backends;
 mod grains;
 mod metrics;
 use grains::*;
 
-fn main() -> Result<(), Error> {
-    let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
-    socket.set_nonblocking(true).unwrap();
+use actix::Actor;
 
-    let host = ("127.0.0.1", DEFAULT_PORT);
-    let udp_sink = BufferedUdpMetricSink::from(host, socket).unwrap();
-    let queuing_sink = QueuingMetricSink::from(udp_sink);
-    let client = StatsdClient::from_udp_host("ingraind.metrics", host).unwrap();
+fn main() {
+    let system = actix::System::new("outbound");
+    let addr = backends::Statsd::new("127.0.0.1", 8125);
+    let backend = addr.start().recipient();
 
-    let mut mod_tcp4 = grains::tcpv4::TCP4::load().unwrap();
-    let mut perf_tcp4 = grains::tcpv4::TCP4::bind(&mut mod_tcp4, &client);
+    thread::spawn(move || {
+        let mut mod_tcp4 = grains::tcpv4::TCP4::load().unwrap();
+        let mut perf_tcp4 = grains::tcpv4::TCP4::bind(&mut mod_tcp4, &backend);
 
-    let mut mod_udp = grains::udp::UDP::load().unwrap();
-    let mut perf_udp = grains::udp::UDP::bind(&mut mod_udp, &client);
+        // let mut mod_udp = grains::udp::UDP::load().unwrap();
+        // let mut perf_udp = grains::udp::UDP::bind(&mut mod_udp, &client);
 
-    loop {
-        thread::sleep(Duration::from_secs(1));
-
-        for pm in perf_udp.iter_mut() {
-            pm.poll(10)
+        loop {
+            // for pm in perf_udp.iter_mut() {
+            //     pm.poll(10)
+            // }
+            for pm in perf_tcp4.iter_mut() {
+                pm.poll(10)
+            }
         }
-        for pm in perf_tcp4.iter_mut() {
-            pm.poll(10)
-        }
-    }
+    });
 
-    Ok(())
+    system.run();
 }

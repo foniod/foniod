@@ -3,58 +3,60 @@
 use grains::connection::{Connection, Volume, _data_connect, _data_volume};
 use grains::*;
 use redbpf::{LoadError, PerfMap, Result};
-use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-use cadence::StatsdClient;
+use actix::Recipient;
+use metrics::Measurement;
 
 pub struct TCP4;
 
-const MODULE_TCPV4: &'static [u8] = include_bytes!(concat!(env!("OUT_DIR"), "/tcpv4.elf"));
-
 impl<'m> EBPFModule<'static, 'm> for TCP4 {
     fn code() -> &'static [u8] {
-        MODULE_TCPV4
+        include_bytes!(concat!(env!("OUT_DIR"), "/tcpv4.elf"))
     }
 
-    fn handler(m: &'m mut Map, statsd: &StatsdClient) -> Result<PerfMap<'m>> {
+    fn handler(m: &'m mut Map, actor: &Recipient<Measurement>) -> Result<PerfMap<'m>> {
         match m.name.as_str() {
             "tcp4_connections" => PerfMap::new(m, -1, 0, 16, || {
-                let statsd = statsd.clone();
+                let actor = actor.clone();
                 Box::new(move |raw| {
-                    use cadence::prelude::*;
+                    let name = "connection.out".to_string();
 
                     let connection = Connection::from(_data_connect::from(raw));
-                    let _sent = statsd
-                        .incr_with_tags("connection.{}")
-                        .with_tag("host", &format!("{}", connection.destination_ip))
-                        .with_tag("port", &format!("{}", connection.destination_port))
-                        .with_tag("name", &format!("{}", connection.name))
-                        .try_send()
-                        .unwrap();
+                    let mut tags = HashMap::new();
+
+                    let dip = format!("{}", connection.destination_ip);
+                    let dport = format!("{}", connection.destination_port);
+                    let process = format!("{}", connection.name);
+                    tags.insert("destination".to_string(), dip);
+                    tags.insert("dport".to_string(), dport);
+                    tags.insert("process".to_string(), process);
+
+                    actor.do_send(Measurement::new(name, 1, None, tags));
                 })
             }),
             "tcp4_volume" => PerfMap::new(m, -1, 0, 128, || {
-                let statsd = statsd.clone();
+                let actor = actor.clone();
                 Box::new(move |raw| {
-                    use cadence::prelude::*;
                     let volume = Volume::from(_data_volume::from(raw));
+                    let mut tags = HashMap::new();
+
+                    let unit = Some("byte".to_string());
+                    let name = format!("volume.{}", if volume.send > 0 { "out" } else { "in" });
+                    let dip = format!("{}", volume.connection.destination_ip);
+                    let dport = format!("{}", volume.connection.destination_port);
+                    let process = format!("{}", volume.connection.name);
+                    tags.insert("destination".to_string(), dip);
+                    tags.insert("dport".to_string(), dport);
+                    tags.insert("process".to_string(), process);
+                    tags.insert("proto".to_string(), "tcp4".to_string());
 
                     let vol = if volume.send > 0 {
                         volume.send
                     } else {
                         volume.recv
                     };
-                    let _stat = statsd
-                        .count_with_tags(
-                            &format!("volume.{}", if volume.send > 0 { "out" } else { "in" }),
-                            vol as i64,
-                        )
-                        .with_tag("host", &format!("{}", volume.connection.destination_ip))
-                        .with_tag("port", &format!("{}", volume.connection.destination_port))
-                        .with_tag("name", &format!("{}", volume.connection.name))
-                        .with_tag("proto", "tcpv4")
-                        .try_send()
-                        .unwrap();
+                    actor.do_send(Measurement::new(name, vol as i64, unit, tags));
                 })
             }),
             _ => Err(LoadError::BPF),
