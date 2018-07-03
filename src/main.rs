@@ -1,11 +1,14 @@
 #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
 
-extern crate chrono;
+#[macro_use]
+extern crate actix;
 extern crate failure;
+extern crate futures;
 extern crate libc;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_millis;
 extern crate cadence;
 extern crate redbpf;
 extern crate serde_json;
@@ -17,10 +20,10 @@ use std::time::Duration;
 
 use cadence::{BufferedUdpMetricSink, QueuingMetricSink, StatsdClient, DEFAULT_PORT};
 
-use chrono::DateTime;
 use failure::Error;
 
 mod grains;
+mod metrics;
 use grains::*;
 
 fn main() -> Result<(), Error> {
