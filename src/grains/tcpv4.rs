@@ -1,7 +1,9 @@
 #![allow(non_camel_case_types)]
 
-use grains::connection::{Connection, Volume, _data_connect, _data_volume, get_volume_callback};
+use grains::connection::{Connection, _data_connect, get_volume_callback};
 use grains::*;
+
+use metrics::kind::*;
 
 pub struct TCP4;
 
@@ -21,7 +23,13 @@ impl EBPFModule<'static> for TCP4 {
                     let mut tags = connection.to_tags();
                     tags.insert("proto".to_string(), "tcp4".to_string());
 
-                    upstream.do_send(Measurement::new(name, 1, None, tags));
+                    upstream.do_send(Measurement::new(
+                        COUNTER | HISTOGRAM | METER,
+                        name,
+                        1,
+                        None,
+                        tags,
+                    ));
                 })
             }),
             "tcp4_volume" => PerfMap::new(m, -1, 0, 128, || {
