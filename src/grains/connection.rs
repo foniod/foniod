@@ -3,7 +3,37 @@
 use std::net::Ipv4Addr;
 use std::ptr;
 
+use grains::*;
+use redbpf::PerfCallback;
+
 include!(concat!(env!("OUT_DIR"), "/connection.rs"));
+
+pub fn get_volume_callback(proto: &'static str, upstreams: Vec<Backend>) -> PerfCallback {
+    Box::new(move |raw| {
+        let volume = Volume::from(_data_volume::from(raw));
+
+        let unit = Some("byte".to_string());
+        let name = format!("volume.{}", if volume.send > 0 { "out" } else { "in" });
+
+        let mut tags = volume.connection.to_tags();
+        tags.insert("proto".to_string(), proto.to_string());
+
+        let vol = if volume.send > 0 {
+            volume.send
+        } else {
+            volume.recv
+        };
+
+        for upstream in upstreams.iter() {
+            upstream.do_send(Measurement::new(
+                name.clone(),
+                vol as i64,
+                unit.clone(),
+                tags.clone(),
+            ));
+        }
+    })
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Volume {
@@ -30,6 +60,22 @@ pub struct Connection {
     pub destination_ip: Ipv4Addr,
     pub destination_port: u16,
     pub source_port: u16,
+}
+
+impl Connection {
+    pub fn to_tags(&self) -> HashMap<String, String> {
+        let mut tags = HashMap::new();
+
+        let dip = format!("{}", self.destination_ip);
+        let dport = format!("{}", self.destination_port);
+        let process = format!("{}", self.name);
+
+        tags.insert("destination".to_string(), dip);
+        tags.insert("dport".to_string(), dport);
+        tags.insert("process".to_string(), process);
+
+        tags
+    }
 }
 
 impl From<_data_connect> for Connection {
