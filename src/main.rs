@@ -29,19 +29,12 @@ fn main() {
     let backend = addr.start().recipient();
 
     thread::spawn(move || {
-        let mut mod_tcp4 = grains::tcpv4::TCP4::load().unwrap();
-        let mut perf_tcp4 = grains::tcpv4::TCP4::bind(&mut mod_tcp4, &backend);
-
-        // let mut mod_udp = grains::udp::UDP::load().unwrap();
-        // let mut perf_udp = grains::udp::UDP::bind(&mut mod_udp, &client);
+        let mut mod_tcp4 = Grain::<tcpv4::TCP4>::load().unwrap().bind(&backend);
+        let mut mod_udp = Grain::<udp::UDP>::load().unwrap().bind(&backend);
 
         loop {
-            // for pm in perf_udp.iter_mut() {
-            //     pm.poll(10)
-            // }
-            for pm in perf_tcp4.iter_mut() {
-                pm.poll(10)
-            }
+            mod_tcp4.poll();
+            mod_udp.poll();
         }
     });
 

@@ -1,13 +1,31 @@
 mod connection;
 pub mod tcpv4;
-// pub mod udp;
-use actix::Recipient;
-use metrics::Measurement;
-use redbpf::{Map, Module, PerfMap, Result};
+pub mod udp;
 
-pub trait EBPFModule<'c, 'm> {
-    fn load() -> Result<Module> {
-        let mut module = Module::parse(Self::code())?;
+pub use backends::Backend;
+pub use metrics::Measurement;
+pub use redbpf::{LoadError, PerfMap, Result};
+pub use std::collections::HashMap;
+use std::marker::PhantomData;
+
+use redbpf::{Map, Module};
+
+pub struct Grain<T> {
+    module: Module,
+    _type: PhantomData<T>,
+}
+
+pub struct ActiveGrain<T> {
+    grain: Grain<T>,
+    perfmaps: Vec<PerfMap>,
+}
+
+impl<'code, 'module, T> Grain<T>
+where
+    T: EBPFModule<'code>,
+{
+    pub fn load() -> Result<Self> {
+        let mut module = Module::parse(T::code())?;
         for prog in module.programs.iter_mut() {
             prog.load(module.version, module.license.clone()).unwrap();
             println!(
@@ -18,19 +36,38 @@ pub trait EBPFModule<'c, 'm> {
             );
         }
 
-        Ok(module)
+        Ok(Grain {
+            module,
+            _type: PhantomData,
+        })
     }
 
-    fn bind(module: &'m mut Module, client: &Recipient<Measurement>) -> Vec<PerfMap<'m>> {
-        module
+    pub fn bind(mut self, client: &'module Backend) -> ActiveGrain<T> {
+        let perfmaps = self
+            .module
             .maps
-            .iter_mut()
-            .map(|m| Self::handler(m, client))
+            .drain(..)
+            .map(|m| T::handler(m, client))
             .filter(Result::is_ok)
             .map(Result::unwrap)
-            .collect()
-    }
+            .collect();
 
-    fn code() -> &'c [u8];
-    fn handler(map: &'m mut Map, client: &Recipient<Measurement>) -> Result<PerfMap<'m>>;
+        ActiveGrain {
+            grain: self,
+            perfmaps,
+        }
+    }
+}
+
+impl<T> ActiveGrain<T> {
+    pub fn poll(&mut self) {
+        for pm in self.perfmaps.iter_mut() {
+            pm.poll(10);
+        }
+    }
+}
+
+pub trait EBPFModule<'code> {
+    fn code() -> &'code [u8];
+    fn handler(map: Map, upstream: &Backend) -> Result<PerfMap>;
 }
