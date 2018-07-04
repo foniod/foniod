@@ -15,10 +15,10 @@ pub struct S3 {
 }
 
 impl S3 {
-    pub fn new(region: Region, bucket: &str) -> S3 {
+    pub fn new(region: Region, bucket: impl Into<String>) -> S3 {
         S3 {
             client: S3Client::simple(region),
-            bucket: bucket.to_string(),
+            bucket: bucket.into(),
             events: Mutex::new(vec![]),
         }
     }
@@ -48,11 +48,13 @@ impl Handler<Flush> for S3 {
             json
         };
 
-        self.client.put_object(&PutObjectRequest {
-            bucket: self.bucket.clone(),
-            key: nano_timestamp_now().to_string(),
-            body: Some(message.into()),
-            ..Default::default()
-        });
+        self.client
+            .put_object(&PutObjectRequest {
+                bucket: self.bucket.clone(),
+                key: nano_timestamp_now().to_string(),
+                body: Some(message.into()),
+                ..Default::default()
+            })
+            .sync();
     }
 }
