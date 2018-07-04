@@ -42,6 +42,10 @@ impl Handler<Flush> for S3 {
     fn handle(&mut self, _: Flush, _ctx: &mut Context<Self>) -> Self::Result {
         let message = {
             let mut evs = self.events.lock().unwrap();
+            if evs.len() == 0 {
+                return;
+            }
+
             let json = serde_json::to_string(&*evs).unwrap();
             evs.clear();
 
