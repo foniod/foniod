@@ -9,6 +9,7 @@ RUN apt-get update \
        libelf-dev bison flex libedit-dev clang-format-6.0 python python-netaddr \
        python-pyroute2 luajit libluajit-5.1-dev arping iperf netperf ethtool \
        devscripts zlib1g-dev libfl-dev \
+       pkg-config libssl-dev \
        curl \
        git \
        clang \

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 
 cwd=$(pwd)
 if [ "x${cwd##*/}" = "xdocker" ]; then
