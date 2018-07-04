@@ -38,7 +38,7 @@ fn main() {
         let bucket = env::var("AWS_BUCKET").unwrap();
         let interval = u16::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
 
-        ctx.run_interval(Duration::from_secs(30), |_, ctx| {
+        ctx.run_interval(Duration::from_secs(interval), |_, ctx| {
             ctx.address().do_send(backends::Flush)
         });
         S3::new(s3::Region::EuWest2, bucket)
