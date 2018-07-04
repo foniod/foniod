@@ -25,7 +25,10 @@ pub fn get_volume_callback(proto: &'static str, upstreams: Vec<Backend>) -> Perf
         };
 
         for upstream in upstreams.iter() {
+            use metrics::kind::*;
+
             upstream.do_send(Measurement::new(
+                COUNTER | HISTOGRAM,
                 name.clone(),
                 vol as i64,
                 unit.clone(),
