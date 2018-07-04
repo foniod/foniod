@@ -55,6 +55,6 @@ impl Handler<Flush> for S3 {
                 body: Some(message.into()),
                 ..Default::default()
             })
-            .sync();
+            .sync().unwrap();
     }
 }
