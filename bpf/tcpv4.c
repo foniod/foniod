@@ -33,11 +33,10 @@ struct bpf_map_def SEC("maps/currsock") currsock = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(u64),
     .value_size = sizeof(struct sock *),
-    .max_entries = 1024,
+    .max_entries = 10240,
     .pinning = 0,
     .namespace = "",
 };
-
 
 struct bpf_map_def SEC("maps/tcp4_connections") tcp4_connections = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
@@ -62,57 +61,74 @@ struct bpf_map_def SEC("maps/tcp4_volume") tcp4_volume = {
 __u32 _version SEC("version") = 0xFFFFFFFE;
 char _license[] SEC("license") = "GPL";
 
+static __inline__
+int store_to_task_map(struct bpf_map_def *map, void *ptr)
+{
+	u64 pid = bpf_get_current_pid_tgid();
+  bpf_map_update_elem(map, &pid, &ptr, BPF_ANY);
+  return 0;
+}
+
 SEC("kprobe/tcp_sendmsg")
 int trace_sendmsg_entry(struct pt_regs *ctx)
 {
-	u64 pid = bpf_get_current_pid_tgid();
-  struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
-  size_t size = (size_t) PT_REGS_PARM3(ctx);
-
-  struct _data_volume data = {
-    .conn = get_connection_details(&sk, pid),
-    .send = size,
-    .recv = 0
-  };
-
-  u32 cpu = bpf_get_smp_processor_id();
-  bpf_perf_event_output(ctx, &tcp4_volume, cpu, &data, sizeof(data));
-
-
-	return 0;
+  return store_to_task_map(&currsock, (void *) PT_REGS_PARM1(ctx));
 };
-
 
 SEC("kprobe/tcp_recvmsg")
 int trace_recvmsg_entry(struct pt_regs *ctx)
 {
-	u64 pid = bpf_get_current_pid_tgid();
-  struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
-  size_t size = (size_t) PT_REGS_PARM3(ctx);
-
-  struct _data_volume data = {
-                              .conn = get_connection_details(&sk, pid),
-                              .send = 0,
-                              .recv = size
-  };
-
-  u32 cpu = bpf_get_smp_processor_id();
-  bpf_perf_event_output(ctx, &tcp4_volume, cpu, &data, sizeof(data));
-
-	return 0;
+  return store_to_task_map(&currsock, (void *) PT_REGS_PARM1(ctx));
 };
-
 
 SEC("kprobe/tcp_v4_connect")
 int trace_outbound_entry(struct pt_regs *ctx)
 {
+  return store_to_task_map(&currsock, (void *) PT_REGS_PARM1(ctx));
+};
+
+#define SEND 1
+#define RECV 2
+
+static __inline__
+int traffic_volume(struct bpf_map_def *state, struct bpf_map_def *output, struct pt_regs *ctx, u8 direction)
+{
 	u64 pid = bpf_get_current_pid_tgid();
-  struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
+  int size = (int) PT_REGS_RC(ctx);
 
-	// stash the sock ptr for lookup on return
-  bpf_map_update_elem(&currsock, &pid, &sk, BPF_ANY);
+	struct sock **skpp = bpf_map_lookup_elem(state, &pid);
+	if (skpp == 0) {
+		return 0;	
+	}
 
+  if (size <= 0) {
+    bpf_map_delete_elem(state, &pid);
+    return 0;
+  }
+
+  struct _data_volume data = {
+                              .conn = get_connection_details(skpp, pid),
+                              .send = direction == SEND ? size : 0,
+                              .recv = direction == RECV ? size : 0
+  };
+
+  u32 cpu = bpf_get_smp_processor_id();
+  bpf_perf_event_output(ctx, output, cpu, &data, sizeof(data));
+
+  bpf_map_delete_elem(state, &pid);
 	return 0;
+}
+
+SEC("kretprobe/tcp_sendmsg")
+int trace_sendmsg_return(struct pt_regs *ctx)
+{
+  return traffic_volume(&currsock, &tcp4_volume, ctx, SEND);
+};
+
+SEC("kretprobe/tcp_recvmsg")
+int trace_recvmsg_return(struct pt_regs *ctx)
+{
+  return traffic_volume(&currsock, &tcp4_volume, ctx, RECV);
 };
 
 SEC("kretprobe/tcp_v4_connect")
