@@ -1,4 +1,5 @@
 /redbpf/target
 /bpf-sys/target
 /target
+/kernel
 **/*.rs.bk

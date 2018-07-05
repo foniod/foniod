@@ -1,14 +1,25 @@
-FROM rust
+FROM ubuntu:18.04
 
-RUN echo "deb http://httpredir.debian.org/debian/ stable main non-free" >> /etc/apt/sources.list \
-    && echo "deb-src http://httpredir.debian.org/debian/ stable main non-free" >> /etc/apt/sources.list \
-    && echo "deb http://security.debian.org/ stable/updates stable non-free" >> /etc/apt/sources.list \
-    && apt-get update \
-    && apt-get -y install debhelper cmake libllvm3.8 llvm-3.8-dev libclang-3.8-dev \
-       libelf-dev bison flex libedit-dev clang-format-3.8 python python-netaddr \
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+
+RUN apt-get update \
+    && apt-get -y install debhelper cmake libllvm6.0 llvm-6.0-dev libclang-6.0-dev \
+       libelf-dev bison flex libedit-dev clang-format-6.0 python python-netaddr \
        python-pyroute2 luajit libluajit-5.1-dev arping iperf netperf ethtool \
        devscripts zlib1g-dev libfl-dev \
-       clang
+       pkg-config libssl-dev \
+       curl \
+       git \
+       clang \
+    && curl https://sh.rustup.rs -sSf > rustup.sh \
+    && sh rustup.sh -y --default-toolchain stable --no-modify-path \
+    && rustup --version \
+    && cargo --version \
+    && rustc --version
+
+RUN ln -s /usr/bin/llc-6.0 /usr/bin/llc 
 
 WORKDIR /tmp
 RUN git clone https://github.com/iovisor/bcc.git \
@@ -16,5 +27,7 @@ RUN git clone https://github.com/iovisor/bcc.git \
     && cmake -DCMAKE_INSTALL_PREFIX=/usr .. \
     && make \
     && make install
+
+RUN cargo install bindgen
 
 WORKDIR /build

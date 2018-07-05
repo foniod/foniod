@@ -12,12 +12,20 @@ lazy_static = "1.0"
 redbpf = { path = "./redbpf" }
 
 [dependencies]
-chrono = { version = "0.4", features = ["serde"] }
+actix = "^0.6"
+futures = "^0.1"
+
 failure = "0.1"
+
 libc = "0.2"
-serde = "1.0"
-serde_derive = "1.0"
-serde_json = "1.0"
-uuid = { version = "0.6", features = ["v4"] }
 redbpf = { path = "./redbpf" }
+
+uuid = { version = "0.6", features = ["v4"] }
+serde = "^1.0"
+serde_derive = "^1.0"
+serde_json = "^1.0"
+toml = "^0.4"
+
 cadence = "0.14"
+rusoto_core = "0.32"
+rusoto_s3 = "0.32"
