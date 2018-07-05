@@ -57,11 +57,11 @@ impl From<_data_volume> for Volume {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Connection {
-    pub pid: u32,
+    pub task_id: u64, 
     pub name: String,
-    pub source_ip: Ipv4Addr,
     pub destination_ip: Ipv4Addr,
     pub destination_port: u16,
+    pub source_ip: Ipv4Addr,
     pub source_port: u16,
 }
 
@@ -69,13 +69,14 @@ impl Connection {
     pub fn to_tags(&self) -> HashMap<String, String> {
         let mut tags = HashMap::new();
 
-        let dip = format!("{}", self.destination_ip);
-        let dport = format!("{}", self.destination_port);
-        let process = format!("{}", self.name);
+        tags.insert("process".to_string(), self.name.clone());
+        tags.insert("task_id".to_string(), self.task_id.to_string());
 
-        tags.insert("destination".to_string(), dip);
-        tags.insert("dport".to_string(), dport);
-        tags.insert("process".to_string(), process);
+        tags.insert("d_ip".to_string(), self.destination_ip.to_string());
+        tags.insert("d_port".to_string(), self.destination_port.to_string());
+
+        tags.insert("s_ip".to_string(), self.source_ip.to_string());
+        tags.insert("s_port".to_string(), self.source_port.to_string());
 
         tags
     }
@@ -84,7 +85,7 @@ impl Connection {
 impl From<_data_connect> for Connection {
     fn from(data: _data_connect) -> Connection {
         Connection {
-            pid: data.id as u32,
+            task_id: data.id,
             name: get_string(unsafe { &*(&data.comm as *const [i8] as *const [u8]) }),
             source_ip: to_ip(data.saddr),
             destination_ip: to_ip(data.daddr),

@@ -44,28 +44,10 @@ struct bpf_map_def SEC("maps/udp_volume") udp_volume = {
 __u32 _version SEC("version") = 0xFFFFFFFE;
 char _license[] SEC("license") = "GPL";
 
-static __inline__
-struct _data_connect get_connection_details(struct sock **skpp, u32 pid) {
-  struct _data_connect data = {};
-  struct inet_sock *skp = inet_sk(*skpp);
-
-  data.id = pid;
-  data.ts = bpf_ktime_get_ns();
-
-  bpf_get_current_comm(&data.comm, sizeof(data.comm));
-
-  bpf_probe_read(&data.saddr, sizeof(u32), &skp->inet_saddr);
-  bpf_probe_read(&data.daddr, sizeof(u32), &skp->inet_daddr);
-  bpf_probe_read(&data.dport, sizeof(u32), &skp->inet_dport);
-  bpf_probe_read(&data.sport, sizeof(u32), &skp->inet_sport);
-
-  return data;
-}
-
 SEC("kprobe/udp_sendmsg")
 int trace_sendmsg_entry(struct pt_regs *ctx)
 {
-	u32 pid = bpf_get_current_pid_tgid();
+	u64 pid = bpf_get_current_pid_tgid();
   struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
   size_t size = (size_t) PT_REGS_PARM3(ctx);
 
@@ -86,7 +68,7 @@ int trace_sendmsg_entry(struct pt_regs *ctx)
 SEC("kprobe/udp_rcv")
 int trace_recvmsg_entry(struct pt_regs *ctx)
 {
-	u32 pid = bpf_get_current_pid_tgid();
+	u64 pid = bpf_get_current_pid_tgid();
   struct sk_buff *skb = (struct sk_buff *) PT_REGS_PARM1(ctx);
   u32 size = 0;
   struct sock *sk;
