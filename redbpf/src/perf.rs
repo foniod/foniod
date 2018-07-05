@@ -55,22 +55,22 @@ impl Drop for PerfReader {
     }
 }
 
-pub struct PerfMap<'m> {
-    map: &'m Map,
+pub struct PerfMap {
+    map: Map,
     page_count: i32,
     callbacks: Vec<Box<PerfCallbackWrapper>>,
     keys: Vec<CpuId>,
     readers: Vec<PerfReader>,
 }
 
-impl<'m> PerfMap<'m> {
+impl PerfMap {
     pub fn new<CB>(
-        map: &'m mut Map,
+        mut map: Map,
         pid: i32,
         cpu: i32,
         page_count: i32,
         callback: CB,
-    ) -> Result<PerfMap<'m>>
+    ) -> Result<PerfMap>
     where
         CB: Fn() -> PerfCallback,
     {

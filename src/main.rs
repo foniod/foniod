@@ -1,53 +1,68 @@
 #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
 
-extern crate chrono;
+#[macro_use]
+extern crate actix;
 extern crate failure;
+extern crate futures;
 extern crate libc;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate cadence;
 extern crate redbpf;
+extern crate rusoto_core;
+extern crate rusoto_s3;
 extern crate serde_json;
 extern crate uuid;
 
-use std::net::UdpSocket;
+use std::env;
 use std::thread;
 use std::time::Duration;
 
-use cadence::{BufferedUdpMetricSink, QueuingMetricSink, StatsdClient, DEFAULT_PORT};
-
-use chrono::DateTime;
-use failure::Error;
-
+mod backends;
 mod grains;
+mod metrics;
 use grains::*;
 
-fn main() -> Result<(), Error> {
-    let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
-    socket.set_nonblocking(true).unwrap();
+use actix::Actor;
 
-    let host = ("127.0.0.1", DEFAULT_PORT);
-    let udp_sink = BufferedUdpMetricSink::from(host, socket).unwrap();
-    let queuing_sink = QueuingMetricSink::from(udp_sink);
-    let client = StatsdClient::from_udp_host("ingraind.metrics", host).unwrap();
+use backends::{s3, s3::S3, statsd::Statsd};
 
-    let mut mod_tcp4 = grains::tcpv4::TCP4::load().unwrap();
-    let mut perf_tcp4 = grains::tcpv4::TCP4::bind(&mut mod_tcp4, &client);
+fn main() {
+    let system = actix::System::new("outbound");
+    let mut backends = vec![];
 
-    let mut mod_udp = grains::udp::UDP::load().unwrap();
-    let mut perf_udp = grains::udp::UDP::bind(&mut mod_udp, &client);
+    if let Ok(bucket) = env::var("AWS_BUCKET") {
+        backends.push(
+            S3::create(|ctx| {
+                use actix::prelude::*;
+                let interval = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
 
-    loop {
-        thread::sleep(Duration::from_secs(1));
-
-        for pm in perf_udp.iter_mut() {
-            pm.poll(10)
-        }
-        for pm in perf_tcp4.iter_mut() {
-            pm.poll(10)
-        }
+                ctx.run_interval(Duration::from_secs(interval), |_, ctx| {
+                    ctx.address().do_send(backends::Flush)
+                });
+                S3::new(s3::Region::EuWest2, bucket)
+            }).recipient(),
+        );
     }
 
-    Ok(())
+    if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
+        backends.push(
+            Statsd::new(&host, u16::from_str_radix(&port, 10).unwrap())
+                .start()
+                .recipient(),
+        );
+    }
+
+    thread::spawn(move || {
+        let mut mod_tcp4 = Grain::<tcpv4::TCP4>::load().unwrap().bind(backends.clone());
+        let mut mod_udp = Grain::<udp::UDP>::load().unwrap().bind(backends.clone());
+
+        loop {
+            mod_tcp4.poll();
+            mod_udp.poll();
+        }
+    });
+
+    system.run();
 }
