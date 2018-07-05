@@ -26,7 +26,7 @@ use grains::*;
 
 use actix::Actor;
 
-use backends::{s3, s3::S3, statsd::Statsd};
+use backends::{s3, s3::S3, statsd::Statsd, console::Console};
 
 fn main() {
     let system = actix::System::new("outbound");
@@ -52,6 +52,10 @@ fn main() {
                 .start()
                 .recipient(),
         );
+    }
+
+    if let Ok(_) = env::var("CONSOLE") {
+        backends.push(Console::start_default().recipient());
     }
 
     thread::spawn(move || {
