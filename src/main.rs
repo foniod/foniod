@@ -30,23 +30,33 @@ use backends::{s3, s3::S3, statsd::Statsd};
 
 fn main() {
     let system = actix::System::new("outbound");
-    // let statsd = Statsd::new("127.0.0.1", 8125);
-    // let statsd_backend = statsd.start().recipient();
+    let mut backends = vec![];
 
-    let s3_addr = S3::create(|ctx| {
-        use actix::prelude::*;
-        let bucket = env::var("AWS_BUCKET").unwrap();
-        let interval = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
+    if let Ok(bucket) = env::var("AWS_BUCKET") {
+        backends.push(
+            S3::create(|ctx| {
+                use actix::prelude::*;
+                let interval = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
 
-        ctx.run_interval(Duration::from_secs(interval), |_, ctx| {
-            ctx.address().do_send(backends::Flush)
-        });
-        S3::new(s3::Region::EuWest2, bucket)
-    }).recipient();
+                ctx.run_interval(Duration::from_secs(interval), |_, ctx| {
+                    ctx.address().do_send(backends::Flush)
+                });
+                S3::new(s3::Region::EuWest2, bucket)
+            }).recipient(),
+        );
+    }
+
+    if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
+        backends.push(
+            Statsd::new(&host, u16::from_str_radix(&port, 10).unwrap())
+                .start()
+                .recipient(),
+        );
+    }
 
     thread::spawn(move || {
-        let mut mod_tcp4 = Grain::<tcpv4::TCP4>::load().unwrap().bind(&s3_addr);
-        let mut mod_udp = Grain::<udp::UDP>::load().unwrap().bind(&s3_addr);
+        let mut mod_tcp4 = Grain::<tcpv4::TCP4>::load().unwrap().bind(backends.clone());
+        let mut mod_udp = Grain::<udp::UDP>::load().unwrap().bind(backends.clone());
 
         loop {
             mod_tcp4.poll();

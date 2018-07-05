@@ -12,10 +12,10 @@ impl EBPFModule<'static> for TCP4 {
         include_bytes!(concat!(env!("OUT_DIR"), "/tcpv4.elf"))
     }
 
-    fn handler(m: Map, upstream: &Backend) -> Result<PerfMap> {
+    fn handler(m: Map, upstreams: &[Backend]) -> Result<PerfMap> {
         match m.name.as_str() {
             "tcp4_connections" => PerfMap::new(m, -1, 0, 16, || {
-                let upstream = upstream.clone();
+                let upstreams = upstreams.to_vec();
                 Box::new(move |raw| {
                     let name = "connection.out".to_string();
 
@@ -23,17 +23,19 @@ impl EBPFModule<'static> for TCP4 {
                     let mut tags = connection.to_tags();
                     tags.insert("proto".to_string(), "tcp4".to_string());
 
-                    upstream.do_send(Measurement::new(
-                        COUNTER | HISTOGRAM | METER,
-                        name,
-                        1,
-                        None,
-                        tags,
-                    ));
+                    for upstream in upstreams.iter() {
+                        upstream.do_send(Measurement::new(
+                            COUNTER | HISTOGRAM | METER,
+                            name.clone(),
+                            1,
+                            None,
+                            tags.clone(),
+                        ));
+                    }
                 })
             }),
             "tcp4_volume" => PerfMap::new(m, -1, 0, 128, || {
-                get_volume_callback("tcp4", vec![upstream.clone()])
+                get_volume_callback("tcp4", upstreams.to_vec())
             }),
             _ => Err(LoadError::BPF),
         }
