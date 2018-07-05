@@ -62,6 +62,7 @@ There are several environment variables that are picked up on start:
  * `AWS_INTERVAL=`: Commit interval for the S3 backend, in seconds
  * `STATSD_HOST=`: Host name/IP address of the statsd server
  * `STATSD_PORT=`: Statsd port
+ * `CONSOLE=`: if present, raw data will be dumped to the console
  
 The bare binary can be run as such:
  
