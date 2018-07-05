@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 
 use actix::prelude::*;
+use futures::Future;
 pub use rusoto_core::region::Region;
 use rusoto_s3::{PutObjectRequest, S3 as RusotoS3, S3Client};
 use serde_json;
@@ -52,13 +53,16 @@ impl Handler<Flush> for S3 {
             json
         };
 
-        self.client
-            .put_object(&PutObjectRequest {
-                bucket: self.bucket.clone(),
-                key: nano_timestamp_now().to_string(),
-                body: Some(message.into()),
-                ..Default::default()
-            })
-            .sync().unwrap();
+        ::actix::spawn(
+            self.client
+                .put_object(&PutObjectRequest {
+                    bucket: self.bucket.clone(),
+                    key: format!("test/{}", nano_timestamp_now()),
+                    body: Some(message.into()),
+                    ..Default::default()
+                })
+                .and_then(|_| Ok(()))
+                .or_else(|_| Ok(())),
+        );
     }
 }

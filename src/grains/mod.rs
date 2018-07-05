@@ -42,12 +42,12 @@ where
         })
     }
 
-    pub fn bind(mut self, client: &'module Backend) -> ActiveGrain<T> {
+    pub fn bind(mut self, backends: Vec<Backend>) -> ActiveGrain<T> {
         let perfmaps = self
             .module
             .maps
             .drain(..)
-            .map(|m| T::handler(m, client))
+            .map(|m| T::handler(m, &backends[..]))
             .filter(Result::is_ok)
             .map(Result::unwrap)
             .collect();
@@ -69,5 +69,5 @@ impl<T> ActiveGrain<T> {
 
 pub trait EBPFModule<'code> {
     fn code() -> &'code [u8];
-    fn handler(map: Map, upstream: &Backend) -> Result<PerfMap>;
+    fn handler(map: Map, upstream: &[Backend]) -> Result<PerfMap>;
 }
