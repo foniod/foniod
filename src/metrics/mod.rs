@@ -13,7 +13,7 @@ pub mod kind {
 
 use self::kind::Kind;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Measurement {
     timestamp: u64,
     pub kind: Kind,

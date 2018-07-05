@@ -10,17 +10,26 @@ use backends::Flush;
 use metrics::{nano_timestamp_now, Measurement};
 
 pub struct S3 {
+    kernel: String,
+    hostname: String,
     client: S3Client,
     bucket: String,
-    events: Mutex<Vec<Measurement>>,
+    events: Mutex<String>,
 }
 
 impl S3 {
     pub fn new(region: Region, bucket: impl Into<String>) -> S3 {
+        use redbpf::uname::*;
+
+        let uts = uname().unwrap();
+        let hostname = get_fqdn().unwrap();
+
         S3 {
+            kernel: to_str(&uts.release).to_string(),
+            hostname,
             client: S3Client::simple(region),
             bucket: bucket.into(),
-            events: Mutex::new(vec![]),
+            events: Mutex::new(String::new()),
         }
     }
 }
@@ -32,8 +41,15 @@ impl Actor for S3 {
 impl Handler<Measurement> for S3 {
     type Result = ();
 
-    fn handle(&mut self, msg: Measurement, _ctx: &mut Context<Self>) -> Self::Result {
-        self.events.lock().unwrap().push(msg);
+    fn handle(&mut self, mut msg: Measurement, _ctx: &mut Context<Self>) -> Self::Result {
+        msg.tags.insert("host".to_string(), self.hostname.clone());
+        msg.tags.insert("kernel".to_string(), self.kernel.clone());
+
+        let mut buffer = self.events.lock().unwrap();
+
+        buffer.push_str(&serde_json::to_string(&msg).unwrap());
+        buffer.push(',');
+        buffer.push('\n');
     }
 }
 
@@ -47,17 +63,17 @@ impl Handler<Flush> for S3 {
                 return;
             }
 
-            let json = serde_json::to_string(&*evs).unwrap();
+            let json = evs.clone();
             evs.clear();
 
-            json
+            format!("[{}]", json)
         };
 
         ::actix::spawn(
             self.client
                 .put_object(&PutObjectRequest {
                     bucket: self.bucket.clone(),
-                    key: format!("test/{}", nano_timestamp_now()),
+                    key: format!("{}_{}", &self.hostname, nano_timestamp_now()),
                     body: Some(message.into()),
                     ..Default::default()
                 })
