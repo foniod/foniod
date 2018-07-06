@@ -18,7 +18,7 @@ pub enum Unit {
     #[serde(rename = "byte")]
     Byte(u64),
     #[serde(rename = "count")]
-    Count(u64)
+    Count(u64),
 }
 
 impl Unit {
@@ -26,7 +26,7 @@ impl Unit {
         use self::Unit::*;
 
         match *self {
-            Byte(x) | Count(x) => x
+            Byte(x) | Count(x) => x,
         }
     }
 }
@@ -43,7 +43,7 @@ pub struct Measurement {
 impl Measurement {
     pub fn new(kind: Kind, name: String, value: Unit, tags: Tags) -> Self {
         Self {
-            timestamp: nano_timestamp_now(),
+            timestamp: timestamp_now(),
             kind,
             name,
             value,
@@ -52,7 +52,7 @@ impl Measurement {
     }
 }
 
-pub fn nano_timestamp_now() -> u64 {
+pub fn timestamp_now() -> u64 {
     let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     duration.as_secs() * (1e9 as u64) + duration.subsec_nanos() as u64
 }

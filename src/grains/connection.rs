@@ -55,7 +55,7 @@ impl From<_data_volume> for Volume {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Connection {
-    pub task_id: u64, 
+    pub task_id: u64,
     pub name: String,
     pub destination_ip: Ipv4Addr,
     pub destination_port: u16,
