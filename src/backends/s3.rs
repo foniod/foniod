@@ -7,7 +7,7 @@ use rusoto_s3::{PutObjectRequest, S3 as RusotoS3, S3Client};
 use serde_json;
 
 use backends::Flush;
-use metrics::{nano_timestamp_now, Measurement};
+use metrics::{timestamp_now, Measurement};
 
 pub struct S3 {
     kernel: String,
@@ -73,7 +73,7 @@ impl Handler<Flush> for S3 {
             self.client
                 .put_object(&PutObjectRequest {
                     bucket: self.bucket.clone(),
-                    key: format!("{}_{}", &self.hostname, nano_timestamp_now()),
+                    key: format!("{}_{}", &self.hostname, timestamp_now()),
                     body: Some(message.into()),
                     ..Default::default()
                 })

@@ -30,7 +30,9 @@ impl Handler<Measurement> for Statsd {
     type Result = ();
 
     fn handle(&mut self, msg: Measurement, _ctx: &mut Context<Self>) -> Self::Result {
-        let mut builder = self.client.count_with_tags(&msg.name, msg.value.get() as i64);
+        let mut builder = self
+            .client
+            .count_with_tags(&msg.name, msg.value.get() as i64);
         for (key, value) in msg.tags.iter() {
             builder = builder.with_tag(key, value);
         }
