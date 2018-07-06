@@ -11,11 +11,9 @@ include!(concat!(env!("OUT_DIR"), "/connection.rs"));
 pub fn get_volume_callback(proto: &'static str, upstreams: Vec<Backend>) -> PerfCallback {
     Box::new(move |raw| {
         let volume = Volume::from(_data_volume::from(raw));
-
-        let unit = Some("byte".to_string());
         let name = format!("volume.{}", if volume.send > 0 { "out" } else { "in" });
-
         let mut tags = volume.connection.to_tags();
+
         tags.insert("proto".to_string(), proto.to_string());
 
         let vol = if volume.send > 0 {
@@ -26,12 +24,12 @@ pub fn get_volume_callback(proto: &'static str, upstreams: Vec<Backend>) -> Perf
 
         for upstream in upstreams.iter() {
             use metrics::kind::*;
+            use metrics::Unit;
 
             upstream.do_send(Measurement::new(
                 COUNTER | HISTOGRAM,
                 name.clone(),
-                vol as i64,
-                unit.clone(),
+                Unit::Byte(vol as u64),
                 tags.clone(),
             ));
         }
