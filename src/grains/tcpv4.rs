@@ -3,8 +3,6 @@
 use grains::connection::{Connection, _data_connect, get_volume_callback};
 use grains::*;
 
-use metrics::kind::*;
-
 pub struct TCP4;
 
 impl EBPFModule<'static> for TCP4 {
@@ -17,18 +15,19 @@ impl EBPFModule<'static> for TCP4 {
             "tcp4_connections" => PerfMap::new(m, -1, 0, 16, || {
                 let upstreams = upstreams.to_vec();
                 Box::new(move |raw| {
-                    let name = "connection.out".to_string();
-
                     let connection = Connection::from(_data_connect::from(raw));
                     let mut tags = connection.to_tags();
+
                     tags.insert("proto".to_string(), "tcp4".to_string());
 
                     for upstream in upstreams.iter() {
+                        use metrics::kind::*;
+                        use metrics::Unit;
+
                         upstream.do_send(Measurement::new(
                             COUNTER | HISTOGRAM | METER,
-                            name.clone(),
-                            1,
-                            None,
+                            "connection.out".to_string(),
+                            Unit::Count(1),
                             tags.clone(),
                         ));
                     }
