@@ -13,12 +13,14 @@ extern crate redbpf;
 extern crate rusoto_core;
 extern crate rusoto_s3;
 extern crate serde_json;
+extern crate toml;
 extern crate uuid;
 
 use std::env;
 use std::thread;
 use std::time::Duration;
 
+mod aggregations;
 mod backends;
 mod grains;
 mod metrics;
@@ -26,7 +28,7 @@ use grains::*;
 
 use actix::Actor;
 
-use backends::{s3, s3::S3, statsd::Statsd, console::Console};
+use backends::{console::Console, s3, s3::S3, statsd::Statsd};
 
 fn main() {
     let system = actix::System::new("outbound");

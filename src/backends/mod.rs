@@ -6,7 +6,7 @@ pub mod statsd;
 
 use metrics::Measurement;
 
-pub type Backend = Recipient<Measurement>;
+pub type BackendHandler = Recipient<Measurement>;
 impl Message for Measurement {
     type Result = ();
 }

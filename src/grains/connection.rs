@@ -8,7 +8,7 @@ use redbpf::PerfCallback;
 
 include!(concat!(env!("OUT_DIR"), "/connection.rs"));
 
-pub fn get_volume_callback(proto: &'static str, upstreams: Vec<Backend>) -> PerfCallback {
+pub fn get_volume_callback(proto: &'static str, upstreams: Vec<BackendHandler>) -> PerfCallback {
     Box::new(move |raw| {
         let volume = Volume::from(_data_volume::from(raw));
         let name = format!("volume.{}", if volume.send > 0 { "out" } else { "in" });
