@@ -1,89 +1,98 @@
-use std::collections::{BTreeMap, HashMap};
+use std::sync::Mutex;
+use std::time::Duration;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Config {
-    probe: HashMap<String, Probe>,
-    pipeline: HashMap<String, Pipeline>,
+//// Split here ////
+use actix::prelude::*;
+use futures::Future;
+
+use backends::{Flush, Message};
+use config::*;
+use metrics::Measurement;
+
+pub struct AddSystemDetails(String, String, Recipient<Message>);
+pub struct Holdback(Mutex<Vec<Measurement>>, Recipient<Message>);
+
+impl Actor for AddSystemDetails {
+    type Context = Context<Self>;
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Probe {
-    pipeline: Vec<String>,
+impl AddSystemDetails {
+    pub fn launch(upstream: Recipient<Message>) -> Recipient<Message> {
+        use redbpf::uname::*;
+
+        let uts = uname().unwrap();
+        let kernel = to_str(&uts.release).to_string();
+
+        AddSystemDetails(get_fqdn().unwrap(), kernel, upstream)
+            .start()
+            .recipient()
+    }
+
+    fn add_tags(&self, msg: &mut Measurement) {
+        msg.tags.insert("host".to_string(), self.0.clone());
+        msg.tags.insert("kernel".to_string(), self.1.clone());
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Pipeline {
-    config: Backend,
-    steps: Vec<Aggregator>,
+impl Handler<Message> for AddSystemDetails {
+    type Result = ();
+
+    fn handle(&mut self, mut msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
+        match msg {
+            Message::List(ref mut ms) => for mut m in ms {
+                self.add_tags(&mut m);
+            },
+            Message::Single(ref mut m) => self.add_tags(m),
+        }
+
+        ::actix::spawn(self.2.send(msg).map_err(|_| ()));
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "type")]
-pub enum Backend {
-    S3(S3Config),
-    Statsd(StatsdConfig),
-    Console,
+impl Actor for Holdback {
+    type Context = Context<Self>;
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct S3Config;
+impl Holdback {
+    pub fn launch(config: &HoldbackConfig, upstream: Recipient<Message>) -> Recipient<Message> {
+        let interval = config.interval_s;
+        Holdback::create(move |ctx| {
+            ctx.run_interval(Duration::from_secs(interval), |_, ctx| {
+                ctx.address().do_send(Flush)
+            });
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct StatsdConfig {
-    use_tags: bool,
+            Holdback(Mutex::new(vec![]), upstream)
+        }).recipient()
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct HoldbackConfig {
-    interval_s: u64,
+impl Handler<Message> for Holdback {
+    type Result = ();
+
+    fn handle(&mut self, mut msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
+        match msg {
+            Message::List(ref mut ms) => self.0.lock().unwrap().extend(ms.drain(..)),
+            Message::Single(ref m) => self.0.lock().unwrap().push(m.clone()),
+        }
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "type")]
-pub enum Aggregator {
-    AddHostname,
-    AddKernel,
-    Holdback(HoldbackConfig),
-}
+impl Handler<Flush> for Holdback {
+    type Result = ();
 
-mod tests {
-    #[test]
-    fn can_parse() {
-        use aggregations::*;
-        use toml;
+    fn handle(&mut self, _: Flush, _ctx: &mut Context<Self>) -> Self::Result {
+        let evs = {
+            let mut buffer = self.0.lock().unwrap();
+            let evs = buffer.clone();
+            buffer.clear();
 
-        let config: Config = toml::from_str(
-            r#"
-[probe.tcp4]
-pipeline = ["statsd"]
+            evs
+        };
 
-[probe.udp]
-pipeline = ["statsd"]
+        if evs.len() == 0 {
+            return;
+        }
 
-[pipeline.statsd.config]
-type = "Statsd"
-use_tags = true
-
-[[pipeline.statsd.steps]]
-type = "AddKernel"
-
-[[pipeline.statsd.steps]]
-type = "AddHostname"
-
-[[pipeline.statsd.steps]]
-type = "Holdback"
-interval_s = 30
-"#,
-        ).unwrap();
-
-        // assert_eq!(config,
-        //            Config { probe: {"udp": Probe { pipeline: ["statsd"] },
-        //                             "tcp4": Probe { pipeline: ["statsd"] }},
-        //                     pipeline: {"statsd": Pipeline { config: Statsd(StatsdConfig { use_tags: true }),
-        //                                                     steps: [AddKernel,
-        //                                                             AddHostname,
-        //                                                             Holdback(HoldbackConfig { interval_s: 30 })
-        //                                                     ] }}}
-        // );
+        ::actix::spawn(self.1.send(Message::List(evs)).map_err(|_| ()));
     }
 }

@@ -2,7 +2,7 @@ mod connection;
 pub mod tcpv4;
 pub mod udp;
 
-pub use backends::BackendHandler;
+pub use backends::{BackendHandler, Message};
 pub use metrics::Measurement;
 pub use redbpf::{LoadError, PerfMap, Result};
 pub use std::collections::HashMap;

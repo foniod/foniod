@@ -26,12 +26,12 @@ pub fn get_volume_callback(proto: &'static str, upstreams: Vec<BackendHandler>) 
             use metrics::kind::*;
             use metrics::Unit;
 
-            upstream.do_send(Measurement::new(
+            upstream.do_send(Message::Single(Measurement::new(
                 COUNTER | HISTOGRAM,
                 name.clone(),
                 Unit::Byte(vol as u64),
                 tags.clone(),
-            ));
+            )));
         }
     })
 }
