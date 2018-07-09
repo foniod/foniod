@@ -24,12 +24,12 @@ impl EBPFModule<'static> for TCP4 {
                         use metrics::kind::*;
                         use metrics::Unit;
 
-                        upstream.do_send(Measurement::new(
+                        upstream.do_send(Message::Single(Measurement::new(
                             COUNTER | HISTOGRAM | METER,
                             "connection.out".to_string(),
                             Unit::Count(1),
                             tags.clone(),
-                        ));
+                        )));
                     }
                 })
             }),
