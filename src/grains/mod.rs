@@ -1,4 +1,5 @@
 mod connection;
+pub mod dns;
 pub mod tcpv4;
 pub mod udp;
 
@@ -28,18 +29,38 @@ where
         let mut module = Module::parse(T::code())?;
         for prog in module.programs.iter_mut() {
             prog.load(module.version, module.license.clone()).unwrap();
-            println!(
-                "prog loaded: {} {} {:?}",
-                prog.attach().is_ok(),
-                prog.name,
-                prog.kind
-            );
         }
 
         Ok(Grain {
             module,
             _type: PhantomData,
         })
+    }
+
+    pub fn attach_kprobes(mut self) -> Self {
+        use redbpf::ProgramKind::*;
+        for prog in self
+            .module
+            .programs
+            .iter_mut()
+            .filter(|p| p.kind == Kprobe || p.kind == Kretprobe)
+        {
+            println!("Program: {}, {:?}", prog.name, prog.kind);
+            prog.attach_probe().unwrap();
+        }
+
+        self
+    }
+
+    pub fn attach_xdps(mut self, iface: &str) -> Self {
+        use redbpf::ProgramKind::*;
+        for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
+            println!("Program: {}, {:?}", prog.name, prog.kind);
+
+            prog.attach_xdp(iface).unwrap();
+        }
+
+        self
     }
 
     pub fn bind(mut self, backends: Vec<BackendHandler>) -> ActiveGrain<T> {
