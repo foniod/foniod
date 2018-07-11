@@ -13,37 +13,55 @@ extern crate redbpf;
 extern crate rusoto_core;
 extern crate rusoto_s3;
 extern crate serde_json;
+extern crate toml;
 extern crate uuid;
 
 use std::env;
 use std::thread;
-use std::time::Duration;
 
+mod aggregations;
 mod backends;
+mod config;
 mod grains;
 mod metrics;
+
 use grains::*;
 
 use actix::Actor;
 
-use backends::{s3, s3::S3, statsd::Statsd};
+use backends::{console::Console, s3, s3::S3, statsd::Statsd};
 
 fn main() {
     let system = actix::System::new("outbound");
     let mut backends = vec![];
 
-    if let Ok(bucket) = env::var("AWS_BUCKET") {
-        backends.push(
-            S3::create(|ctx| {
-                use actix::prelude::*;
-                let interval = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
+    // let app = vec![
+    //     Grain::<tcpv4::TCP4>::load().unwrap().bind(vec![
+    //         Pipeline {
+    //             config: Backend::Statsd(StatsdConfig { use_tags: true }),
+    //             steps: vec![
+    //                 Aggregators::AddKernel,
+    //                 Aggregators::AddHostname,
+    //                 Aggregators::Holdback(HoldbackConfig { interval_s: 30 }),
+    //             ],
+    //         }.initialise(),
+    //         Pipeline {
+    //             config: Backend::Console(),
+    //             steps: vec![]
+    //         },
+    //     ]);
+    //     Grain::<udp::UDP>::load().unwrap().bind(backends.clone())
+    // ];
 
-                ctx.run_interval(Duration::from_secs(interval), |_, ctx| {
-                    ctx.address().do_send(backends::Flush)
-                });
-                S3::new(s3::Region::EuWest2, bucket)
-            }).recipient(),
-        );
+    if let Ok(bucket) = env::var("AWS_BUCKET") {
+        use aggregations::Holdback;
+        use config::HoldbackConfig;
+
+        let interval_s = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
+        backends.push(Holdback::launch(
+            &HoldbackConfig { interval_s },
+            S3::new(s3::Region::EuWest2, bucket).start().recipient(),
+        ));
     }
 
     if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
@@ -52,6 +70,10 @@ fn main() {
                 .start()
                 .recipient(),
         );
+    }
+
+    if let Ok(_) = env::var("CONSOLE") {
+        backends.push(Console::start_default().recipient());
     }
 
     thread::spawn(move || {

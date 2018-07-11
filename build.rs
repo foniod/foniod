@@ -64,7 +64,7 @@ fn generate_bindings(flags: &[String], out_dir: &Path, source: &Path) -> Result<
 
     const TYPE_REGEX: &str = "_data_[^{}]*";
     lazy_static! {
-        static ref RE: Regex = Regex::new(&format!(r"struct ({})", TYPE_REGEX)).unwrap();
+        static ref RE: Regex = Regex::new(&format!(r"struct ({}) \{{", TYPE_REGEX)).unwrap();
     }
 
     let bindings = bindgen::builder()

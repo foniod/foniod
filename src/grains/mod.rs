@@ -2,7 +2,7 @@ mod connection;
 pub mod tcpv4;
 pub mod udp;
 
-pub use backends::Backend;
+pub use backends::{BackendHandler, Message};
 pub use metrics::Measurement;
 pub use redbpf::{LoadError, PerfMap, Result};
 pub use std::collections::HashMap;
@@ -42,7 +42,7 @@ where
         })
     }
 
-    pub fn bind(mut self, backends: Vec<Backend>) -> ActiveGrain<T> {
+    pub fn bind(mut self, backends: Vec<BackendHandler>) -> ActiveGrain<T> {
         let perfmaps = self
             .module
             .maps
@@ -69,5 +69,5 @@ impl<T> ActiveGrain<T> {
 
 pub trait EBPFModule<'code> {
     fn code() -> &'code [u8];
-    fn handler(map: Map, upstream: &[Backend]) -> Result<PerfMap>;
+    fn handler(map: Map, upstream: &[BackendHandler]) -> Result<PerfMap>;
 }
