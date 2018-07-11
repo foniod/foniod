@@ -72,7 +72,7 @@ impl ProgramKind {
         match self {
             Kprobe | Kretprobe => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_KPROBE,
             XDP => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_XDP,
-            SocketFilter => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_SOCKET_FILTER
+            SocketFilter => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_SOCKET_FILTER,
         }
     }
 
@@ -173,13 +173,7 @@ impl Program {
 
     pub fn attach_xdp(&mut self, iface: &str) -> Result<()> {
         let ciface = CString::new(iface).unwrap();
-        let res = unsafe {
-            bpf_sys::bpf_attach_xdp(
-                ciface.as_ptr(),
-                self.fd.unwrap(),
-                0
-            )
-        };
+        let res = unsafe { bpf_sys::bpf_attach_xdp(ciface.as_ptr(), self.fd.unwrap(), 0) };
 
         if res < 0 {
             Err(LoadError::BPF)
@@ -219,10 +213,9 @@ impl Module {
                     maps.insert(shndx, Map::load(name, &content)?);
                 }
                 (hdr::SHT_PROGBITS, Some(kind @ "kprobe"), Some(name))
-                    | (hdr::SHT_PROGBITS, Some(kind @ "kretprobe"), Some(name))
-                    | (hdr::SHT_PROGBITS, Some(kind @ "xdp"), Some(name))
-                    | (hdr::SHT_PROGBITS, Some(kind @ "socketfilter"), Some(name))
-                    => {
+                | (hdr::SHT_PROGBITS, Some(kind @ "kretprobe"), Some(name))
+                | (hdr::SHT_PROGBITS, Some(kind @ "xdp"), Some(name))
+                | (hdr::SHT_PROGBITS, Some(kind @ "socketfilter"), Some(name)) => {
                     programs.insert(shndx, Program::new(kind, name, &content)?);
                 }
                 _ => {}
