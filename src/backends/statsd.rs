@@ -3,6 +3,7 @@ use std::net::UdpSocket;
 use actix::prelude::*;
 use cadence::{BufferedUdpMetricSink, Counted, QueuingMetricSink, StatsdClient};
 
+use backends::Message;
 use metrics::Measurement;
 
 pub struct Statsd {
@@ -20,21 +21,32 @@ impl Statsd {
 
         Statsd { client }
     }
+
+    fn count_with_tags(&mut self, msg: &Measurement) {
+        let mut builder = self
+            .client
+            .count_with_tags(&msg.name, msg.value.get() as i64);
+        for (key, value) in msg.tags.iter() {
+            builder = builder.with_tag(key, value);
+        }
+
+        builder.try_send().unwrap();
+    }
 }
 
 impl Actor for Statsd {
     type Context = Context<Self>;
 }
 
-impl Handler<Measurement> for Statsd {
+impl Handler<Message> for Statsd {
     type Result = ();
 
-    fn handle(&mut self, msg: Measurement, _ctx: &mut Context<Self>) -> Self::Result {
-        let mut builder = self.client.count_with_tags(&msg.name, msg.value);
-        for (key, value) in msg.tags.iter() {
-            builder = builder.with_tag(key, value);
+    fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
+        match msg {
+            Message::List(ref ms) => for mut m in ms {
+                self.count_with_tags(&mut m);
+            },
+            Message::Single(ref m) => self.count_with_tags(m),
         }
-
-        builder.try_send().unwrap();
     }
 }

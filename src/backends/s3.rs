@@ -1,26 +1,26 @@
-use std::sync::Mutex;
-
 use actix::prelude::*;
 use futures::Future;
 pub use rusoto_core::region::Region;
 use rusoto_s3::{PutObjectRequest, S3 as RusotoS3, S3Client};
 use serde_json;
 
-use backends::Flush;
-use metrics::{nano_timestamp_now, Measurement};
+use backends::Message;
+use metrics::timestamp_now;
 
 pub struct S3 {
+    hostname: String,
     client: S3Client,
     bucket: String,
-    events: Mutex<Vec<Measurement>>,
 }
 
 impl S3 {
     pub fn new(region: Region, bucket: impl Into<String>) -> S3 {
+        use redbpf::uname::*;
+
         S3 {
+            hostname: get_fqdn().unwrap(),
             client: S3Client::simple(region),
             bucket: bucket.into(),
-            events: Mutex::new(vec![]),
         }
     }
 }
@@ -29,36 +29,16 @@ impl Actor for S3 {
     type Context = Context<Self>;
 }
 
-impl Handler<Measurement> for S3 {
+impl Handler<Message> for S3 {
     type Result = ();
 
-    fn handle(&mut self, msg: Measurement, _ctx: &mut Context<Self>) -> Self::Result {
-        self.events.lock().unwrap().push(msg);
-    }
-}
-
-impl Handler<Flush> for S3 {
-    type Result = ();
-
-    fn handle(&mut self, _: Flush, _ctx: &mut Context<Self>) -> Self::Result {
-        let message = {
-            let mut evs = self.events.lock().unwrap();
-            if evs.len() == 0 {
-                return;
-            }
-
-            let json = serde_json::to_string(&*evs).unwrap();
-            evs.clear();
-
-            json
-        };
-
+    fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
         ::actix::spawn(
             self.client
                 .put_object(&PutObjectRequest {
                     bucket: self.bucket.clone(),
-                    key: format!("test/{}", nano_timestamp_now()),
-                    body: Some(message.into()),
+                    key: format!("{}_{}", &self.hostname, timestamp_now()),
+                    body: Some(serde_json::to_string(&msg).unwrap().into()),
                     ..Default::default()
                 })
                 .and_then(|_| Ok(()))

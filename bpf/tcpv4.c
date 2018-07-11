@@ -31,13 +31,12 @@
 
 struct bpf_map_def SEC("maps/currsock") currsock = {
     .type = BPF_MAP_TYPE_HASH,
-    .key_size = sizeof(u32),
+    .key_size = sizeof(u64),
     .value_size = sizeof(struct sock *),
-    .max_entries = 1024,
+    .max_entries = 10240,
     .pinning = 0,
     .namespace = "",
 };
-
 
 struct bpf_map_def SEC("maps/tcp4_connections") tcp4_connections = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
@@ -63,81 +62,80 @@ __u32 _version SEC("version") = 0xFFFFFFFE;
 char _license[] SEC("license") = "GPL";
 
 static __inline__
-struct _data_connect get_connection_details(struct sock **skpp, u32 pid) {
-  struct _data_connect data = {};
-  struct inet_sock *skp = inet_sk(*skpp);
-
-  data.id = pid;
-  data.ts = bpf_ktime_get_ns();
-
-  bpf_get_current_comm(&data.comm, sizeof(data.comm));
-
-  bpf_probe_read(&data.saddr, sizeof(u32), &skp->inet_saddr);
-  bpf_probe_read(&data.daddr, sizeof(u32), &skp->inet_daddr);
-  bpf_probe_read(&data.dport, sizeof(u32), &skp->inet_dport);
-  bpf_probe_read(&data.sport, sizeof(u32), &skp->inet_sport);
-
-  return data;
+int store_to_task_map(struct bpf_map_def *map, void *ptr)
+{
+	u64 pid = bpf_get_current_pid_tgid();
+  bpf_map_update_elem(map, &pid, &ptr, BPF_ANY);
+  return 0;
 }
 
 SEC("kprobe/tcp_sendmsg")
 int trace_sendmsg_entry(struct pt_regs *ctx)
 {
-	u32 pid = bpf_get_current_pid_tgid();
-  struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
-  size_t size = (size_t) PT_REGS_PARM3(ctx);
-
-  struct _data_volume data = {
-    .conn = get_connection_details(&sk, pid),
-    .send = size,
-    .recv = 0
-  };
-
-  u32 cpu = bpf_get_smp_processor_id();
-  bpf_perf_event_output(ctx, &tcp4_volume, cpu, &data, sizeof(data));
-
-
-	return 0;
+  return store_to_task_map(&currsock, (void *) PT_REGS_PARM1(ctx));
 };
-
 
 SEC("kprobe/tcp_recvmsg")
 int trace_recvmsg_entry(struct pt_regs *ctx)
 {
-	u32 pid = bpf_get_current_pid_tgid();
-  struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
-  size_t size = (size_t) PT_REGS_PARM3(ctx);
-
-  struct _data_volume data = {
-                              .conn = get_connection_details(&sk, pid),
-                              .send = 0,
-                              .recv = size
-  };
-
-  u32 cpu = bpf_get_smp_processor_id();
-  bpf_perf_event_output(ctx, &tcp4_volume, cpu, &data, sizeof(data));
-
-	return 0;
+  return store_to_task_map(&currsock, (void *) PT_REGS_PARM1(ctx));
 };
-
 
 SEC("kprobe/tcp_v4_connect")
 int trace_outbound_entry(struct pt_regs *ctx)
 {
-	u32 pid = bpf_get_current_pid_tgid();
-  struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
+  return store_to_task_map(&currsock, (void *) PT_REGS_PARM1(ctx));
+};
 
-	// stash the sock ptr for lookup on return
-  bpf_map_update_elem(&currsock, &pid, &sk, BPF_ANY);
+#define SEND 1
+#define RECV 2
 
+static __inline__
+int traffic_volume(struct bpf_map_def *state, struct bpf_map_def *output, struct pt_regs *ctx, u8 direction)
+{
+	u64 pid = bpf_get_current_pid_tgid();
+  int size = (int) PT_REGS_RC(ctx);
+
+	struct sock **skpp = bpf_map_lookup_elem(state, &pid);
+	if (skpp == 0) {
+		return 0;	
+	}
+
+  if (size <= 0) {
+    bpf_map_delete_elem(state, &pid);
+    return 0;
+  }
+
+  struct _data_volume data = {
+                              .conn = get_connection_details(skpp, pid),
+                              .send = direction == SEND ? size : 0,
+                              .recv = direction == RECV ? size : 0
+  };
+
+  u32 cpu = bpf_get_smp_processor_id();
+  bpf_perf_event_output(ctx, output, cpu, &data, sizeof(data));
+
+  bpf_map_delete_elem(state, &pid);
 	return 0;
+}
+
+SEC("kretprobe/tcp_sendmsg")
+int trace_sendmsg_return(struct pt_regs *ctx)
+{
+  return traffic_volume(&currsock, &tcp4_volume, ctx, SEND);
+};
+
+SEC("kretprobe/tcp_recvmsg")
+int trace_recvmsg_return(struct pt_regs *ctx)
+{
+  return traffic_volume(&currsock, &tcp4_volume, ctx, RECV);
 };
 
 SEC("kretprobe/tcp_v4_connect")
 int trace_outbound_return(struct pt_regs *ctx)
 {
 	int ret = PT_REGS_RC(ctx);
-	u32 pid = bpf_get_current_pid_tgid();
+	u64 pid = bpf_get_current_pid_tgid();
 
 	struct sock **skpp;
 	skpp = bpf_map_lookup_elem(&currsock, &pid);

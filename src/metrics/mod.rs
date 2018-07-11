@@ -13,30 +13,46 @@ pub mod kind {
 
 use self::kind::Kind;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum Unit {
+    #[serde(rename = "byte")]
+    Byte(u64),
+    #[serde(rename = "count")]
+    Count(u64),
+}
+
+impl Unit {
+    pub fn get(&self) -> u64 {
+        use self::Unit::*;
+
+        match *self {
+            Byte(x) | Count(x) => x,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Measurement {
     timestamp: u64,
     pub kind: Kind,
     pub name: String,
-    pub value: i64,
-    pub unit: Option<String>,
+    pub value: Unit,
     pub tags: Tags,
 }
 
 impl Measurement {
-    pub fn new(kind: Kind, name: String, value: i64, unit: Option<String>, tags: Tags) -> Self {
+    pub fn new(kind: Kind, name: String, value: Unit, tags: Tags) -> Self {
         Self {
-            timestamp: nano_timestamp_now(),
+            timestamp: timestamp_now(),
             kind,
             name,
             value,
-            unit,
             tags,
         }
     }
 }
 
-pub fn nano_timestamp_now() -> u64 {
+pub fn timestamp_now() -> u64 {
     let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     duration.as_secs() * (1e9 as u64) + duration.subsec_nanos() as u64
 }
