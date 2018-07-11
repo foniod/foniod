@@ -16,7 +16,7 @@ pub fn uname() -> Result<::libc::utsname> {
 
 #[inline]
 pub fn get_kernel_internal_version() -> Result<u32> {
-    let mut uname = uname()?;
+    let uname = uname()?;
 
     let urelease = to_str(&uname.release);
     let err = || LoadError::KernelRelease(urelease.to_string());

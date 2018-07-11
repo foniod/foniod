@@ -1,6 +1,6 @@
 use regex::Regex;
 use std::env;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::process::Command;
 
 pub const BUILD_FLAGS: [&'static str; 17] = [
