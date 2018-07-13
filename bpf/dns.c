@@ -110,14 +110,9 @@ s8 parse_dns_packet(struct xdp_md *ctx, void *buffer, void *data_end, struct _da
     }
     u8 b = *(u8 *) dns++;
 
+    query->address[i] = b;
     if (b == 0) {
       break;
-    }
-
-    if (b < 64) {
-      query->address[i] = '.';
-    } else {
-      query->address[i] = b;
     }
   }
 

@@ -62,7 +62,7 @@ impl Aggregator {
 mod tests {
     #[test]
     fn can_parse() {
-        use aggregations::*;
+        use config::Config;
         use toml;
 
         let config: Config = toml::from_str(
