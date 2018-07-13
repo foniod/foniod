@@ -3,7 +3,7 @@ use std::env;
 use std::ffi::OsString;
 use std::process::Command;
 
-pub const BUILD_FLAGS: [&'static str; 17] = [
+pub const BUILD_FLAGS: [&'static str; 16] = [
     "-D__BPF_TRACING__",
     "-D__KERNEL__",
     "-D__ASM_SYSREG_H",
@@ -13,7 +13,6 @@ pub const BUILD_FLAGS: [&'static str; 17] = [
     "-Wno-unused-parameter",
     "-Wno-missing-field-initializers",
     "-Wno-initializer-overrides",
-    "-fno-builtin",
     "-fno-stack-protector",
     "-Wunused",
     "-Wall",
