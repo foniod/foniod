@@ -41,9 +41,37 @@ impl From<_data_dns_query> for DNSQuery {
             source_ip: to_ip(data.saddr),
             destination_port: to_le(data.dport),
             source_port: to_le(data.sport),
-            address: to_string(unsafe { &*(&data.address as *const [i8] as *const [u8]) }),
+            address: from_dns_prefix_labels(unsafe { &*(&data.address as *const [i8] as *const [u8]) }),
             qtype: to_le(data.qtype),
             qclass: to_le(data.qclass),
         }
+    }
+}
+
+pub fn from_dns_prefix_labels(address: &[u8]) -> String {
+    let mut ret = String::new();
+    let mut i = 0usize;
+
+    while i < address.len() {
+        let label_len = address[i] as usize;
+        if label_len == 0 {
+            break;
+        }
+        i += 1;
+
+        let label = String::from_utf8_lossy(&address[i..(i + label_len)]);
+        ret.push_str(&label);
+        ret.push('.');
+        i += label_len;
+    }
+
+    ret
+}
+
+mod test {
+    #[test]
+    fn parse_dns_labels() {
+        use dns::from_dns_prefix_labels;
+        assert_eq!(from_dns_prefix_labels(b"\x04asdf\x03com\x00"), String::from("asdf.com."));
     }
 }
