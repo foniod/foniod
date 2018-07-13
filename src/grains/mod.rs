@@ -7,6 +7,7 @@ pub use backends::{BackendHandler, Message};
 pub use metrics::Measurement;
 pub use redbpf::{LoadError, PerfMap, Result};
 pub use std::collections::HashMap;
+pub use std::net::Ipv4Addr;
 use std::marker::PhantomData;
 
 use redbpf::{Map, Module};
@@ -63,6 +64,18 @@ where
         self
     }
 
+    pub fn attach_socketfilters(mut self, iface: &str) -> Self {
+        use redbpf::ProgramKind::*;
+        for prog in self.module.programs.iter_mut().filter(|p| p.kind == SocketFilter) {
+            println!("Program: {}, {:?}", prog.name, prog.kind);
+
+            prog.attach_socketfilter(iface).unwrap();
+        }
+
+        self
+    }
+
+
     pub fn bind(mut self, backends: Vec<BackendHandler>) -> ActiveGrain<T> {
         let perfmaps = self
             .module
@@ -91,4 +104,24 @@ impl<T> ActiveGrain<T> {
 pub trait EBPFModule<'code> {
     fn code() -> &'code [u8];
     fn handler(map: Map, upstream: &[BackendHandler]) -> Result<PerfMap>;
+}
+
+pub fn to_le(i: u16) -> u16 {
+    (i >> 8) | (i << 8)
+}
+
+pub fn to_ip(bytes: u32) -> Ipv4Addr {
+    let d = (bytes >> 24) as u8;
+    let c = (bytes >> 16) as u8;
+    let b = (bytes >> 8) as u8;
+    let a = bytes as u8;
+
+    Ipv4Addr::new(a, b, c, d)
+}
+
+pub fn to_string(x: &[u8]) -> String {
+    match x.iter().position(|&r| r == 0) {
+        Some(zero_pos) => String::from_utf8_lossy(&x[0..zero_pos]).to_string(),
+        None => String::from_utf8_lossy(x).to_string(),
+    }
 }
