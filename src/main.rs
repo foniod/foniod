@@ -77,6 +77,12 @@ fn main() {
     }
 
     thread::spawn(move || {
+    let panic_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic| {
+        panic_hook(panic);
+        std::process::exit(1);
+    }));
+
         let mut mod_tcp4 = Grain::<tcpv4::TCP4>::load().unwrap().bind(backends.clone());
         let mut mod_udp = Grain::<udp::UDP>::load().unwrap().bind(backends.clone());
 
