@@ -14,8 +14,22 @@ impl EBPFModule<'static> for DNS {
 
     fn handler(m: Map, upstreams: &[BackendHandler]) -> Result<PerfMap> {
         PerfMap::new(m, -1, 0, 128, move || {
+            let upstreams = upstreams.to_vec();
             Box::new(move |raw| {
-                println!("{:?}", DNSQuery::from(_data_dns_query::from(raw)));
+                let query = DNSQuery::from(_data_dns_query::from(raw));
+                let tags = query.to_tags();
+
+                for upstream in upstreams.iter() {
+                    use metrics::kind::*;
+                    use metrics::Unit;
+
+                    upstream.do_send(Message::Single(Measurement::new(
+                        COUNTER | HISTOGRAM | METER,
+                        "dns.query".to_string(),
+                        Unit::Count(1),
+                        tags.clone(),
+                    )));
+                }
             })
         })
     }
@@ -48,6 +62,26 @@ impl From<_data_dns_query> for DNSQuery {
     }
 }
 
+impl DNSQuery {
+    pub fn to_tags(&self) -> HashMap<String, String> {
+        let mut tags = HashMap::new();
+
+        tags.insert("query_type".to_string(), self.qclass.to_string());
+        tags.insert("query_class".to_string(), self.qclass.to_string());
+        tags.insert("query_addr".to_string(), self.address.to_string());
+        tags.insert("query_id".to_string(), self.id.to_string());
+
+        tags.insert("d_ip".to_string(), self.destination_ip.to_string());
+        tags.insert("d_port".to_string(), self.destination_port.to_string());
+
+        tags.insert("s_ip".to_string(), self.source_ip.to_string());
+        tags.insert("s_port".to_string(), self.source_port.to_string());
+
+        tags
+    }
+}
+
+
 pub fn from_dns_prefix_labels(address: &[u8]) -> String {
     let mut ret = String::new();
     let mut i = 0usize;
@@ -73,5 +107,6 @@ mod test {
     fn parse_dns_labels() {
         use dns::from_dns_prefix_labels;
         assert_eq!(from_dns_prefix_labels(b"\x04asdf\x03com\x00"), String::from("asdf.com."));
+        assert_eq!(from_dns_prefix_labels(b"\x051e100\x03com\x00"), String::from("1e100.com."));
     }
 }
