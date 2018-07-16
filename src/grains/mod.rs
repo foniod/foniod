@@ -93,12 +93,16 @@ where
     }
 }
 
-impl<T> ActiveGrain<T> {
-    pub fn poll(&mut self) {
+impl<T> Pollable for ActiveGrain<T> {
+    fn poll(&mut self) {
         for pm in self.perfmaps.iter_mut() {
             pm.poll(10);
         }
     }
+}
+
+pub trait Pollable {
+    fn poll(&mut self);
 }
 
 pub trait EBPFModule<'code> {
