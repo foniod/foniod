@@ -11,11 +11,8 @@ impl EBPFModule<'static> for UDP {
     }
 
     fn handler(m: Map, upstreams: &[BackendHandler]) -> Result<PerfMap> {
-        match m.name.as_str() {
-            "udp_volume" => PerfMap::new(m, -1, 0, 128, move || {
-                get_volume_callback("udp", upstreams.to_vec())
-            }),
-            _ => Err(LoadError::BPF),
-        }
+        PerfMap::new(m, -1, 0, 128, move || {
+            get_volume_callback("udp", upstreams.to_vec())
+        })
     }
 }

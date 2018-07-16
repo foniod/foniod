@@ -84,27 +84,12 @@ impl From<_data_connect> for Connection {
     fn from(data: _data_connect) -> Connection {
         Connection {
             task_id: data.id,
-            name: get_string(unsafe { &*(&data.comm as *const [i8] as *const [u8]) }),
+            name: to_string(unsafe { &*(&data.comm as *const [i8] as *const [u8]) }),
             source_ip: to_ip(data.saddr),
             destination_ip: to_ip(data.daddr),
-            destination_port: (data.dport >> 8) | (data.dport << 8),
-            source_port: (data.sport >> 8) | (data.sport << 8),
+            destination_port: to_le(data.dport),
+            source_port: to_le(data.sport),
         }
     }
 }
 
-fn to_ip(bytes: u32) -> Ipv4Addr {
-    let d = (bytes >> 24) as u8;
-    let c = (bytes >> 16) as u8;
-    let b = (bytes >> 8) as u8;
-    let a = bytes as u8;
-
-    Ipv4Addr::new(a, b, c, d)
-}
-
-fn get_string(x: &[u8]) -> String {
-    match x.iter().position(|&r| r == 0) {
-        Some(zero_pos) => String::from_utf8_lossy(&x[0..zero_pos]).to_string(),
-        None => String::from_utf8_lossy(x).to_string(),
-    }
-}

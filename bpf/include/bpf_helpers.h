@@ -28,34 +28,6 @@
  */
 #define SEC(NAME) __attribute__((section(NAME), used))
 
-// Changes to the macro require changes in BFrontendAction classes
-#define BPF_F_TABLE(_table_type, _key_type, _leaf_type, _name, _max_entries, _flags) \
-struct _name##_table_t { \
-  _key_type key; \
-  _leaf_type leaf; \
-  _leaf_type * (*lookup) (_key_type *); \
-  _leaf_type * (*lookup_or_init) (_key_type *, _leaf_type *); \
-  int (*update) (_key_type *, _leaf_type *); \
-  int (*insert) (_key_type *, _leaf_type *); \
-  int (*delete) (_key_type *); \
-  void (*call) (void *, int index); \
-  void (*increment) (_key_type); \
-  int (*get_stackid) (void *, u64); \
-  u32 max_entries; \
-  int flags; \
-}; \
-__attribute__((section("maps/" _table_type))) \
-struct _name##_table_t _name = { .flags = (_flags), .max_entries = (_max_entries) }
-
-#define BPF_TABLE(_table_type, _key_type, _leaf_type, _name, _max_entries) \
-BPF_F_TABLE(_table_type, _key_type, _leaf_type, _name, _max_entries, 0)
-
-// define a table same as above but allow it to be referenced by other modules
-#define BPF_TABLE_PUBLIC(_table_type, _key_type, _leaf_type, _name, _max_entries) \
-BPF_TABLE(_table_type, _key_type, _leaf_type, _name, _max_entries); \
-__attribute__((section("maps/export"))) \
-struct _name##_table_t __##_name
-
 // Identifier for current CPU used in perf_submit and perf_read
 // Prefer BPF_F_CURRENT_CPU flag, falls back to call helper for older kernel
 // Can be overridden from BCC
@@ -66,131 +38,6 @@ struct _name##_table_t __##_name
 #define CUR_CPU_IDENTIFIER bpf_get_smp_processor_id()
 #endif
 #endif
-
-// Table for pushing custom events to userspace via ring buffer
-#define BPF_PERF_OUTPUT(_name) \
-struct _name##_table_t { \
-  int key; \
-  u32 leaf; \
-  /* map.perf_submit(ctx, data, data_size) */ \
-  int (*perf_submit) (void *, void *, u32); \
-  int (*perf_submit_skb) (void *, u32, void *, u32); \
-  u32 max_entries; \
-}; \
-__attribute__((section("maps/perf_output"))) \
-struct _name##_table_t _name = { .max_entries = 0 }
-
-// Table for reading hw perf cpu counters
-#define BPF_PERF_ARRAY(_name, _max_entries) \
-struct _name##_table_t { \
-  int key; \
-  u32 leaf; \
-  /* counter = map.perf_read(index) */ \
-  u64 (*perf_read) (int); \
-  int (*perf_counter_value) (int, void *, u32); \
-  u32 max_entries; \
-}; \
-__attribute__((section("maps/perf_array"))) \
-struct _name##_table_t _name = { .max_entries = (_max_entries) }
-
-// Table for cgroup file descriptors
-#define BPF_CGROUP_ARRAY(_name, _max_entries) \
-struct _name##_table_t { \
-  int key; \
-  u32 leaf; \
-  int (*check_current_task) (int); \
-  u32 max_entries; \
-}; \
-__attribute__((section("maps/cgroup_array"))) \
-struct _name##_table_t _name = { .max_entries = (_max_entries) }
-
-#define BPF_HASH1(_name) \
-  BPF_TABLE("hash", u64, u64, _name, 10240)
-#define BPF_HASH2(_name, _key_type) \
-  BPF_TABLE("hash", _key_type, u64, _name, 10240)
-#define BPF_HASH3(_name, _key_type, _leaf_type) \
-  BPF_TABLE("hash", _key_type, _leaf_type, _name, 10240)
-#define BPF_HASH4(_name, _key_type, _leaf_type, _size) \
-  BPF_TABLE("hash", _key_type, _leaf_type, _name, _size)
-
-// helper for default-variable macro function
-#define BPF_HASHX(_1, _2, _3, _4, NAME, ...) NAME
-
-// Define a hash function, some arguments optional
-// BPF_HASH(name, key_type=u64, leaf_type=u64, size=10240)
-#define BPF_HASH(...) \
-  BPF_HASHX(__VA_ARGS__, BPF_HASH4, BPF_HASH3, BPF_HASH2, BPF_HASH1)(__VA_ARGS__)
-
-#define BPF_ARRAY1(_name) \
-  BPF_TABLE("array", int, u64, _name, 10240)
-#define BPF_ARRAY2(_name, _leaf_type) \
-  BPF_TABLE("array", int, _leaf_type, _name, 10240)
-#define BPF_ARRAY3(_name, _leaf_type, _size) \
-  BPF_TABLE("array", int, _leaf_type, _name, _size)
-
-// helper for default-variable macro function
-#define BPF_ARRAYX(_1, _2, _3, NAME, ...) NAME
-
-// Define an array function, some arguments optional
-// BPF_ARRAY(name, leaf_type=u64, size=10240)
-#define BPF_ARRAY(...) \
-  BPF_ARRAYX(__VA_ARGS__, BPF_ARRAY3, BPF_ARRAY2, BPF_ARRAY1)(__VA_ARGS__)
-
-#define BPF_PERCPU_ARRAY1(_name)                        \
-    BPF_TABLE("percpu_array", int, u64, _name, 10240)
-#define BPF_PERCPU_ARRAY2(_name, _leaf_type) \
-    BPF_TABLE("percpu_array", int, _leaf_type, _name, 10240)
-#define BPF_PERCPU_ARRAY3(_name, _leaf_type, _size) \
-    BPF_TABLE("percpu_array", int, _leaf_type, _name, _size)
-
-// helper for default-variable macro function
-#define BPF_PERCPU_ARRAYX(_1, _2, _3, NAME, ...) NAME
-
-// Define an array function (per CPU), some arguments optional
-// BPF_PERCPU_ARRAY(name, leaf_type=u64, size=10240)
-#define BPF_PERCPU_ARRAY(...)                                           \
-  BPF_PERCPU_ARRAYX(                                                    \
-    __VA_ARGS__, BPF_PERCPU_ARRAY3, BPF_PERCPU_ARRAY2, BPF_PERCPU_ARRAY1) \
-           (__VA_ARGS__)
-
-#define BPF_HIST1(_name) \
-  BPF_TABLE("histogram", int, u64, _name, 64)
-#define BPF_HIST2(_name, _key_type) \
-  BPF_TABLE("histogram", _key_type, u64, _name, 64)
-#define BPF_HIST3(_name, _key_type, _size) \
-  BPF_TABLE("histogram", _key_type, u64, _name, _size)
-#define BPF_HISTX(_1, _2, _3, NAME, ...) NAME
-
-// Define a histogram, some arguments optional
-// BPF_HISTOGRAM(name, key_type=int, size=64)
-#define BPF_HISTOGRAM(...) \
-  BPF_HISTX(__VA_ARGS__, BPF_HIST3, BPF_HIST2, BPF_HIST1)(__VA_ARGS__)
-
-#define BPF_LPM_TRIE1(_name) \
-  BPF_F_TABLE("lpm_trie", u64, u64, _name, 10240, BPF_F_NO_PREALLOC)
-#define BPF_LPM_TRIE2(_name, _key_type) \
-  BPF_F_TABLE("lpm_trie", _key_type, u64, _name, 10240, BPF_F_NO_PREALLOC)
-#define BPF_LPM_TRIE3(_name, _key_type, _leaf_type) \
-  BPF_F_TABLE("lpm_trie", _key_type, _leaf_type, _name, 10240, BPF_F_NO_PREALLOC)
-#define BPF_LPM_TRIE4(_name, _key_type, _leaf_type, _size) \
-  BPF_F_TABLE("lpm_trie", _key_type, _leaf_type, _name, _size, BPF_F_NO_PREALLOC)
-#define BPF_LPM_TRIEX(_1, _2, _3, _4, NAME, ...) NAME
-
-// Define a LPM trie function, some arguments optional
-// BPF_LPM_TRIE(name, key_type=u64, leaf_type=u64, size=10240)
-#define BPF_LPM_TRIE(...) \
-  BPF_LPM_TRIEX(__VA_ARGS__, BPF_LPM_TRIE4, BPF_LPM_TRIE3, BPF_LPM_TRIE2, BPF_LPM_TRIE1)(__VA_ARGS__)
-
-struct bpf_stacktrace {
-  u64 ip[BPF_MAX_STACK_DEPTH];
-};
-
-#define BPF_STACK_TRACE(_name, _max_entries) \
-  BPF_TABLE("stacktrace", int, struct bpf_stacktrace, _name, roundup_pow_of_two(_max_entries))
-
-#define BPF_PROG_ARRAY(_name, _max_entries) \
-  BPF_TABLE("prog", u32, u32, _name, _max_entries)
-
 
 /* helper functions called from eBPF programs written in C */
 static void *(*bpf_map_lookup_elem)(void *map, void *key) =
@@ -327,4 +174,35 @@ static int (*bpf_l4_csum_replace)(void *ctx, int off, int from, int to, int flag
 				(void *)(PT_REGS_FP(ctx) + sizeof(ip))); })
 #endif
 
+/*
+ * From:
+ * https://github.com/cilium/cilium/blob/master/bpf/lib/utils.h
+ */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+# define __bpf_ntohs(x)		__builtin_bswap16(x)
+# define __bpf_htons(x)		__builtin_bswap16(x)
+# define __bpf_ntohl(x)		__builtin_bswap32(x)
+# define __bpf_htonl(x)		__builtin_bswap32(x)
+#elif __BYTE_ORDER == __BIG_ENDIAN
+# define __bpf_ntohs(x)		(x)
+# define __bpf_htons(x)		(x)
+# define __bpf_ntohl(x)		(x)
+# define __bpf_htonl(x)		(x)
+#else
+# error "Fix your __BYTE_ORDER?!"
+#endif
+
+#define bpf_htons(x)				\
+	(__builtin_constant_p(x) ?		\
+	 __constant_htons(x) : __bpf_htons(x))
+#define bpf_ntohs(x)				\
+	(__builtin_constant_p(x) ?		\
+	 __constant_ntohs(x) : __bpf_ntohs(x))
+
+#define bpf_htonl(x)				\
+	(__builtin_constant_p(x) ?		\
+	 __constant_htonl(x) : __bpf_htonl(x))
+#define bpf_ntohl(x)				\
+	(__builtin_constant_p(x) ?		\
+__constant_ntohl(x) : __bpf_ntohl(x))
 #endif
