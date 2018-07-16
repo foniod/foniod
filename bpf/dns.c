@@ -78,11 +78,6 @@ s8 parse_dns_packet(struct xdp_md *ctx, void *buffer, void *data_end, struct _da
   /*   return false; */
   /* } */
 
-  query->saddr = ip->saddr;
-  query->daddr = ip->daddr;
-  query->sport = udp->source;
-  query->dport = udp->dest;
-
   dns = buffer + sizeof(struct ethhdr)
     + sizeof(struct udphdr)
     + (ip->ihl * 4);
@@ -99,11 +94,16 @@ s8 parse_dns_packet(struct xdp_md *ctx, void *buffer, void *data_end, struct _da
   }
   dns += 2;
 
-  /* QDCOUNT=1, ANCOUNT=1, NSCOUNT=0, ARCOUNT=0 */
-  if(*((u64 *) dns) != 0x0000000001000100) {
+  /* QDCOUNT=1-15, ANCOUNT=x, NSCOUNT=x, ARCOUNT=x */
+  if(*((u16 *) dns) >= bpf_htons(16)) {
     return -3;
   }
   dns += 8;
+
+  query->saddr = ip->saddr;
+  query->daddr = ip->daddr;
+  query->sport = udp->source;
+  query->dport = udp->dest;
 
   #pragma clang loop unroll(full)
   for (u8 i = 0; i < 253; i++) {
