@@ -33,6 +33,7 @@ use backends::{console::Console, s3, s3::S3, statsd::Statsd};
 
 fn main() {
     let system = actix::System::new("outbound");
+
     let mut backends = vec![];
 
     // let app = vec![
@@ -76,13 +77,37 @@ fn main() {
         backends.push(Console::start_default().recipient());
     }
 
+    let panic_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic| {
+        panic_hook(panic);
+        std::process::exit(1);
+    }));
+
     thread::spawn(move || {
-        let mut mod_tcp4 = Grain::<tcpv4::TCP4>::load().unwrap().bind(backends.clone());
-        let mut mod_udp = Grain::<udp::UDP>::load().unwrap().bind(backends.clone());
+        let mut grains: Vec<Box<dyn Pollable>> = vec![];
+
+        grains.push(Box::new(Grain::<tcpv4::TCP4>::load()
+                             .unwrap()
+                             .attach_kprobes()
+                             .bind(backends.clone())));
+
+        grains.push(Box::new(Grain::<udp::UDP>::load()
+                             .unwrap()
+                             .attach_kprobes()
+                             .bind(backends.clone())));
+
+        if let Ok(dns_if) = env::var("DNS_IF") {
+            grains.push(Box::new(Grain::<dns::DNS>::load()
+                                 .unwrap()
+                                 .attach_xdps(&dns_if)
+                                 .bind(backends.clone())));
+        }
+
 
         loop {
-            mod_tcp4.poll();
-            mod_udp.poll();
+            for grain in grains.iter_mut() {
+                grain.poll();
+            }
         }
     });
 

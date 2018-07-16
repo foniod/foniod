@@ -23,6 +23,7 @@ use uname::get_kernel_internal_version;
 
 use std::collections::HashMap;
 use std::ffi::CString;
+use std::io;
 use std::mem;
 use std::os::unix::io::RawFd;
 
@@ -45,10 +46,12 @@ pub struct Program {
     code_bytes: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ProgramKind {
     Kprobe,
     Kretprobe,
+    XDP,
+    SocketFilter,
 }
 
 pub struct Map {
@@ -69,6 +72,8 @@ impl ProgramKind {
         use ProgramKind::*;
         match self {
             Kprobe | Kretprobe => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_KPROBE,
+            XDP => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_XDP,
+            SocketFilter => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_SOCKET_FILTER,
         }
     }
 
@@ -77,6 +82,8 @@ impl ProgramKind {
         match self {
             Kprobe => bpf_sys::bpf_probe_attach_type_BPF_PROBE_ENTRY,
             Kretprobe => bpf_sys::bpf_probe_attach_type_BPF_PROBE_RETURN,
+            SocketFilter => panic!(),
+            XDP => panic!(),
         }
     }
 
@@ -85,6 +92,8 @@ impl ProgramKind {
         match section {
             "kretprobe" => Ok(Kretprobe),
             "kprobe" => Ok(Kprobe),
+            "xdp" => Ok(XDP),
+            "socketfilter" => Ok(SocketFilter),
             sec => Err(LoadError::Section(sec.to_string())),
         }
     }
@@ -118,7 +127,8 @@ impl Program {
     pub fn load(&mut self, kernel_version: u32, license: String) -> Result<RawFd> {
         let clicense = CString::new(license)?;
         let cname = CString::new(self.name.clone())?;
-        let mut log_buffer = [0u8; 65535];
+        let log_buffer: *mut i8 = unsafe {libc::malloc(mem::size_of::<i8>() * 16 * 65535) as *mut i8 };
+        let buf_size = 64* 65535 as u32;
 
         let fd = unsafe {
             bpf_sys::bpf_prog_load(
@@ -129,8 +139,8 @@ impl Program {
                 clicense.as_ptr() as *const i8,
                 kernel_version as u32,
                 0 as i32,
-                log_buffer.as_mut_ptr() as *mut i8,
-                mem::size_of_val(&log_buffer) as u32,
+                log_buffer,
+                buf_size,
             )
         };
 
@@ -142,7 +152,7 @@ impl Program {
         }
     }
 
-    pub fn attach(&mut self) -> Result<RawFd> {
+    pub fn attach_probe(&mut self) -> Result<RawFd> {
         let ev_name = CString::new(format!("{}{}", self.name, self.kind.to_attach_type())).unwrap();
         let cname = CString::new(self.name.clone()).unwrap();
         let pfd = unsafe {
@@ -160,6 +170,31 @@ impl Program {
         } else {
             self.pfd = Some(pfd);
             Ok(pfd)
+        }
+    }
+
+    pub fn attach_xdp(&mut self, iface: &str) -> Result<()> {
+        let ciface = CString::new(iface).unwrap();
+        let res = unsafe { bpf_sys::bpf_attach_xdp(ciface.as_ptr(), self.fd.unwrap(), 0) };
+
+        if res < 0 {
+            Err(LoadError::BPF)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn attach_socketfilter(&mut self, iface: &str) -> Result<()> {
+        let ciface = CString::new(iface).unwrap();
+        let sfd = unsafe { bpf_sys::bpf_open_raw_sock(ciface.as_ptr()) };
+
+        if sfd < 0 {
+            return Err(LoadError::IO(io::Error::last_os_error()));
+        } 
+
+        match unsafe { bpf_sys::bpf_attach_socket(sfd, self.fd.ok_or(LoadError::BPF)?) } {
+            0 => { self.pfd = Some(sfd);  Ok(()) },
+            _ => Err(LoadError::IO(io::Error::last_os_error()))
         }
     }
 }
@@ -194,7 +229,9 @@ impl Module {
                     maps.insert(shndx, Map::load(name, &content)?);
                 }
                 (hdr::SHT_PROGBITS, Some(kind @ "kprobe"), Some(name))
-                | (hdr::SHT_PROGBITS, Some(kind @ "kretprobe"), Some(name)) => {
+                | (hdr::SHT_PROGBITS, Some(kind @ "kretprobe"), Some(name))
+                | (hdr::SHT_PROGBITS, Some(kind @ "xdp"), Some(name))
+                | (hdr::SHT_PROGBITS, Some(kind @ "socketfilter"), Some(name)) => {
                     programs.insert(shndx, Program::new(kind, name, &content)?);
                 }
                 _ => {}
