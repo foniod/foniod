@@ -83,7 +83,9 @@ s8 parse_dns_packet(struct xdp_md *ctx, void *buffer, void *data_end, struct _da
   query->sport = udp->source;
   query->dport = udp->dest;
 
-  dns = buffer + sizeof(struct ethhdr) + sizeof(struct udphdr) + (ip->ihl * 4);
+  dns = buffer + sizeof(struct ethhdr)
+    + sizeof(struct udphdr)
+    + (ip->ihl * 4);
   if (dns + 12 > data_end) {
     return -5;
   }
@@ -91,8 +93,8 @@ s8 parse_dns_packet(struct xdp_md *ctx, void *buffer, void *data_end, struct _da
   query->id = *(u16 *) dns;
   dns += 2;
 
-  /* require standard query (QR=1, OPCODE=0, AA=0, TC=0, RD=x, RA=x, RCODE=x) */
-  if (*((u8*) dns) >> 1 != 0x40) {
+  /* require standard query (QR=1, OPCODE=0, AA=x, TC=x, RD=x, RA=x, RCODE=x) */
+  if (*((u8*) dns) >> 3 != 0x10) {
     return -4;
   }
   dns += 2;

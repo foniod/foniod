@@ -25,7 +25,7 @@ impl EBPFModule<'static> for DNS {
 
                     upstream.do_send(Message::Single(Measurement::new(
                         COUNTER | HISTOGRAM | METER,
-                        "dns.query".to_string(),
+                        "dns.answer".to_string(),
                         Unit::Count(1),
                         tags.clone(),
                     )));
@@ -66,10 +66,10 @@ impl DNSQuery {
     pub fn to_tags(&self) -> HashMap<String, String> {
         let mut tags = HashMap::new();
 
-        tags.insert("query_type".to_string(), self.qclass.to_string());
-        tags.insert("query_class".to_string(), self.qclass.to_string());
-        tags.insert("query_addr".to_string(), self.address.to_string());
-        tags.insert("query_id".to_string(), self.id.to_string());
+        tags.insert("q_type".to_string(), self.qclass.to_string());
+        tags.insert("q_class".to_string(), self.qclass.to_string());
+        tags.insert("q_addr".to_string(), self.address.to_string());
+        tags.insert("q_id".to_string(), self.id.to_string());
 
         tags.insert("d_ip".to_string(), self.destination_ip.to_string());
         tags.insert("d_port".to_string(), self.destination_port.to_string());
@@ -108,5 +108,6 @@ mod test {
         use dns::from_dns_prefix_labels;
         assert_eq!(from_dns_prefix_labels(b"\x04asdf\x03com\x00"), String::from("asdf.com."));
         assert_eq!(from_dns_prefix_labels(b"\x051e100\x03com\x00"), String::from("1e100.com."));
+        assert_eq!(from_dns_prefix_labels(b"\x05\x01e100\x03com\x00"), String::from("\x01e100.com."));
     }
 }
