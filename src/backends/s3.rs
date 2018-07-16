@@ -43,7 +43,7 @@ impl Handler<Message> for S3 {
                         .join(",\n")
                 )
             },
-            Message::Single(msg) => serde_json::to_string(&msg).unwrap()
+            Message::Single(msg) => serde_json::to_string(&[&msg]).unwrap()
         }.into();
 
         ::actix::spawn(
