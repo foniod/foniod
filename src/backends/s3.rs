@@ -34,16 +34,14 @@ impl Handler<Message> for S3 {
 
     fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
         let body = match msg {
-            Message::List(lst) => {
-                format!("[{}]",
-                        lst
-                        .iter()
-                        .map(|e| serde_json::to_string(e).unwrap())
-                        .collect::<Vec<String>>()
-                        .join(",\n")
-                )
-            },
-            Message::Single(msg) => serde_json::to_string(&[&msg]).unwrap()
+            Message::List(lst) => format!(
+                "[{}]",
+                lst.iter()
+                    .map(|e| serde_json::to_string(e).unwrap())
+                    .collect::<Vec<String>>()
+                    .join(",\n")
+            ),
+            Message::Single(msg) => serde_json::to_string(&[&msg]).unwrap(),
         }.into();
 
         ::actix::spawn(
