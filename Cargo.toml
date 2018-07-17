@@ -14,10 +14,12 @@ redbpf = { path = "./redbpf" }
 [dependencies]
 actix = "^0.6"
 futures = "^0.1"
+tokio = "0.1"
 
 failure = "0.1"
 
 libc = "0.2"
+lazy-socket = "0.3"
 redbpf = { path = "./redbpf" }
 
 uuid = { version = "0.6", features = ["v4"] }
