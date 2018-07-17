@@ -11,9 +11,11 @@ pub use std::collections::HashMap;
 use std::marker::PhantomData;
 pub use std::net::Ipv4Addr;
 
-use futures::{Async, Future, Poll, Stream};
-
 use redbpf::{Map, Module};
+
+use lazy_socket::raw as lazy_socket;
+use lazy_socket::raw::Socket;
+use std::os::unix::io::FromRawFd;
 
 pub struct Grain<T> {
     module: Module,
@@ -23,6 +25,12 @@ pub struct Grain<T> {
 pub struct PerfGrain<T> {
     grain: Grain<T>,
     perfmaps: Vec<PerfMap>,
+}
+
+pub struct SocketGrain<T> {
+    grain: Grain<T>,
+    sockets: Vec<Socket>,
+    backends: Vec<BackendHandler>,
 }
 
 impl<'code, 'module, T> Grain<T>
@@ -41,7 +49,7 @@ where
         })
     }
 
-    pub fn attach_kprobes(mut self) -> Self {
+    pub fn attach_kprobes(mut self, backends: &[BackendHandler]) -> impl Pollable {
         use redbpf::ProgramKind::*;
         for prog in self
             .module
@@ -53,10 +61,10 @@ where
             prog.attach_probe().unwrap();
         }
 
-        self
+        self.bind(backends)
     }
 
-    pub fn attach_xdps(mut self, iface: &str) -> Self {
+    pub fn attach_xdps(mut self, iface: &str, backends: &[BackendHandler]) -> impl Pollable {
         use redbpf::ProgramKind::*;
         for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
             println!("Program: {}, {:?}", prog.name, prog.kind);
@@ -64,59 +72,90 @@ where
             prog.attach_xdp(iface).unwrap();
         }
 
-        self
+        self.bind(backends)
     }
 
-    pub fn attach_socketfilters(mut self, iface: &str) -> Self {
-        use redbpf::ProgramKind::*;
-        for prog in self
-            .module
-            .programs
-            .iter_mut()
-            .filter(|p| p.kind == SocketFilter)
-        {
-            println!("Program: {}, {:?}", prog.name, prog.kind);
-
-            prog.attach_socketfilter(iface).unwrap();
-        }
-
-        self
-    }
-
-    pub fn bind(mut self, backends: Vec<BackendHandler>) -> impl Future<Item = (), Error = ()> {
+    fn bind(mut self, backends: &[BackendHandler]) -> PerfGrain<T> {
         let perfmaps = self
             .module
             .maps
             .drain(..)
-            .map(|m| T::handler(m, &backends[..]))
-            .filter(Result::is_ok)
+            .filter(|m| m.kind == 4)
+            .map(|m| T::get_perf_map(m, backends))
             .map(Result::unwrap)
             .collect();
 
         PerfGrain {
             grain: self,
             perfmaps,
-        }.for_each(|_| Ok(()))
-            .map_err(|_| ())
+        }
+    }
+
+    pub fn attach_socketfilters(
+        mut self,
+        iface: &str,
+        backends: &[BackendHandler],
+    ) -> impl Pollable {
+        use redbpf::ProgramKind::*;
+        let sockets = self
+            .module
+            .programs
+            .iter_mut()
+            .filter(|p| p.kind == SocketFilter)
+            .map(|prog| {
+                println!("Program: {}, {:?}", prog.name, prog.kind);
+                let fd = prog.attach_socketfilter(iface).unwrap();
+                unsafe { Socket::from_raw_fd(fd) }
+            })
+            .collect::<Vec<Socket>>();
+
+        SocketGrain {
+            grain: self,
+            sockets,
+            backends: backends.to_vec(),
+        }
     }
 }
 
-impl<T> Stream for PerfGrain<T> {
-    type Item = ();
-    type Error = ();
+pub trait Pollable {
+    fn poll(&mut self);
+}
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
+impl<T> Pollable for PerfGrain<T> {
+    fn poll(&mut self) {
         for pm in self.perfmaps.iter_mut() {
             pm.poll(10);
         }
+    }
+}
 
-        Ok(Async::Ready(Some(())))
+impl<'code, 'module, T> Pollable for SocketGrain<T>
+where
+    T: EBPFModule<'code>,
+{
+    fn poll(&mut self) {
+        let sockets: Vec<&Socket> = self.sockets.iter().map(|s| s).collect();
+        if lazy_socket::select(&sockets.as_slice(), &[], &[], Some(10)).unwrap() < 1 {
+            return;
+        }
+
+        for sock in self.sockets.iter() {
+            T::socket_handler(sock)
+                .unwrap()
+                .and_then(|msg| Some(send_to(&self.backends, msg)));
+        }
     }
 }
 
 pub trait EBPFModule<'code> {
     fn code() -> &'code [u8];
-    fn handler(map: Map, upstream: &[BackendHandler]) -> Result<PerfMap>;
+    fn get_perf_map(_map: Map, _upstream: &[BackendHandler]) -> Result<PerfMap> {
+        Err(LoadError::BPF)
+    }
+
+    fn socket_handler(_sock: &Socket) -> Result<Option<Message>> {
+        Err(LoadError::BPF)
+    }
 }
 
 pub fn to_le(i: u16) -> u16 {

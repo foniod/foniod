@@ -10,7 +10,7 @@ impl EBPFModule<'static> for TCP4 {
         include_bytes!(concat!(env!("OUT_DIR"), "/tcpv4.elf"))
     }
 
-    fn handler(m: Map, upstreams: &[BackendHandler]) -> Result<PerfMap> {
+    fn get_perf_map(m: Map, upstreams: &[BackendHandler]) -> Result<PerfMap> {
         match m.name.as_str() {
             "tcp4_connections" => PerfMap::new(m, -1, 0, 16, || {
                 let upstreams = upstreams.to_vec();

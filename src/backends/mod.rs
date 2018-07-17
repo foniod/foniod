@@ -1,4 +1,4 @@
-use actix::Recipient;
+use actix;
 
 pub mod console;
 pub mod s3;
@@ -6,7 +6,7 @@ pub mod statsd;
 
 use metrics::Measurement;
 
-pub type BackendHandler = Recipient<Message>;
+pub type BackendHandler = actix::Recipient<Message>;
 
 #[derive(Debug, Clone, Message, Serialize)]
 #[serde(untagged)]
@@ -18,6 +18,6 @@ pub enum Message {
 #[derive(Message)]
 pub struct Flush;
 
-impl ::actix::Message for Measurement {
+impl actix::Message for Measurement {
     type Result = ();
 }

@@ -12,7 +12,7 @@ impl EBPFModule<'static> for DNS {
         include_bytes!(concat!(env!("OUT_DIR"), "/dns.elf"))
     }
 
-    fn handler(m: Map, upstreams: &[BackendHandler]) -> Result<PerfMap> {
+    fn get_perf_map(m: Map, upstreams: &[BackendHandler]) -> Result<PerfMap> {
         PerfMap::new(m, -1, 0, 128, move || {
             let upstreams = upstreams.to_vec();
             Box::new(move |raw| {

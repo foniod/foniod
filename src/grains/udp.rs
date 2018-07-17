@@ -10,7 +10,7 @@ impl EBPFModule<'static> for UDP {
         include_bytes!(concat!(env!("OUT_DIR"), "/udp.elf"))
     }
 
-    fn handler(m: Map, upstreams: &[BackendHandler]) -> Result<PerfMap> {
+    fn get_perf_map(m: Map, upstreams: &[BackendHandler]) -> Result<PerfMap> {
         PerfMap::new(m, -1, 0, 128, move || {
             get_volume_callback("udp", upstreams.to_vec())
         })
