@@ -30,8 +30,6 @@ mod metrics;
 use grains::*;
 
 use actix::Actor;
-use futures::{Future, Stream};
-
 use backends::{console::Console, s3, s3::S3, statsd::Statsd};
 
 fn main() {
@@ -87,31 +85,31 @@ fn main() {
     }));
 
     thread::spawn(move || {
-        let sys = actix::System::new("probes");
-        actix::spawn(
+        let mut grains: Vec<Box<dyn Pollable>> = vec![];
+
+        grains.push(Box::new(
             Grain::<tcpv4::TCP4>::load()
                 .unwrap()
-                .attach_kprobes()
-                .bind(backends.clone()),
-        );
+                .attach_kprobes(&backends),
+        ));
 
-        actix::spawn(
-            Grain::<udp::UDP>::load()
-                .unwrap()
-                .attach_kprobes()
-                .bind(backends.clone()),
-        );
+        grains.push(Box::new(
+            Grain::<udp::UDP>::load().unwrap().attach_kprobes(&backends),
+        ));
 
         if let Ok(dns_if) = env::var("DNS_IF") {
-            actix::spawn(
+            grains.push(Box::new(
                 Grain::<dns::DNS>::load()
                     .unwrap()
-                    .attach_xdps(&dns_if)
-                    .bind(backends.clone()),
-            );
+                    .attach_xdps(&dns_if, &backends),
+            ));
         }
 
-        sys.run();
+        loop {
+            for grain in grains.iter_mut() {
+                grain.poll();
+            }
+        }
     });
 
     system.run();
