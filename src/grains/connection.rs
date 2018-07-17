@@ -22,17 +22,15 @@ pub fn get_volume_callback(proto: &'static str, upstreams: Vec<BackendHandler>) 
             volume.recv
         };
 
-        for upstream in upstreams.iter() {
-            use metrics::kind::*;
-            use metrics::Unit;
-
-            upstream.do_send(Message::Single(Measurement::new(
+        send_to(
+            &upstreams,
+            Message::Single(Measurement::new(
                 COUNTER | HISTOGRAM,
                 name.clone(),
                 Unit::Byte(vol as u64),
                 tags.clone(),
-            )));
-        }
+            )),
+        );
     })
 }
 
@@ -92,4 +90,3 @@ impl From<_data_connect> for Connection {
         }
     }
 }
-

@@ -8,7 +8,7 @@ use metrics::Measurement;
 
 pub type BackendHandler = Recipient<Message>;
 
-#[derive(Debug, Message, Serialize)]
+#[derive(Debug, Clone, Message, Serialize)]
 #[serde(untagged)]
 pub enum Message {
     Single(Measurement),

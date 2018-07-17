@@ -9,10 +9,12 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate cadence;
+extern crate lazy_socket;
 extern crate redbpf;
 extern crate rusoto_core;
 extern crate rusoto_s3;
 extern crate serde_json;
+extern crate tokio;
 extern crate toml;
 extern crate uuid;
 
@@ -28,11 +30,12 @@ mod metrics;
 use grains::*;
 
 use actix::Actor;
+use futures::{Future, Stream};
 
 use backends::{console::Console, s3, s3::S3, statsd::Statsd};
 
 fn main() {
-    let system = actix::System::new("outbound");
+    let system = actix::System::new("userspace");
 
     let mut backends = vec![];
 
@@ -84,31 +87,31 @@ fn main() {
     }));
 
     thread::spawn(move || {
-        let mut grains: Vec<Box<dyn Pollable>> = vec![];
+        let sys = actix::System::new("probes");
+        actix::spawn(
+            Grain::<tcpv4::TCP4>::load()
+                .unwrap()
+                .attach_kprobes()
+                .bind(backends.clone()),
+        );
 
-        grains.push(Box::new(Grain::<tcpv4::TCP4>::load()
-                             .unwrap()
-                             .attach_kprobes()
-                             .bind(backends.clone())));
-
-        grains.push(Box::new(Grain::<udp::UDP>::load()
-                             .unwrap()
-                             .attach_kprobes()
-                             .bind(backends.clone())));
+        actix::spawn(
+            Grain::<udp::UDP>::load()
+                .unwrap()
+                .attach_kprobes()
+                .bind(backends.clone()),
+        );
 
         if let Ok(dns_if) = env::var("DNS_IF") {
-            grains.push(Box::new(Grain::<dns::DNS>::load()
-                                 .unwrap()
-                                 .attach_xdps(&dns_if)
-                                 .bind(backends.clone())));
+            actix::spawn(
+                Grain::<dns::DNS>::load()
+                    .unwrap()
+                    .attach_xdps(&dns_if)
+                    .bind(backends.clone()),
+            );
         }
 
-
-        loop {
-            for grain in grains.iter_mut() {
-                grain.poll();
-            }
-        }
+        sys.run();
     });
 
     system.run();

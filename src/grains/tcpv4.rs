@@ -20,17 +20,15 @@ impl EBPFModule<'static> for TCP4 {
 
                     tags.insert("proto".to_string(), "tcp4".to_string());
 
-                    for upstream in upstreams.iter() {
-                        use metrics::kind::*;
-                        use metrics::Unit;
-
-                        upstream.do_send(Message::Single(Measurement::new(
+                    send_to(
+                        &upstreams,
+                        Message::Single(Measurement::new(
                             COUNTER | HISTOGRAM | METER,
                             "connection.out".to_string(),
                             Unit::Count(1),
                             tags.clone(),
-                        )));
-                    }
+                        )),
+                    );
                 })
             }),
             "tcp4_volume" => PerfMap::new(m, -1, 0, 128, || {

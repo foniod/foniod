@@ -4,11 +4,14 @@ pub mod tcpv4;
 pub mod udp;
 
 pub use backends::{BackendHandler, Message};
-pub use metrics::Measurement;
+pub use metrics::kind::*;
+pub use metrics::{Measurement, Unit};
 pub use redbpf::{LoadError, PerfMap, Result};
 pub use std::collections::HashMap;
-pub use std::net::Ipv4Addr;
 use std::marker::PhantomData;
+pub use std::net::Ipv4Addr;
+
+use futures::{Async, Future, Poll, Stream};
 
 use redbpf::{Map, Module};
 
@@ -17,7 +20,7 @@ pub struct Grain<T> {
     _type: PhantomData<T>,
 }
 
-pub struct ActiveGrain<T> {
+pub struct PerfGrain<T> {
     grain: Grain<T>,
     perfmaps: Vec<PerfMap>,
 }
@@ -66,7 +69,12 @@ where
 
     pub fn attach_socketfilters(mut self, iface: &str) -> Self {
         use redbpf::ProgramKind::*;
-        for prog in self.module.programs.iter_mut().filter(|p| p.kind == SocketFilter) {
+        for prog in self
+            .module
+            .programs
+            .iter_mut()
+            .filter(|p| p.kind == SocketFilter)
+        {
             println!("Program: {}, {:?}", prog.name, prog.kind);
 
             prog.attach_socketfilter(iface).unwrap();
@@ -75,8 +83,7 @@ where
         self
     }
 
-
-    pub fn bind(mut self, backends: Vec<BackendHandler>) -> ActiveGrain<T> {
+    pub fn bind(mut self, backends: Vec<BackendHandler>) -> impl Future<Item = (), Error = ()> {
         let perfmaps = self
             .module
             .maps
@@ -86,23 +93,25 @@ where
             .map(Result::unwrap)
             .collect();
 
-        ActiveGrain {
+        PerfGrain {
             grain: self,
             perfmaps,
-        }
+        }.for_each(|_| Ok(()))
+            .map_err(|_| ())
     }
 }
 
-impl<T> Pollable for ActiveGrain<T> {
-    fn poll(&mut self) {
+impl<T> Stream for PerfGrain<T> {
+    type Item = ();
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
         for pm in self.perfmaps.iter_mut() {
             pm.poll(10);
         }
-    }
-}
 
-pub trait Pollable {
-    fn poll(&mut self);
+        Ok(Async::Ready(Some(())))
+    }
 }
 
 pub trait EBPFModule<'code> {
@@ -127,5 +136,11 @@ pub fn to_string(x: &[u8]) -> String {
     match x.iter().position(|&r| r == 0) {
         Some(zero_pos) => String::from_utf8_lossy(&x[0..zero_pos]).to_string(),
         None => String::from_utf8_lossy(x).to_string(),
+    }
+}
+
+pub fn send_to(upstreams: &[BackendHandler], msg: Message) {
+    for upstream in upstreams.iter() {
+        upstream.do_send(msg.clone()).unwrap();
     }
 }
