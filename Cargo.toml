@@ -31,3 +31,5 @@ toml = "^0.4"
 cadence = "0.14"
 rusoto_core = "0.32"
 rusoto_s3 = "0.32"
+
+rustls = "0.13"
