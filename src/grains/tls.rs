@@ -25,7 +25,6 @@ impl EBPFModule<'static> for TLS {
         let mut buf = [0u8; 8192];
         let read = sock.recv(&mut buf, 0)?;
 
-        println!("read: {}", read);
         match read {
             0 => Ok(None),
             _ => Ok(tls_to_message(&buf)),
@@ -84,11 +83,11 @@ fn parse_clienthello(payload: ClientHelloPayload, mut tags: Tags) -> Option<Mess
 
 fn parse_serverhello(payload: ServerHelloPayload, mut tags: Tags) -> Option<Message> {
     tags.insert(
-        "cipher_suite".to_string(),
+        "ciphersuite_str".to_string(),
         format!("{:?}", payload.cipher_suite),
     );
     if let Some(proto) = payload.get_alpn_protocol() {
-        tags.insert("alpn".to_string(), proto.to_string());
+        tags.insert("alpn_str".to_string(), proto.to_string());
     }
 
     msg("serverhello", tags)
