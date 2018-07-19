@@ -17,6 +17,7 @@ extern crate serde_json;
 extern crate tokio;
 extern crate toml;
 extern crate uuid;
+extern crate rustls;
 
 use std::env;
 use std::thread;
@@ -102,6 +103,12 @@ fn main() {
                 Grain::<dns::DNS>::load()
                     .unwrap()
                     .attach_xdps(&dns_if, &backends),
+            ));
+
+            grains.push(Box::new(
+                Grain::<tls::TLS>::load()
+                    .unwrap()
+                    .attach_socketfilters(&dns_if, &backends),
             ));
         }
 
