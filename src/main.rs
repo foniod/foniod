@@ -13,11 +13,11 @@ extern crate lazy_socket;
 extern crate redbpf;
 extern crate rusoto_core;
 extern crate rusoto_s3;
+extern crate rustls;
 extern crate serde_json;
 extern crate tokio;
 extern crate toml;
 extern crate uuid;
-extern crate rustls;
 
 use std::env;
 use std::thread;
