@@ -22,8 +22,12 @@ impl EBPFModule<'static> for TLS {
     }
 
     fn socket_handler(sock: &Socket) -> Result<Option<Message>> {
-        let mut buf = [0u8; 8192];
-        let read = sock.recv(&mut buf, 0)?;
+        let mut buf = [0u8; 16384];
+        let mut headbuf = [0u8; ETH_HLEN + 4];
+
+        let read = sock.recv(&mut headbuf, 0x02 /* MSG_PEEK */)?;
+        let plen = packet_len(&headbuf);
+        let read = sock.recv(&mut buf[..plen], 0)?;
 
         match read {
             0 => Ok(None),
@@ -138,6 +142,10 @@ fn parse_tcp_ports(buf: &[u8]) -> (u16, u16) {
     let d: u16 = (buf[offs + 2] as u16) << 8 | buf[offs + 3] as u16;
 
     (d, s)
+}
+
+fn packet_len(buf: &[u8]) -> usize {
+    ETH_HLEN + ((buf[ETH_HLEN + 2] as usize) << 8 | buf[ETH_HLEN + 3] as usize)
 }
 
 #[inline]
