@@ -18,6 +18,8 @@ use lazy_socket::raw as lazy_socket;
 use lazy_socket::raw::Socket;
 use std::os::unix::io::FromRawFd;
 
+const POLL_TIMEOUT: u8 = 10;
+
 pub struct Grain<T> {
     module: Module,
     _type: PhantomData<T>,
@@ -125,7 +127,7 @@ pub trait Pollable {
 impl<T> Pollable for PerfGrain<T> {
     fn poll(&mut self) {
         for pm in self.perfmaps.iter_mut() {
-            pm.poll(10);
+            pm.poll(POLL_TIMEOUT.into());
         }
     }
 }
@@ -136,7 +138,7 @@ where
 {
     fn poll(&mut self) {
         let sockets: Vec<&Socket> = self.sockets.iter().map(|s| s).collect();
-        if lazy_socket::select(&sockets.as_slice(), &[], &[], Some(10)).unwrap() < 1 {
+        if lazy_socket::select(&sockets.as_slice(), &[], &[], Some(POLL_TIMEOUT.into())).unwrap() < 1 {
             return;
         }
 
