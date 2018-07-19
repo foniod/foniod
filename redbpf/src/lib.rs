@@ -127,8 +127,9 @@ impl Program {
     pub fn load(&mut self, kernel_version: u32, license: String) -> Result<RawFd> {
         let clicense = CString::new(license)?;
         let cname = CString::new(self.name.clone())?;
-        let log_buffer: *mut i8 = unsafe {libc::malloc(mem::size_of::<i8>() * 16 * 65535) as *mut i8 };
-        let buf_size = 64* 65535 as u32;
+        let log_buffer: *mut i8 =
+            unsafe { libc::malloc(mem::size_of::<i8>() * 16 * 65535) as *mut i8 };
+        let buf_size = 64 * 65535 as u32;
 
         let fd = unsafe {
             bpf_sys::bpf_prog_load(
@@ -184,17 +185,20 @@ impl Program {
         }
     }
 
-    pub fn attach_socketfilter(&mut self, iface: &str) -> Result<()> {
+    pub fn attach_socketfilter(&mut self, iface: &str) -> Result<RawFd> {
         let ciface = CString::new(iface).unwrap();
         let sfd = unsafe { bpf_sys::bpf_open_raw_sock(ciface.as_ptr()) };
 
         if sfd < 0 {
             return Err(LoadError::IO(io::Error::last_os_error()));
-        } 
+        }
 
         match unsafe { bpf_sys::bpf_attach_socket(sfd, self.fd.ok_or(LoadError::BPF)?) } {
-            0 => { self.pfd = Some(sfd);  Ok(()) },
-            _ => Err(LoadError::IO(io::Error::last_os_error()))
+            0 => {
+                self.pfd = Some(sfd);
+                Ok(sfd)
+            }
+            _ => Err(LoadError::IO(io::Error::last_os_error())),
         }
     }
 }
