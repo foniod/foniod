@@ -33,7 +33,7 @@ impl Unit {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Measurement {
-    timestamp: u64,
+    pub timestamp: u64,
     pub kind: Kind,
     pub name: String,
     pub value: Unit,
