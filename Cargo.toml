@@ -12,7 +12,7 @@ lazy_static = "1.0"
 redbpf = { path = "./redbpf" }
 
 [dependencies]
-actix = "^0.6"
+actix = "^0.7"
 futures = "^0.1"
 tokio = "0.1"
 
