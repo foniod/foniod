@@ -7,6 +7,7 @@ use std::os::unix::io::RawFd;
 use std::ptr::null_mut;
 use std::slice;
 use std::sync::atomic::{self, AtomicPtr, Ordering};
+use std::cell::RefCell;
 
 use libc::{
     c_void, close, ioctl, mmap, munmap, syscall, sysconf, SYS_perf_event_open, MAP_FAILED,
@@ -64,7 +65,7 @@ pub struct PerfMap {
     page_cnt: u32,
     page_size: u32,
     mmap_size: usize,
-    buf: Vec<u8>,
+    buf: RefCell<Vec<u8>>,
     pub fd: RawFd,
 }
 
@@ -105,7 +106,7 @@ impl PerfMap {
 
             Ok(PerfMap {
                 base_ptr: AtomicPtr::new(base_ptr as *mut perf_event_mmap_page),
-                buf: vec![],
+                buf: RefCell::new(vec![]),
                 page_cnt,
                 page_size,
                 mmap_size,
@@ -114,7 +115,7 @@ impl PerfMap {
         }
     }
 
-    fn read(&mut self) -> Option<Event> {
+    fn read(&self) -> Option<Event> {
         unsafe {
             let header = self.base_ptr.load(Ordering::SeqCst);
             let data_head = (*header).data_head;
@@ -130,20 +131,21 @@ impl PerfMap {
             let event = base.offset(start) as *const perf_event_header;
             let end = ((data_tail + (*event).size as u64) % raw_size) as isize;
 
-            self.buf.clear();
+            let mut buf = self.buf.borrow_mut();
+            buf.clear();
 
             if end < start {
                 let len = (raw_size as isize - start) as usize;
                 let ptr = base.offset(start);
-                self.buf.extend_from_slice(slice::from_raw_parts(ptr, len));
+                buf.extend_from_slice(slice::from_raw_parts(ptr, len));
 
                 let len = (*event).size as usize - len;
                 let ptr = base;
-                self.buf.extend_from_slice(slice::from_raw_parts(ptr, len));
+                buf.extend_from_slice(slice::from_raw_parts(ptr, len));
             } else {
                 let ptr = base.offset(start);
                 let len = (*event).size as usize;
-                self.buf.extend_from_slice(slice::from_raw_parts(ptr, len));
+                buf.extend_from_slice(slice::from_raw_parts(ptr, len));
             }
 
             atomic::fence(Ordering::SeqCst);
@@ -151,10 +153,10 @@ impl PerfMap {
 
             match (*event).type_ {
                 perf_event_type_PERF_RECORD_SAMPLE => {
-                    Some(Event::Sample(&*(self.buf.as_ptr() as *const Sample)))
+                    Some(Event::Sample(&*(buf.as_ptr() as *const Sample)))
                 }
                 perf_event_type_PERF_RECORD_LOST => {
-                    Some(Event::Lost(&*(self.buf.as_ptr() as *const LostSamples)))
+                    Some(Event::Lost(&*(buf.as_ptr() as *const LostSamples)))
                 }
                 _ => None,
             }
