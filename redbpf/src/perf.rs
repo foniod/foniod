@@ -1,13 +1,12 @@
-use cpus::{self, CpuId};
 use {LoadError, Map, Result, VoidPtr};
 
+use std::cell::RefCell;
 use std::io;
 use std::mem;
 use std::os::unix::io::RawFd;
 use std::ptr::null_mut;
 use std::slice;
 use std::sync::atomic::{self, AtomicPtr, Ordering};
-use std::cell::RefCell;
 
 use libc::{
     c_void, close, ioctl, mmap, munmap, syscall, sysconf, SYS_perf_event_open, MAP_FAILED,
@@ -16,7 +15,7 @@ use libc::{
 
 use sys::perf::*;
 
-unsafe fn open_perf_buffer(pid: i32, cpu: i32, cgroup: RawFd, flags: u32) -> Result<RawFd> {
+unsafe fn open_perf_buffer(pid: i32, cpu: i32, group: RawFd, flags: u32) -> Result<RawFd> {
     let mut attr = mem::zeroed::<perf_event_attr>();
 
     attr.config = perf_sw_ids_PERF_COUNT_SW_BPF_OUTPUT as u64;
@@ -31,7 +30,7 @@ unsafe fn open_perf_buffer(pid: i32, cpu: i32, cgroup: RawFd, flags: u32) -> Res
         &attr as *const perf_event_attr,
         pid,
         cpu,
-        cgroup,
+        group,
         flags | PERF_FLAG_FD_CLOEXEC,
     );
     if pfd < 0 {
@@ -42,20 +41,20 @@ unsafe fn open_perf_buffer(pid: i32, cpu: i32, cgroup: RawFd, flags: u32) -> Res
 }
 
 #[repr(C)]
-struct Sample {
+pub struct Sample {
     header: perf_event_header,
-    size: u32,
-    data: *const u8,
+    pub size: u32,
+    pub data: *const u8,
 }
 
 #[repr(C)]
-struct LostSamples {
+pub struct LostSamples {
     header: perf_event_header,
-    id: u64,
-    count: u64,
+    pub id: u64,
+    pub count: u64,
 }
 
-enum Event<'a> {
+pub enum Event<'a> {
     Sample(&'a Sample),
     Lost(&'a LostSamples),
 }
@@ -70,16 +69,16 @@ pub struct PerfMap {
 }
 
 impl PerfMap {
-    fn bind(
+    pub fn bind(
         map: &mut Map,
         pid: i32,
         mut cpu: i32,
         page_cnt: u32,
-        cgroup: RawFd,
+        group: RawFd,
         flags: u32,
     ) -> Result<PerfMap> {
         unsafe {
-            let mut fd = open_perf_buffer(pid, cpu, cgroup, flags)?;
+            let mut fd = open_perf_buffer(pid, cpu, group, flags)?;
             let page_size = sysconf(_SC_PAGESIZE) as u32;
             let mmap_size = (page_size * (page_cnt + 1)) as usize;
             let base_ptr = mmap(
@@ -115,7 +114,7 @@ impl PerfMap {
         }
     }
 
-    fn read(&self) -> Option<Event> {
+    pub fn read(&self) -> Option<Event> {
         unsafe {
             let header = self.base_ptr.load(Ordering::SeqCst);
             let data_head = (*header).data_head;

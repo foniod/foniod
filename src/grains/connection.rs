@@ -4,11 +4,10 @@ use std::net::Ipv4Addr;
 use std::ptr;
 
 use grains::*;
-use redbpf::PerfCallback;
 
 include!(concat!(env!("OUT_DIR"), "/connection.rs"));
 
-pub fn get_volume_callback(proto: &'static str, upstreams: Vec<BackendHandler>) -> PerfCallback {
+pub fn get_volume_callback(proto: &'static str) -> EventCallback {
     Box::new(move |raw| {
         let volume = Volume::from(_data_volume::from(raw));
         let name = format!("volume.{}", if volume.send > 0 { "out" } else { "in" });
@@ -22,15 +21,12 @@ pub fn get_volume_callback(proto: &'static str, upstreams: Vec<BackendHandler>) 
             volume.recv
         };
 
-        send_to(
-            &upstreams,
-            Message::Single(Measurement::new(
-                COUNTER | HISTOGRAM,
-                name.clone(),
-                Unit::Byte(vol as u64),
-                tags.clone(),
-            )),
-        );
+        Some(Message::Single(Measurement::new(
+            COUNTER | HISTOGRAM,
+            name.clone(),
+            Unit::Byte(vol as u64),
+            tags.clone(),
+        )))
     })
 }
 

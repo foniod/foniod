@@ -7,28 +7,22 @@ use grains::*;
 
 pub struct DNS;
 
-impl EBPFModule<'static> for DNS {
+impl EBPFGrain<'static> for DNS {
     fn code() -> &'static [u8] {
         include_bytes!(concat!(env!("OUT_DIR"), "/dns.elf"))
     }
 
-    fn get_perf_map(m: Map, upstreams: &[BackendHandler]) -> Result<PerfMap> {
-        PerfMap::new(m, -1, 0, 128, move || {
-            let upstreams = upstreams.to_vec();
-            Box::new(move |raw| {
-                let query = DNSQuery::from(_data_dns_query::from(raw));
-                let tags = query.to_tags();
+    fn get_handler(_id: &str) -> EventCallback {
+        Box::new(|raw| {
+            let query = DNSQuery::from(_data_dns_query::from(raw));
+            let tags = query.to_tags();
 
-                send_to(
-                    &upstreams,
-                    Message::Single(Measurement::new(
-                        COUNTER | HISTOGRAM | METER,
-                        "dns.answer".to_string(),
-                        Unit::Count(1),
-                        tags.clone(),
-                    )),
-                );
-            })
+            Some(Message::Single(Measurement::new(
+                COUNTER | HISTOGRAM | METER,
+                "dns.answer".to_string(),
+                Unit::Count(1),
+                tags.clone(),
+            )))
         })
     }
 }
