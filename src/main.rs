@@ -102,10 +102,9 @@ fn main() {
             grains.append(&mut tls_g.attach_socketfilters(&dns_if, &backends));
         }
 
-        grains::epoll_loop(grains, 100).or_else(|err| {
+        let _ = grains::epoll_loop(grains, 100).or_else::<(), _>(|err| {
             println!("Epoll failed: {}", err);
             std::process::exit(2);
-            Err(())
         });
     });
 

@@ -11,10 +11,9 @@ pub use std::collections::HashMap;
 pub use std::net::Ipv4Addr;
 
 use redbpf::cpus;
-use redbpf::{LoadError, Map, Module, PerfMap, Result};
+use redbpf::{Module, PerfMap, Result};
 
 use epoll;
-use lazy_socket::raw as lazy_socket;
 use lazy_socket::raw::Socket;
 use std::io;
 use std::marker::PhantomData;
@@ -22,8 +21,6 @@ use std::os::unix::io::AsRawFd;
 use std::os::unix::io::FromRawFd;
 use std::os::unix::io::RawFd;
 use std::slice;
-
-const POLL_TIMEOUT: u8 = 10;
 
 pub struct Grain<T> {
     module: Module,
@@ -160,7 +157,7 @@ impl EventHandler for SocketHandler {
         let mut buf = [0u8; 16384];
         let mut headbuf = [0u8; ETH_HLEN + 4];
 
-        let read = self.socket.recv(&mut headbuf, 0x02 /* MSG_PEEK */).unwrap();
+        let _read = self.socket.recv(&mut headbuf, 0x02 /* MSG_PEEK */).unwrap();
         let plen = packet_len(&headbuf);
         let read = self.socket.recv(&mut buf[..plen], 0).unwrap();
 
@@ -194,7 +191,7 @@ pub trait EBPFGrain<'code> {
     }
 }
 
-pub fn epoll_loop(mut events: Vec<Box<dyn EventHandler>>, timeout: i32) -> io::Result<()> {
+pub fn epoll_loop(events: Vec<Box<dyn EventHandler>>, timeout: i32) -> io::Result<()> {
     let efd = epoll::create(true)?;
 
     for eh in events.iter() {
