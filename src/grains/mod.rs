@@ -7,52 +7,44 @@ pub mod udp;
 pub use backends::{BackendHandler, Message};
 pub use metrics::kind::*;
 pub use metrics::{Measurement, Unit};
-pub use redbpf::{LoadError, PerfMap, Result};
 pub use std::collections::HashMap;
-use std::marker::PhantomData;
 pub use std::net::Ipv4Addr;
 
-use redbpf::{Map, Module};
+use redbpf::cpus;
+use redbpf::{Module, PerfMap, Result};
 
-use lazy_socket::raw as lazy_socket;
+use epoll;
 use lazy_socket::raw::Socket;
+use std::io;
+use std::marker::PhantomData;
+use std::os::unix::io::AsRawFd;
 use std::os::unix::io::FromRawFd;
-
-const POLL_TIMEOUT: u8 = 10;
+use std::os::unix::io::RawFd;
+use std::slice;
 
 pub struct Grain<T> {
     module: Module,
     _type: PhantomData<T>,
 }
 
-pub struct PerfGrain<T> {
-    grain: Grain<T>,
-    perfmaps: Vec<PerfMap>,
+pub struct PerfHandler {
+    name: String,
+    perfmap: PerfMap,
+    callback: EventCallback,
+    backends: Vec<BackendHandler>,
 }
 
-pub struct SocketGrain<T> {
-    grain: Grain<T>,
-    sockets: Vec<Socket>,
+pub struct SocketHandler {
+    socket: Socket,
+    callback: EventCallback,
     backends: Vec<BackendHandler>,
 }
 
 impl<'code, 'module, T> Grain<T>
 where
-    T: EBPFModule<'code>,
+    T: EBPFGrain<'code>,
 {
-    pub fn load() -> Result<Self> {
-        let mut module = Module::parse(T::code())?;
-        for prog in module.programs.iter_mut() {
-            prog.load(module.version, module.license.clone()).unwrap();
-        }
-
-        Ok(Grain {
-            module,
-            _type: PhantomData,
-        })
-    }
-
-    pub fn attach_kprobes(mut self, backends: &[BackendHandler]) -> impl Pollable {
+    pub fn attach_kprobes(&mut self, backends: &[BackendHandler]) -> Vec<Box<dyn EventHandler>> {
         use redbpf::ProgramKind::*;
         for prog in self
             .module
@@ -64,100 +56,171 @@ where
             prog.attach_probe().unwrap();
         }
 
-        self.bind(backends)
+        self.bind_perf(backends)
     }
 
-    pub fn attach_xdps(mut self, iface: &str, backends: &[BackendHandler]) -> impl Pollable {
+    pub fn attach_xdps(
+        &mut self,
+        iface: &str,
+        backends: &[BackendHandler],
+    ) -> Vec<Box<dyn EventHandler>> {
         use redbpf::ProgramKind::*;
         for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
             println!("Program: {}, {:?}", prog.name, prog.kind);
-
             prog.attach_xdp(iface).unwrap();
         }
 
-        self.bind(backends)
+        self.bind_perf(backends)
     }
 
-    fn bind(mut self, backends: &[BackendHandler]) -> PerfGrain<T> {
-        let perfmaps = self
-            .module
-            .maps
-            .drain(..)
-            .filter(|m| m.kind == 4)
-            .map(|m| T::get_perf_map(m, backends))
-            .map(Result::unwrap)
-            .collect();
-
-        PerfGrain {
-            grain: self,
-            perfmaps,
+    fn bind_perf(&mut self, backends: &[BackendHandler]) -> Vec<Box<dyn EventHandler>> {
+        let online_cpus = cpus::get_online().unwrap();
+        let mut output: Vec<Box<dyn EventHandler>> = vec![];
+        for ref mut m in self.module.maps.iter_mut().filter(|m| m.kind == 4) {
+            for cpuid in online_cpus.iter() {
+                let pm = PerfMap::bind(m, -1, *cpuid, 16, -1, 0).unwrap();
+                output.push(Box::new(PerfHandler {
+                    name: m.name.clone(),
+                    perfmap: pm,
+                    callback: T::get_handler(m.name.as_str()),
+                    backends: backends.to_vec(),
+                }));
+            }
         }
+
+        output
     }
 
     pub fn attach_socketfilters(
         mut self,
         iface: &str,
         backends: &[BackendHandler],
-    ) -> impl Pollable {
+    ) -> Vec<Box<dyn EventHandler>> {
         use redbpf::ProgramKind::*;
-        let sockets = self
-            .module
+        self.module
             .programs
             .iter_mut()
             .filter(|p| p.kind == SocketFilter)
             .map(|prog| {
                 println!("Program: {}, {:?}", prog.name, prog.kind);
                 let fd = prog.attach_socketfilter(iface).unwrap();
-                unsafe { Socket::from_raw_fd(fd) }
+                Box::new(SocketHandler {
+                    socket: unsafe { Socket::from_raw_fd(fd) },
+                    backends: backends.to_vec(),
+                    callback: T::get_handler(prog.name.as_str()),
+                }) as Box<dyn EventHandler>
             })
-            .collect::<Vec<Socket>>();
+            .collect()
+    }
+}
 
-        SocketGrain {
-            grain: self,
-            sockets,
-            backends: backends.to_vec(),
+pub trait EventHandler {
+    fn fd(&self) -> RawFd;
+    fn poll(&self);
+}
+
+impl EventHandler for PerfHandler {
+    fn fd(&self) -> RawFd {
+        self.perfmap.fd
+    }
+    fn poll(&self) {
+        use redbpf::Event;
+
+        match self.perfmap.read() {
+            Some(Event::Lost(lost)) => {
+                println!("Possibly lost {} samples for {}", lost.count, &self.name);
+            }
+            Some(Event::Sample(sample)) => {
+                let msg = unsafe {
+                    (self.callback)(slice::from_raw_parts(
+                        sample.data.as_ptr(),
+                        sample.size as usize,
+                    ))
+                };
+                msg.and_then(|m| Some(send_to(&self.backends, m)));
+            }
+            None => return,
         }
     }
 }
 
-pub trait Pollable {
-    fn poll(&mut self);
+const ETH_HLEN: usize = 14;
+fn packet_len(buf: &[u8]) -> usize {
+    ETH_HLEN + ((buf[ETH_HLEN + 2] as usize) << 8 | buf[ETH_HLEN + 3] as usize)
 }
 
-impl<T> Pollable for PerfGrain<T> {
-    fn poll(&mut self) {
-        for pm in self.perfmaps.iter_mut() {
-            pm.poll(POLL_TIMEOUT.into());
-        }
+impl EventHandler for SocketHandler {
+    fn fd(&self) -> RawFd {
+        self.socket.as_raw_fd()
+    }
+    fn poll(&self) {
+        let mut buf = [0u8; 16384];
+        let mut headbuf = [0u8; ETH_HLEN + 4];
+
+        let _read = self.socket.recv(&mut headbuf, 0x02 /* MSG_PEEK */).unwrap();
+        let plen = packet_len(&headbuf);
+        let read = self.socket.recv(&mut buf[..plen], 0).unwrap();
+
+        let msg = match read {
+            0 => None,
+            _ => (self.callback)(&buf[..plen]),
+        };
+
+        msg.and_then(|msg| Some(send_to(&self.backends, msg)));
     }
 }
 
-impl<'code, 'module, T> Pollable for SocketGrain<T>
-where
-    T: EBPFModule<'code>,
-{
-    fn poll(&mut self) {
-        let sockets: Vec<&Socket> = self.sockets.iter().map(|s| s).collect();
-        if lazy_socket::select(&sockets.as_slice(), &[], &[], Some(POLL_TIMEOUT.into())).unwrap() < 1 {
-            return;
-        }
-
-        for sock in self.sockets.iter() {
-            T::socket_handler(sock)
-                .unwrap()
-                .and_then(|msg| Some(send_to(&self.backends, msg)));
-        }
-    }
-}
-
-pub trait EBPFModule<'code> {
+pub type EventCallback = Box<Fn(&[u8]) -> Option<Message> + Send>;
+pub trait EBPFGrain<'code> {
     fn code() -> &'code [u8];
-    fn get_perf_map(_map: Map, _upstream: &[BackendHandler]) -> Result<PerfMap> {
-        Err(LoadError::BPF)
+    fn get_handler(id: &str) -> EventCallback;
+
+    fn load() -> Result<Grain<Self>>
+    where
+        Self: Sized,
+    {
+        let mut module = Module::parse(Self::code())?;
+        for prog in module.programs.iter_mut() {
+            prog.load(module.version, module.license.clone()).unwrap();
+        }
+
+        Ok(Grain {
+            module,
+            _type: PhantomData,
+        })
+    }
+}
+
+pub fn epoll_loop(events: Vec<Box<dyn EventHandler>>, timeout: i32) -> io::Result<()> {
+    let efd = epoll::create(true)?;
+
+    for eh in events.iter() {
+        let fd = eh.fd();
+        let hptr = eh as *const Box<dyn EventHandler> as u64;
+
+        epoll::ctl(
+            efd,
+            epoll::ControlOptions::EPOLL_CTL_ADD,
+            fd,
+            epoll::Event::new(epoll::Events::EPOLLIN, hptr),
+        )?;
     }
 
-    fn socket_handler(_sock: &Socket) -> Result<Option<Message>> {
-        Err(LoadError::BPF)
+    let mut eventsbuf: Vec<epoll::Event> = events
+        .iter()
+        .map(|_| epoll::Event::new(epoll::Events::empty(), 0))
+        .collect();
+
+    loop {
+        match epoll::wait(efd, timeout, eventsbuf.as_mut_slice()) {
+            Err(err) => return Err(err),
+            Ok(0) => continue,
+            Ok(x) => for ev in eventsbuf[..x].iter() {
+                let handler =
+                    unsafe { (ev.data as *const Box<dyn EventHandler>).as_ref().unwrap() };
+                handler.poll();
+            },
+        }
     }
 }
 

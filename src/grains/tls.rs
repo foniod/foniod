@@ -14,26 +14,17 @@ use std::net::Ipv4Addr;
 
 pub struct TLS;
 
-const ETH_HLEN: usize = 14;
-
-impl EBPFModule<'static> for TLS {
+impl EBPFGrain<'static> for TLS {
     fn code() -> &'static [u8] {
         include_bytes!(concat!(env!("OUT_DIR"), "/tls.elf"))
     }
 
-    fn socket_handler(sock: &Socket) -> Result<Option<Message>> {
-        let mut buf = [0u8; 16384];
-        let mut headbuf = [0u8; ETH_HLEN + 4];
-
-        let read = sock.recv(&mut headbuf, 0x02 /* MSG_PEEK */)?;
-        let plen = packet_len(&headbuf);
-        let read = sock.recv(&mut buf[..plen], 0)?;
-
-        match read {
-            0 => Ok(None),
-            _ => Ok(tls_to_message(&buf)),
-        }
+    fn get_handler(_id: &str) -> EventCallback {
+        Box::new(|raw| tls_to_message(raw))
     }
+
+    // fn socket_handler(sock: &Socket) -> Result<Option<Message>> {
+    // }
 }
 
 fn tls_to_message(buf: &[u8]) -> Option<Message> {
@@ -142,10 +133,6 @@ fn parse_tcp_ports(buf: &[u8]) -> (u16, u16) {
     let d: u16 = (buf[offs + 2] as u16) << 8 | buf[offs + 3] as u16;
 
     (d, s)
-}
-
-fn packet_len(buf: &[u8]) -> usize {
-    ETH_HLEN + ((buf[ETH_HLEN + 2] as usize) << 8 | buf[ETH_HLEN + 3] as usize)
 }
 
 #[inline]

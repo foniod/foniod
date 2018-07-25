@@ -1,25 +1,16 @@
+#![feature(rust_2018_preview)]
+#![warn(rust_2018_idioms)]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy))]
-
-extern crate bindgen;
-extern crate regex;
-#[macro_use]
-extern crate lazy_static;
-
-extern crate bpf_sys;
-extern crate goblin;
-extern crate libc;
-extern crate zero;
 
 pub mod build;
 pub mod cpus;
 mod error;
 mod perf;
+pub mod sys;
 pub mod uname;
 
 use bpf_sys::{bpf_insn, bpf_map_def};
-pub use error::{LoadError, Result};
 use goblin::elf::{section_header as hdr, Elf, Reloc, SectionHeader, Sym};
-use uname::get_kernel_internal_version;
 
 use std::collections::HashMap;
 use std::ffi::CString;
@@ -27,7 +18,9 @@ use std::io;
 use std::mem;
 use std::os::unix::io::RawFd;
 
-pub use perf::*;
+pub use crate::error::{LoadError, Result};
+pub use crate::perf::*;
+use crate::uname::get_kernel_internal_version;
 pub type VoidPtr = *mut std::os::raw::c_void;
 
 pub struct Module {
@@ -69,7 +62,7 @@ pub struct Rel {
 
 impl ProgramKind {
     pub fn to_prog_type(&self) -> bpf_sys::bpf_prog_type {
-        use ProgramKind::*;
+        use crate::ProgramKind::*;
         match self {
             Kprobe | Kretprobe => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_KPROBE,
             XDP => bpf_sys::bpf_prog_type_BPF_PROG_TYPE_XDP,
@@ -78,7 +71,7 @@ impl ProgramKind {
     }
 
     pub fn to_attach_type(&self) -> bpf_sys::bpf_probe_attach_type {
-        use ProgramKind::*;
+        use crate::ProgramKind::*;
         match self {
             Kprobe => bpf_sys::bpf_probe_attach_type_BPF_PROBE_ENTRY,
             Kretprobe => bpf_sys::bpf_probe_attach_type_BPF_PROBE_RETURN,
@@ -88,7 +81,7 @@ impl ProgramKind {
     }
 
     pub fn from_section(section: &str) -> Result<ProgramKind> {
-        use ProgramKind::*;
+        use crate::ProgramKind::*;
         match section {
             "kretprobe" => Ok(Kretprobe),
             "kprobe" => Ok(Kprobe),

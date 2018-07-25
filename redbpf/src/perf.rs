@@ -1,117 +1,177 @@
-// This file is loosely based on code at https://github.com/jvns/rust-bcc/
-// Any similarities are probably not accidental.
-//
+use crate::{LoadError, Map, Result, VoidPtr};
 
-use bpf_sys::bpf_open_perf_buffer;
-use bpf_sys::perf_reader::*;
-
-use cpus::{self, CpuId};
-use {LoadError, Map, Result, VoidPtr};
-
+use std::cell::RefCell;
+use std::io;
+use std::mem;
 use std::os::unix::io::RawFd;
+use std::ptr::null_mut;
+use std::slice;
+use std::sync::atomic::{self, AtomicPtr, Ordering};
 
-unsafe extern "C" fn raw_callback(pc: VoidPtr, ptr: VoidPtr, size: i32) {
-    let slice = ::std::slice::from_raw_parts(ptr as *const u8, size as usize);
-    // prevent unwinding into C code
-    // no custom panic hook set, panic will be printed as is
-    let _ = ::std::panic::catch_unwind(|| (*(*(pc as *mut PerfCallbackWrapper)).0)(slice));
-}
+use libc::{
+    c_void, close, ioctl, mmap, munmap, syscall, sysconf, SYS_perf_event_open, MAP_FAILED,
+    MAP_SHARED, PROT_READ, PROT_WRITE, _SC_PAGESIZE,
+};
 
-pub type PerfCallback = Box<FnMut(&[u8]) + Send>;
-struct PerfCallbackWrapper(PerfCallback);
+use crate::sys::perf::*;
 
-struct PerfReader(*mut perf_reader);
-impl PerfReader {
-    fn new(
-        pid: i32,
-        cpu: i32,
-        page_cnt: i32,
-        callback: PerfCallback,
-    ) -> Result<(PerfReader, RawFd, Box<PerfCallbackWrapper>)> {
-        let mut wrapped_cb = Box::new(PerfCallbackWrapper(callback));
-        let reader = unsafe {
-            bpf_open_perf_buffer(
-                Some(raw_callback),
-                None,
-                wrapped_cb.as_mut() as *mut _ as VoidPtr,
-                pid,
-                cpu,
-                page_cnt,
-            ) as *mut perf_reader
-        };
+unsafe fn open_perf_buffer(pid: i32, cpu: i32, group: RawFd, flags: u32) -> Result<RawFd> {
+    let mut attr = mem::zeroed::<perf_event_attr>();
 
-        if reader.is_null() {
-            return Err(LoadError::BPF);
-        }
+    attr.config = perf_sw_ids_PERF_COUNT_SW_BPF_OUTPUT as u64;
+    attr.size = mem::size_of::<perf_event_attr>() as u32;
+    attr.type_ = perf_type_id_PERF_TYPE_SOFTWARE;
+    attr.sample_type = perf_event_sample_format_PERF_SAMPLE_RAW as u64;
+    attr.__bindgen_anon_1.sample_period = 1;
+    attr.__bindgen_anon_2.wakeup_events = 1;
 
-        let fd = unsafe { perf_reader_fd(reader) };
-        Ok((PerfReader(reader), fd, wrapped_cb))
+    let pfd = syscall(
+        SYS_perf_event_open,
+        &attr as *const perf_event_attr,
+        pid,
+        cpu,
+        group,
+        flags | PERF_FLAG_FD_CLOEXEC,
+    );
+    if pfd < 0 {
+        Err(LoadError::IO(io::Error::last_os_error()))
+    } else {
+        Ok(pfd as RawFd)
     }
 }
 
-impl Drop for PerfReader {
-    fn drop(&mut self) {
-        unsafe { perf_reader_free(self.0 as VoidPtr) }
-    }
+#[repr(C)]
+pub struct Sample {
+    header: perf_event_header,
+    pub size: u32,
+    pub data: [u8; 0],
+}
+
+#[repr(C)]
+pub struct LostSamples {
+    header: perf_event_header,
+    pub id: u64,
+    pub count: u64,
+}
+
+pub enum Event<'a> {
+    Sample(&'a Sample),
+    Lost(&'a LostSamples),
 }
 
 pub struct PerfMap {
-    map: Map,
-    page_count: i32,
-    callbacks: Vec<Box<PerfCallbackWrapper>>,
-    keys: Vec<CpuId>,
-    readers: Vec<PerfReader>,
+    base_ptr: AtomicPtr<perf_event_mmap_page>,
+    page_cnt: usize,
+    page_size: usize,
+    mmap_size: usize,
+    buf: RefCell<Vec<u8>>,
+    pub fd: RawFd,
 }
 
 impl PerfMap {
-    pub fn new<CB>(
-        mut map: Map,
+    pub fn bind(
+        map: &mut Map,
         pid: i32,
-        cpu: i32,
-        page_count: i32,
-        callback: CB,
-    ) -> Result<PerfMap>
-    where
-        CB: Fn() -> PerfCallback,
-    {
-        let mut readers = vec![];
-        let mut keys = vec![];
-        let mut callbacks = vec![];
+        mut cpu: i32,
+        page_cnt: usize,
+        group: RawFd,
+        flags: u32,
+    ) -> Result<PerfMap> {
+        unsafe {
+            let mut fd = open_perf_buffer(pid, cpu, group, flags)?;
+            let page_size = sysconf(_SC_PAGESIZE) as usize;
+            let mmap_size = page_size * (page_cnt + 1);
+            let base_ptr = mmap(
+                null_mut(),
+                mmap_size,
+                PROT_READ | PROT_WRITE,
+                MAP_SHARED,
+                fd,
+                0,
+            );
 
-        // TODO: Abstract this out to a keying strategy, so keys can be used on
-        // a per-pid/per-port/arbitrary basis
-        for mut cpu in cpus::get_online()? {
-            let (mut r, mut fd, c) = PerfReader::new(pid, cpu, page_count, callback())?;
+            if base_ptr == MAP_FAILED {
+                return Err(LoadError::IO(io::Error::last_os_error()));
+            }
+
+            if ioctl(fd, PERF_EVENT_IOC_ENABLE, 0) != 0 {
+                return Err(LoadError::IO(io::Error::last_os_error()));
+            }
 
             map.set(
                 &mut cpu as *mut i32 as VoidPtr,
                 &mut fd as *mut i32 as VoidPtr,
             );
 
-            // Book-keeping. Same indexes will refer to the relevant object.
-            // The primary reason of not using tuples here is that we can poll()
-            // on readers as a **perf_reader, as seen below.
-            readers.push(r);
-            keys.push(cpu);
-            callbacks.push(c);
+            Ok(PerfMap {
+                base_ptr: AtomicPtr::new(base_ptr as *mut perf_event_mmap_page),
+                buf: RefCell::new(vec![]),
+                page_cnt,
+                page_size,
+                mmap_size,
+                fd,
+            })
         }
-
-        Ok(PerfMap {
-            map,
-            page_count,
-            readers,
-            keys,
-            callbacks,
-        })
     }
 
-    pub fn poll(&mut self, timeout: i32) {
+    pub fn read(&self) -> Option<Event> {
         unsafe {
-            perf_reader_poll(
-                self.readers.len() as i32,
-                self.readers.as_ptr() as *mut *mut perf_reader,
-                timeout,
+            let header = self.base_ptr.load(Ordering::SeqCst);
+            let data_head = (*header).data_head;
+            let data_tail = (*header).data_tail;
+            let raw_size = (self.page_cnt * self.page_size) as u64;
+            let base = (header as *const u8).add(self.page_size);
+
+            if data_tail == data_head {
+                return None;
+            }
+
+            let start = (data_tail % raw_size) as usize;
+            let event = base.add(start) as *const perf_event_header;
+            let end = ((data_tail + (*event).size as u64) % raw_size) as usize;
+
+            let mut buf = self.buf.borrow_mut();
+            buf.clear();
+
+            if end < start {
+                let len = (raw_size as usize - start) as usize;
+                let ptr = base.add(start);
+                buf.extend_from_slice(slice::from_raw_parts(ptr, len));
+
+                let len = (*event).size as usize - len;
+                let ptr = base;
+                buf.extend_from_slice(slice::from_raw_parts(ptr, len));
+            } else {
+                let ptr = base.add(start);
+                let len = (*event).size as usize;
+                buf.extend_from_slice(slice::from_raw_parts(ptr, len));
+            }
+
+            atomic::fence(Ordering::SeqCst);
+            (*header).data_tail += (*event).size as u64;
+
+            match (*event).type_ {
+                perf_event_type_PERF_RECORD_SAMPLE => {
+                    Some(Event::Sample(&*(buf.as_ptr() as *const Sample)))
+                }
+                perf_event_type_PERF_RECORD_LOST => {
+                    Some(Event::Lost(&*(buf.as_ptr() as *const LostSamples)))
+                }
+                _ => None,
+            }
+        }
+    }
+}
+
+impl Drop for PerfMap {
+    fn drop(&mut self) {
+        unsafe {
+            munmap(
+                self.base_ptr.load(Ordering::SeqCst) as *mut c_void,
+                self.mmap_size,
             );
+            ioctl(self.fd, PERF_EVENT_IOC_DISABLE, 0);
+            close(self.fd);
         }
     }
 }

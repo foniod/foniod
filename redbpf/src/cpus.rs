@@ -33,7 +33,7 @@ fn list_from_string(cpus: &str) -> Vec<CpuId> {
 mod test {
     #[test]
     fn test() {
-        use cpus::list_from_string;
+        use crate::cpus::list_from_string;
         assert_eq!(list_from_string("0-4"), vec![0, 1, 2, 3, 4]);
         assert_eq!(list_from_string("0-2,5-6"), vec![0, 1, 2, 5, 6]);
     }

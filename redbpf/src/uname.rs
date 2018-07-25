@@ -1,4 +1,4 @@
-use error::{LoadError, Result};
+use crate::error::{LoadError, Result};
 use std::ffi::CStr;
 use std::mem;
 use std::str::from_utf8_unchecked;
