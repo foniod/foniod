@@ -126,20 +126,21 @@ impl EventHandler for PerfHandler {
     fn poll(&self) {
         use redbpf::Event;
 
-        match self.perfmap.read() {
-            Some(Event::Lost(lost)) => {
-                println!("Possibly lost {} samples for {}", lost.count, &self.name);
+        while let Some(ev) = self.perfmap.read() {
+            match ev {
+                Event::Lost(lost) => {
+                    println!("Possibly lost {} samples for {}", lost.count, &self.name);
+                }
+                Event::Sample(sample) => {
+                    let msg = unsafe {
+                        (self.callback)(slice::from_raw_parts(
+                            sample.data.as_ptr(),
+                            sample.size as usize,
+                        ))
+                    };
+                    msg.and_then(|m| Some(send_to(&self.backends, m)));
+                }
             }
-            Some(Event::Sample(sample)) => {
-                let msg = unsafe {
-                    (self.callback)(slice::from_raw_parts(
-                        sample.data.as_ptr(),
-                        sample.size as usize,
-                    ))
-                };
-                msg.and_then(|m| Some(send_to(&self.backends, m)));
-            }
-            None => return,
         }
     }
 }
@@ -157,16 +158,17 @@ impl EventHandler for SocketHandler {
         let mut buf = [0u8; 16384];
         let mut headbuf = [0u8; ETH_HLEN + 4];
 
-        let _read = self.socket.recv(&mut headbuf, 0x02 /* MSG_PEEK */).unwrap();
-        let plen = packet_len(&headbuf);
-        let read = self.socket.recv(&mut buf[..plen], 0).unwrap();
+        while self.socket.recv(&mut headbuf, 0x02 /* MSG_PEEK */).is_ok() {
+            let plen = packet_len(&headbuf);
+            let read = self.socket.recv(&mut buf[..plen], 0).unwrap();
 
-        let msg = match read {
-            0 => None,
-            _ => (self.callback)(&buf[..plen]),
-        };
+            let msg = match read {
+                0 => None,
+                _ => (self.callback)(&buf[..plen]),
+            };
 
-        msg.and_then(|msg| Some(send_to(&self.backends, msg)));
+            msg.and_then(|msg| Some(send_to(&self.backends, msg)));
+        }
     }
 }
 
