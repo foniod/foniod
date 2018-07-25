@@ -195,21 +195,21 @@ pub trait EBPFGrain<'code> {
 }
 
 pub fn epoll_loop(mut events: Vec<Box<dyn EventHandler>>, timeout: i32) -> io::Result<()> {
-    let evmap: HashMap<RawFd, Box<dyn EventHandler>> =
-        events.drain(..).map(|eh| (eh.fd(), eh)).collect();
-
     let efd = epoll::create(true)?;
 
-    for fd in evmap.keys() {
+    for eh in events.iter() {
+        let fd = eh.fd();
+        let hptr = eh as *const Box<dyn EventHandler> as u64;
+
         epoll::ctl(
             efd,
             epoll::ControlOptions::EPOLL_CTL_ADD,
-            *fd,
-            epoll::Event::new(epoll::Events::EPOLLIN, *fd as u64),
+            fd,
+            epoll::Event::new(epoll::Events::EPOLLIN, hptr),
         )?;
     }
 
-    let mut eventsbuf: Vec<epoll::Event> = evmap
+    let mut eventsbuf: Vec<epoll::Event> = events
         .iter()
         .map(|_| epoll::Event::new(epoll::Events::empty(), 0))
         .collect();
@@ -219,7 +219,8 @@ pub fn epoll_loop(mut events: Vec<Box<dyn EventHandler>>, timeout: i32) -> io::R
             Err(err) => return Err(err),
             Ok(0) => continue,
             Ok(x) => for ev in eventsbuf[..x].iter() {
-                (evmap.get(&(ev.data as RawFd)).unwrap()).poll();
+                let handler = unsafe { (ev.data as *const Box<dyn EventHandler>).as_ref().unwrap() };
+                handler.poll();
             },
         }
     }
