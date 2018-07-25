@@ -44,7 +44,7 @@ unsafe fn open_perf_buffer(pid: i32, cpu: i32, group: RawFd, flags: u32) -> Resu
 pub struct Sample {
     header: perf_event_header,
     pub size: u32,
-    pub data: *const u8,
+    pub data: [u8; 0],
 }
 
 #[repr(C)]
@@ -61,8 +61,8 @@ pub enum Event<'a> {
 
 pub struct PerfMap {
     base_ptr: AtomicPtr<perf_event_mmap_page>,
-    page_cnt: u32,
-    page_size: u32,
+    page_cnt: usize,
+    page_size: usize,
     mmap_size: usize,
     buf: RefCell<Vec<u8>>,
     pub fd: RawFd,
@@ -73,14 +73,14 @@ impl PerfMap {
         map: &mut Map,
         pid: i32,
         mut cpu: i32,
-        page_cnt: u32,
+        page_cnt: usize,
         group: RawFd,
         flags: u32,
     ) -> Result<PerfMap> {
         unsafe {
             let mut fd = open_perf_buffer(pid, cpu, group, flags)?;
-            let page_size = sysconf(_SC_PAGESIZE) as u32;
-            let mmap_size = (page_size * (page_cnt + 1)) as usize;
+            let page_size = sysconf(_SC_PAGESIZE) as usize;
+            let mmap_size = page_size * (page_cnt + 1);
             let base_ptr = mmap(
                 null_mut(),
                 mmap_size,
@@ -119,30 +119,30 @@ impl PerfMap {
             let header = self.base_ptr.load(Ordering::SeqCst);
             let data_head = (*header).data_head;
             let data_tail = (*header).data_tail;
-            let raw_size = (self.mmap_size - 1) as u64;
-            let base = header.offset(self.page_size as isize) as *const u8;
+            let raw_size = (self.page_cnt * self.page_size) as u64;
+            let base = (header as *const u8).add(self.page_size);
 
             if data_tail == data_head {
                 return None;
             }
 
-            let start = (data_tail % raw_size) as isize;
-            let event = base.offset(start) as *const perf_event_header;
-            let end = ((data_tail + (*event).size as u64) % raw_size) as isize;
+            let start = (data_tail % raw_size) as usize;
+            let event = base.add(start) as *const perf_event_header;
+            let end = ((data_tail + (*event).size as u64) % raw_size) as usize;
 
             let mut buf = self.buf.borrow_mut();
             buf.clear();
 
             if end < start {
-                let len = (raw_size as isize - start) as usize;
-                let ptr = base.offset(start);
+                let len = (raw_size as usize - start) as usize;
+                let ptr = base.add(start);
                 buf.extend_from_slice(slice::from_raw_parts(ptr, len));
 
                 let len = (*event).size as usize - len;
                 let ptr = base;
                 buf.extend_from_slice(slice::from_raw_parts(ptr, len));
             } else {
-                let ptr = base.offset(start);
+                let ptr = base.add(start);
                 let len = (*event).size as usize;
                 buf.extend_from_slice(slice::from_raw_parts(ptr, len));
             }
