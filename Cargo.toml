@@ -34,3 +34,4 @@ rusoto_s3 = "0.32"
 
 rustls = "0.13"
 epoll = "4.0"
+ring = "0.13"

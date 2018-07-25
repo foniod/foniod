@@ -12,6 +12,7 @@ extern crate cadence;
 extern crate epoll;
 extern crate lazy_socket;
 extern crate redbpf;
+extern crate ring;
 extern crate rusoto_core;
 extern crate rusoto_s3;
 extern crate rustls;
