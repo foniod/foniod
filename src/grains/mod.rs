@@ -47,7 +47,7 @@ impl<'code, 'module, T> Grain<T>
 where
     T: EBPFGrain<'code>,
 {
-    pub fn attach_kprobes(&mut self, backends: &[BackendHandler]) -> Vec<impl EventHandler> {
+    pub fn attach_kprobes(&mut self, backends: &[BackendHandler]) -> Vec<Box<dyn EventHandler>> {
         use redbpf::ProgramKind::*;
         for prog in self
             .module
@@ -66,7 +66,7 @@ where
         &mut self,
         iface: &str,
         backends: &[BackendHandler],
-    ) -> Vec<impl EventHandler> {
+    ) -> Vec<Box<dyn EventHandler>> {
         use redbpf::ProgramKind::*;
         for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
             println!("Program: {}, {:?}", prog.name, prog.kind);
@@ -76,18 +76,18 @@ where
         self.bind_perf(backends)
     }
 
-    fn bind_perf(&mut self, backends: &[BackendHandler]) -> Vec<PerfHandler> {
+    fn bind_perf(&mut self, backends: &[BackendHandler]) -> Vec<Box<dyn EventHandler>> {
         let online_cpus = cpus::get_online().unwrap();
-        let mut output = vec![];
+        let mut output: Vec<Box<dyn EventHandler>> = vec![];
         for ref mut m in self.module.maps.iter_mut().filter(|m| m.kind == 4) {
             for cpuid in online_cpus.iter() {
                 let pm = PerfMap::bind(m, -1, *cpuid, 16, -1, 0).unwrap();
-                output.push(PerfHandler {
+                output.push(Box::new(PerfHandler {
                     name: m.name.clone(),
                     perfmap: pm,
                     callback: T::get_handler(m.name.as_str()),
                     backends: backends.to_vec(),
-                });
+                }));
             }
         }
 
@@ -98,7 +98,7 @@ where
         mut self,
         iface: &str,
         backends: &[BackendHandler],
-    ) -> Vec<SocketHandler> {
+    ) -> Vec<Box<dyn EventHandler>> {
         use redbpf::ProgramKind::*;
         self.module
             .programs
@@ -107,11 +107,11 @@ where
             .map(|prog| {
                 println!("Program: {}, {:?}", prog.name, prog.kind);
                 let fd = prog.attach_socketfilter(iface).unwrap();
-                SocketHandler {
+                Box::new(SocketHandler {
                     socket: unsafe { Socket::from_raw_fd(fd) },
                     backends: backends.to_vec(),
                     callback: T::get_handler(prog.name.as_str()),
-                }
+                }) as Box<dyn EventHandler>
             })
             .collect()
     }
@@ -135,7 +135,10 @@ impl EventHandler for PerfHandler {
             }
             Some(Event::Sample(sample)) => {
                 let msg = unsafe {
-                    (self.callback)(slice::from_raw_parts(sample.data, sample.size as usize))
+                    (self.callback)(slice::from_raw_parts(
+                        sample.data.as_ptr(),
+                        sample.size as usize,
+                    ))
                 };
                 msg.and_then(|m| Some(send_to(&self.backends, m)));
             }
@@ -163,7 +166,7 @@ impl EventHandler for SocketHandler {
 
         let msg = match read {
             0 => None,
-            _ => (self.callback)(&buf),
+            _ => (self.callback)(&buf[..plen]),
         };
 
         msg.and_then(|msg| Some(send_to(&self.backends, msg)));
@@ -191,25 +194,32 @@ pub trait EBPFGrain<'code> {
     }
 }
 
-fn epoll_loop(events: HashMap<RawFd, Box<EventHandler>>, timeout: i32) -> io::Result<()> {
-    let efd = epoll::create(true)?;
-    let mut eventsbuf = vec![];
+pub fn epoll_loop(mut events: Vec<Box<dyn EventHandler>>, timeout: i32) -> io::Result<()> {
+    let evmap: HashMap<RawFd, Box<dyn EventHandler>> =
+        events.drain(..).map(|eh| (eh.fd(), eh)).collect();
 
-    for fd in events.keys() {
+    let efd = epoll::create(true)?;
+
+    for fd in evmap.keys() {
         epoll::ctl(
             efd,
             epoll::ControlOptions::EPOLL_CTL_ADD,
             *fd,
             epoll::Event::new(epoll::Events::EPOLLIN, *fd as u64),
-        );
+        )?;
     }
 
     loop {
-        match epoll::wait(efd, timeout, &mut eventsbuf) {
+        let mut eventsbuf: Vec<epoll::Event> = evmap
+            .iter()
+            .map(|_| epoll::Event::new(epoll::Events::empty(), 0))
+            .collect();
+
+        match epoll::wait(efd, timeout, eventsbuf.as_mut_slice()) {
             Err(err) => return Err(err),
             Ok(0) => continue,
-            x => for ev in eventsbuf.iter() {
-                (events.get(&(ev.data as RawFd)).unwrap()).poll();
+            Ok(x) => for ev in eventsbuf[..x].iter() {
+                (evmap.get(&(ev.data as RawFd)).unwrap()).poll();
             },
         }
     }

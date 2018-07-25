@@ -9,6 +9,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate cadence;
+extern crate epoll;
 extern crate lazy_socket;
 extern crate redbpf;
 extern crate rusoto_core;
@@ -86,37 +87,26 @@ fn main() {
     }));
 
     thread::spawn(move || {
-        let mut grains: Vec<Box<dyn Pollable>> = vec![];
+        let mut grains: Vec<Box<dyn EventHandler>> = vec![];
+        let mut tcp_g = tcpv4::TCP4::load().unwrap();
+        grains.append(&mut tcp_g.attach_kprobes(&backends));
 
-        grains.push(Box::new(
-            Grain::<tcpv4::TCP4>::load()
-                .unwrap()
-                .attach_kprobes(&backends),
-        ));
-
-        grains.push(Box::new(
-            Grain::<udp::UDP>::load().unwrap().attach_kprobes(&backends),
-        ));
+        let mut udp_g = udp::UDP::load().unwrap();
+        grains.append(&mut udp_g.attach_kprobes(&backends));
 
         if let Ok(dns_if) = env::var("DNS_IF") {
-            grains.push(Box::new(
-                Grain::<dns::DNS>::load()
-                    .unwrap()
-                    .attach_xdps(&dns_if, &backends),
-            ));
+            let mut dns_g = dns::DNS::load().unwrap();
+            grains.append(&mut dns_g.attach_xdps(&dns_if, &backends));
 
-            grains.push(Box::new(
-                Grain::<tls::TLS>::load()
-                    .unwrap()
-                    .attach_socketfilters(&dns_if, &backends),
-            ));
+            let mut tls_g = tls::TLS::load().unwrap();
+            grains.append(&mut tls_g.attach_socketfilters(&dns_if, &backends));
         }
 
-        loop {
-            for grain in grains.iter_mut() {
-                grain.poll();
-            }
-        }
+        grains::epoll_loop(grains, 100).or_else(|err| {
+            println!("Epoll failed: {}", err);
+            std::process::exit(2);
+            Err(())
+        });
     });
 
     system.run();
