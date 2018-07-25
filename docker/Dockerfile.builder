@@ -14,7 +14,7 @@ RUN apt-get update \
        git \
        clang \
     && curl https://sh.rustup.rs -sSf > rustup.sh \
-    && sh rustup.sh -y --default-toolchain stable --no-modify-path \
+    && sh rustup.sh -y --default-toolchain nightly --no-modify-path \
     && rustup --version \
     && cargo --version \
     && rustc --version
