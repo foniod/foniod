@@ -1,4 +1,4 @@
-use {LoadError, Map, Result, VoidPtr};
+use crate::{LoadError, Map, Result, VoidPtr};
 
 use std::cell::RefCell;
 use std::io;
@@ -13,7 +13,7 @@ use libc::{
     MAP_SHARED, PROT_READ, PROT_WRITE, _SC_PAGESIZE,
 };
 
-use sys::perf::*;
+use crate::sys::perf::*;
 
 unsafe fn open_perf_buffer(pid: i32, cpu: i32, group: RawFd, flags: u32) -> Result<RawFd> {
     let mut attr = mem::zeroed::<perf_event_attr>();
