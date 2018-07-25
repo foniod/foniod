@@ -216,7 +216,8 @@ pub fn epoll_loop(events: Vec<Box<dyn EventHandler>>, timeout: i32) -> io::Resul
             Err(err) => return Err(err),
             Ok(0) => continue,
             Ok(x) => for ev in eventsbuf[..x].iter() {
-                let handler = unsafe { (ev.data as *const Box<dyn EventHandler>).as_ref().unwrap() };
+                let handler =
+                    unsafe { (ev.data as *const Box<dyn EventHandler>).as_ref().unwrap() };
                 handler.poll();
             },
         }

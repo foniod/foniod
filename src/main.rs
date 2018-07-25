@@ -23,16 +23,18 @@ extern crate uuid;
 use std::env;
 use std::thread;
 
+use actix::Actor;
+
 mod aggregations;
 mod backends;
 mod config;
 mod grains;
 mod metrics;
 
-use grains::*;
-
-use actix::Actor;
+use aggregations::{AddSystemDetails, Holdback};
 use backends::{console::Console, s3, s3::S3, statsd::Statsd};
+use config::HoldbackConfig;
+use grains::*;
 
 fn main() {
     let system = actix::System::new("userspace");
@@ -58,22 +60,19 @@ fn main() {
     // ];
 
     if let Ok(bucket) = env::var("AWS_BUCKET") {
-        use aggregations::Holdback;
-        use config::HoldbackConfig;
-
         let interval_s = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
-        backends.push(Holdback::launch(
+        backends.push(AddSystemDetails::launch(Holdback::launch(
             &HoldbackConfig { interval_s },
             S3::new(s3::Region::EuWest2, bucket).start().recipient(),
-        ));
+        )));
     }
 
     if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
-        backends.push(
+        backends.push(AddSystemDetails::launch(
             Statsd::new(&host, u16::from_str_radix(&port, 10).unwrap())
                 .start()
                 .recipient(),
-        );
+        ));
     }
 
     if let Ok(_) = env::var("CONSOLE") {
