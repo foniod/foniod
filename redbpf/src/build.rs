@@ -1,3 +1,4 @@
+use lazy_static::*;
 use regex::Regex;
 use std::env;
 use std::ffi::OsString;
@@ -81,7 +82,7 @@ fn arch_filter_output(output: &str) -> Result<String, Error> {
 mod test {
     #[test]
     fn test_arch_output() {
-        use build::arch_filter_output;
+        use crate::build::arch_filter_output;
         assert_eq!(
             arch_filter_output(
                 r"

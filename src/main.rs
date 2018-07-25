@@ -9,6 +9,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate cadence;
+extern crate epoll;
 extern crate lazy_socket;
 extern crate redbpf;
 extern crate rusoto_core;
@@ -22,16 +23,18 @@ extern crate uuid;
 use std::env;
 use std::thread;
 
+use actix::Actor;
+
 mod aggregations;
 mod backends;
 mod config;
 mod grains;
 mod metrics;
 
-use grains::*;
-
-use actix::Actor;
+use aggregations::{AddSystemDetails, Holdback};
 use backends::{console::Console, s3, s3::S3, statsd::Statsd};
+use config::HoldbackConfig;
+use grains::*;
 
 fn main() {
     let system = actix::System::new("userspace");
@@ -57,22 +60,19 @@ fn main() {
     // ];
 
     if let Ok(bucket) = env::var("AWS_BUCKET") {
-        use aggregations::Holdback;
-        use config::HoldbackConfig;
-
         let interval_s = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
-        backends.push(Holdback::launch(
+        backends.push(AddSystemDetails::launch(Holdback::launch(
             &HoldbackConfig { interval_s },
             S3::new(s3::Region::EuWest2, bucket).start().recipient(),
-        ));
+        )));
     }
 
     if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
-        backends.push(
+        backends.push(AddSystemDetails::launch(
             Statsd::new(&host, u16::from_str_radix(&port, 10).unwrap())
                 .start()
                 .recipient(),
-        );
+        ));
     }
 
     if let Ok(_) = env::var("CONSOLE") {
@@ -86,37 +86,25 @@ fn main() {
     }));
 
     thread::spawn(move || {
-        let mut grains: Vec<Box<dyn Pollable>> = vec![];
+        let mut grains: Vec<Box<dyn EventHandler>> = vec![];
+        let mut tcp_g = tcpv4::TCP4::load().unwrap();
+        grains.append(&mut tcp_g.attach_kprobes(&backends));
 
-        grains.push(Box::new(
-            Grain::<tcpv4::TCP4>::load()
-                .unwrap()
-                .attach_kprobes(&backends),
-        ));
-
-        grains.push(Box::new(
-            Grain::<udp::UDP>::load().unwrap().attach_kprobes(&backends),
-        ));
+        let mut udp_g = udp::UDP::load().unwrap();
+        grains.append(&mut udp_g.attach_kprobes(&backends));
 
         if let Ok(dns_if) = env::var("DNS_IF") {
-            grains.push(Box::new(
-                Grain::<dns::DNS>::load()
-                    .unwrap()
-                    .attach_xdps(&dns_if, &backends),
-            ));
+            let mut dns_g = dns::DNS::load().unwrap();
+            grains.append(&mut dns_g.attach_xdps(&dns_if, &backends));
 
-            grains.push(Box::new(
-                Grain::<tls::TLS>::load()
-                    .unwrap()
-                    .attach_socketfilters(&dns_if, &backends),
-            ));
+            let mut tls_g = tls::TLS::load().unwrap();
+            grains.append(&mut tls_g.attach_socketfilters(&dns_if, &backends));
         }
 
-        loop {
-            for grain in grains.iter_mut() {
-                grain.poll();
-            }
-        }
+        let _ = grains::epoll_loop(grains, 100).or_else::<(), _>(|err| {
+            println!("Epoll failed: {}", err);
+            std::process::exit(2);
+        });
     });
 
     system.run();

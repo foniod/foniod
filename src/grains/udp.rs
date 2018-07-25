@@ -5,14 +5,12 @@ use grains::*;
 
 pub struct UDP;
 
-impl EBPFModule<'static> for UDP {
+impl EBPFGrain<'static> for UDP {
     fn code() -> &'static [u8] {
         include_bytes!(concat!(env!("OUT_DIR"), "/udp.elf"))
     }
 
-    fn get_perf_map(m: Map, upstreams: &[BackendHandler]) -> Result<PerfMap> {
-        PerfMap::new(m, -1, 0, 128, move || {
-            get_volume_callback("udp", upstreams.to_vec())
-        })
+    fn get_handler(_id: &str) -> EventCallback {
+        get_volume_callback("udp")
     }
 }

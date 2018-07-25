@@ -33,3 +33,4 @@ rusoto_core = "0.32"
 rusoto_s3 = "0.32"
 
 rustls = "0.13"
+epoll = "4.0"
