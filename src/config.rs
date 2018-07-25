@@ -39,7 +39,7 @@ pub struct StatsdConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct HoldbackConfig {
+pub struct BufferConfig {
     pub interval_s: u64,
 }
 
@@ -47,14 +47,14 @@ pub struct HoldbackConfig {
 #[serde(tag = "type")]
 pub enum Aggregator {
     AddSystemDetails,
-    Holdback(HoldbackConfig),
+    Buffer(BufferConfig),
 }
 
 impl Aggregator {
     pub fn into_recipient(&self, upstream: Recipient<Message>) -> Recipient<Message> {
         match *self {
             Aggregator::AddSystemDetails => AddSystemDetails::launch(upstream),
-            Aggregator::Holdback(ref config) => Holdback::launch(config, upstream),
+            Aggregator::Buffer(ref config) => Buffer::launch(config, upstream),
         }
     }
 }
