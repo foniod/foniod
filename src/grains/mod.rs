@@ -209,12 +209,12 @@ pub fn epoll_loop(mut events: Vec<Box<dyn EventHandler>>, timeout: i32) -> io::R
         )?;
     }
 
-    loop {
-        let mut eventsbuf: Vec<epoll::Event> = evmap
-            .iter()
-            .map(|_| epoll::Event::new(epoll::Events::empty(), 0))
-            .collect();
+    let mut eventsbuf: Vec<epoll::Event> = evmap
+        .iter()
+        .map(|_| epoll::Event::new(epoll::Events::empty(), 0))
+        .collect();
 
+    loop {
         match epoll::wait(efd, timeout, eventsbuf.as_mut_slice()) {
             Err(err) => return Err(err),
             Ok(0) => continue,
