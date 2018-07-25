@@ -31,9 +31,9 @@ mod config;
 mod grains;
 mod metrics;
 
-use aggregations::{AddSystemDetails, Holdback};
+use aggregations::{AddSystemDetails, Buffer};
 use backends::{console::Console, s3, s3::S3, statsd::Statsd};
-use config::HoldbackConfig;
+use config::BufferConfig;
 use grains::*;
 
 fn main() {
@@ -61,8 +61,8 @@ fn main() {
 
     if let Ok(bucket) = env::var("AWS_BUCKET") {
         let interval_s = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
-        backends.push(AddSystemDetails::launch(Holdback::launch(
-            &HoldbackConfig { interval_s },
+        backends.push(AddSystemDetails::launch(Buffer::launch(
+            &BufferConfig { interval_s },
             S3::new(s3::Region::EuWest2, bucket).start().recipient(),
         )));
     }
