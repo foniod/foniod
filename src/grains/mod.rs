@@ -160,6 +160,9 @@ impl EventHandler for SocketHandler {
         while self.socket.recv(&mut headbuf, 0x02 /* MSG_PEEK */).is_ok() {
             let plen = packet_len(&headbuf);
             let read = self.socket.recv(&mut buf[..plen], 0).unwrap();
+            if read <= ETH_HLEN {
+                return;
+            }
 
             let msg = match read {
                 0 => None,
