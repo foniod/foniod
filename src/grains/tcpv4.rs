@@ -16,7 +16,7 @@ impl EBPFGrain<'static> for TCP4 {
                 let connection = Connection::from(_data_connect::from(raw));
                 let mut tags = connection.to_tags();
 
-                tags.insert("proto".to_string(), "tcp4".to_string());
+                tags.insert("proto", "tcp4");
 
                 Some(Message::Single(Measurement::new(
                     COUNTER | HISTOGRAM | METER,

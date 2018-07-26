@@ -10,15 +10,18 @@ impl Tags {
         Tags(Vec::with_capacity(16))
     }
 
-    pub fn insert(&mut self, k: String, v: String) {
-        self.0.push((k, v));
+    pub fn insert(&mut self, k: impl Into<String>, v: impl Into<String>) {
+        self.0.push((k.into(), v.into()));
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=&(String, String)> {
+    pub fn iter(&self) -> impl Iterator<Item = &(String, String)> {
         self.0.iter()
     }
 
-    pub fn drain<R>(&mut self, r: R) -> Drain<(String, String)> where R: RangeBounds<usize> {
+    pub fn drain<R>(&mut self, r: R) -> Drain<(String, String)>
+    where
+        R: RangeBounds<usize>,
+    {
         self.0.drain(r)
     }
 }

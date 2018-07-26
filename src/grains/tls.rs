@@ -22,9 +22,6 @@ impl EBPFGrain<'static> for TLS {
     fn get_handler(_id: &str) -> EventCallback {
         Box::new(|raw| tls_to_message(raw))
     }
-
-    // fn socket_handler(sock: &Socket) -> Result<Option<Message>> {
-    // }
 }
 
 fn tls_to_message(buf: &[u8]) -> Option<Message> {
@@ -55,13 +52,13 @@ fn tls_to_message(buf: &[u8]) -> Option<Message> {
 
 fn parse_clienthello(payload: ClientHelloPayload, mut tags: Tags) -> Option<Message> {
     tags.insert(
-        "ciphersuites_list".to_string(),
+        "ciphersuites_list",
         cipher_suites_to_string(&payload.cipher_suites),
     );
 
     if let Some(ref sni) = payload.get_sni_extension() {
         tags.insert(
-            "sni_list".to_string(),
+            "sni_list",
             sni.iter()
                 .filter(|sni| sni.typ == ServerNameType::HostName)
                 .map(|sni| match &sni.payload {
@@ -77,12 +74,9 @@ fn parse_clienthello(payload: ClientHelloPayload, mut tags: Tags) -> Option<Mess
 }
 
 fn parse_serverhello(payload: ServerHelloPayload, mut tags: Tags) -> Option<Message> {
-    tags.insert(
-        "ciphersuite_str".to_string(),
-        format!("{:?}", payload.cipher_suite),
-    );
+    tags.insert("ciphersuite_str", format!("{:?}", payload.cipher_suite));
     if let Some(proto) = payload.get_alpn_protocol() {
-        tags.insert("alpn_str".to_string(), proto.to_string());
+        tags.insert("alpn_str", proto);
     }
 
     msg("serverhello", tags)
@@ -101,10 +95,10 @@ fn tag_ip_and_ports(buf: &[u8]) -> Tags {
     let (d_ip, s_ip) = parse_ips(buf);
     let (d_port, s_port) = parse_tcp_ports(buf);
 
-    tags.insert("d_ip".to_string(), d_ip.to_string());
-    tags.insert("s_ip".to_string(), s_ip.to_string());
-    tags.insert("d_port".to_string(), d_port.to_string());
-    tags.insert("s_port".to_string(), s_port.to_string());
+    tags.insert("d_ip", d_ip);
+    tags.insert("s_ip", s_ip);
+    tags.insert("d_port", d_port.to_string());
+    tags.insert("s_port", s_port.to_string());
 
     tags
 }

@@ -9,7 +9,7 @@ use serde_json;
 use serde::Serialize;
 
 use backends::Message;
-use metrics::{kind::Kind, timestamp_now, Measurement, Tags, Unit};
+use metrics::{kind::Kind, timestamp_now, Measurement, Unit};
 
 pub struct S3 {
     hostname: String,

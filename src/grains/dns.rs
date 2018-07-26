@@ -60,16 +60,16 @@ impl DNSQuery {
     pub fn to_tags(&self) -> Tags {
         let mut tags = Tags::new();
 
-        tags.insert("q_type".to_string(), self.qclass.to_string());
-        tags.insert("q_class".to_string(), self.qclass.to_string());
-        tags.insert("q_addr".to_string(), self.address.to_string());
-        tags.insert("q_id".to_string(), self.id.to_string());
+        tags.insert("q_type", self.qclass.to_string());
+        tags.insert("q_class", self.qclass.to_string());
+        tags.insert("q_addr", self.address.to_string());
+        tags.insert("q_id", self.id.to_string());
 
-        tags.insert("d_ip".to_string(), self.destination_ip.to_string());
-        tags.insert("d_port".to_string(), self.destination_port.to_string());
+        tags.insert("d_ip", self.destination_ip.to_string());
+        tags.insert("d_port", self.destination_port.to_string());
 
-        tags.insert("s_ip".to_string(), self.source_ip.to_string());
-        tags.insert("s_port".to_string(), self.source_port.to_string());
+        tags.insert("s_ip", self.source_ip.to_string());
+        tags.insert("s_port", self.source_port.to_string());
 
         tags
     }
