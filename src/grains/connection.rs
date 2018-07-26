@@ -58,8 +58,8 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn to_tags(&self) -> HashMap<String, String> {
-        let mut tags = HashMap::new();
+    pub fn to_tags(&self) -> Tags {
+        let mut tags = Tags::new();
 
         tags.insert("process".to_string(), self.name.clone());
         tags.insert("task_id".to_string(), self.task_id.to_string());
