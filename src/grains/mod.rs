@@ -6,8 +6,7 @@ pub mod udp;
 
 pub use backends::{BackendHandler, Message};
 pub use metrics::kind::*;
-pub use metrics::{Measurement, Unit};
-pub use std::collections::HashMap;
+pub use metrics::{Measurement, Tags, Unit};
 pub use std::net::Ipv4Addr;
 
 use redbpf::cpus;

@@ -8,7 +8,7 @@ use ring::digest;
 
 use backends::{Flush, Message};
 use config::BufferConfig;
-use metrics::{Measurement, Unit};
+use metrics::{Measurement, Unit, Tags};
 
 pub struct Buffer(Mutex<HashMap<Vec<u8>, Measurement>>, Recipient<Message>);
 impl Actor for Buffer {
@@ -23,7 +23,7 @@ impl Buffer {
                 ctx.address().do_send(Flush)
             });
 
-            Buffer(Mutex::new(HashMap::new()), upstream)
+            Buffer(Mutex::new(HashMap::with_capacity(1024)), upstream)
         }).recipient()
     }
 
@@ -74,14 +74,11 @@ impl Handler<Flush> for Buffer {
     }
 }
 
-fn hash(name: &str, tags: &HashMap<String, String>) -> Vec<u8> {
+fn hash(name: &str, tags: &Tags) -> Vec<u8> {
     let mut ctx = digest::Context::new(&digest::SHA256);
     ctx.update(name.as_bytes());
 
-    let mut lst: Vec<(&String, &String)> = tags.iter().collect();
-    lst.sort_by(|a, b| a.0.cmp(&b.0));
-
-    for (k, v) in lst.iter() {
+    for (k, v) in tags.iter() {
         ctx.update(k.as_bytes());
         ctx.update(v.as_bytes());
     }

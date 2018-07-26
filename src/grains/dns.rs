@@ -57,8 +57,8 @@ impl From<_data_dns_query> for DNSQuery {
 }
 
 impl DNSQuery {
-    pub fn to_tags(&self) -> HashMap<String, String> {
-        let mut tags = HashMap::new();
+    pub fn to_tags(&self) -> Tags {
+        let mut tags = Tags::new();
 
         tags.insert("q_type".to_string(), self.qclass.to_string());
         tags.insert("q_class".to_string(), self.qclass.to_string());

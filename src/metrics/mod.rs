@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub type Tags = HashMap<String, String>;
+pub type Tags = BTreeMap<String, String>;
 
 pub mod kind {
     pub type Kind = u16;
