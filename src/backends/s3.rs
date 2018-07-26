@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use actix::prelude::*;
 use futures::Future;
 pub use rusoto_core::region::Region;
@@ -31,16 +33,16 @@ impl Actor for S3 {
     type Context = Context<Self>;
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SerializedMeasurement {
     timestamp: u64,
     pub kind: Kind,
     pub name: String,
     pub measurement: u64,
-    pub tags: Tags,
+    pub tags: HashMap<String, String>,
 }
 
-fn format_by_type(msg: &Measurement) -> impl Serialize {
+fn format_by_type(mut msg: Measurement) -> impl Serialize {
     let (type_str, measurement) = match msg.value {
         Unit::Byte(x) => ("byte", x),
         Unit::Count(x) => ("count", x),
@@ -53,18 +55,18 @@ fn format_by_type(msg: &Measurement) -> impl Serialize {
         kind: msg.kind,
         name,
         measurement,
-        tags: msg.tags.clone(),
+        tags: msg.tags.drain(..).collect(),
     }
 }
 
 impl Handler<Message> for S3 {
     type Result = ();
 
-    fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, mut msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
         let body = match msg {
-            Message::List(lst) => format!(
+            Message::List(ref mut lst) => format!(
                 "[{}]",
-                lst.iter()
+                lst.drain(..)
                     .map(|e| serde_json::to_string(&format_by_type(e)).unwrap())
                     .collect::<Vec<String>>()
                     .join(",\n")

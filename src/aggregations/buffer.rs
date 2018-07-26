@@ -28,7 +28,7 @@ impl Buffer {
         }).recipient()
     }
 
-    fn add(&mut self, msg: &Measurement) {
+    fn add(&mut self, msg: Measurement) {
         self.0
             .lock()
             .unwrap()
@@ -39,19 +39,19 @@ impl Buffer {
                     Unit::Count(x) => Unit::Count(x + msg.value.get()),
                 }
             })
-            .or_insert(msg.clone());
+            .or_insert(msg);
     }
 }
 
 impl Handler<Message> for Buffer {
     type Result = ();
 
-    fn handle(&mut self, mut msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
         match msg {
-            Message::List(ref mut ms) => for m in ms.drain(..) {
-                self.add(&m);
+            Message::List(mut ms) => for m in ms.drain(..) {
+                self.add(m);
             },
-            Message::Single(ref m) => self.add(m),
+            Message::Single(m) => self.add(m),
         }
     }
 }

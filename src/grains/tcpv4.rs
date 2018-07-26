@@ -22,7 +22,7 @@ impl EBPFGrain<'static> for TCP4 {
                     COUNTER | HISTOGRAM | METER,
                     "connection.out".to_string(),
                     Unit::Count(1),
-                    tags.clone(),
+                    tags,
                 )))
             }),
             "tcp4_volume" => get_volume_callback("tcp4"),
