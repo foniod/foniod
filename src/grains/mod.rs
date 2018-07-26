@@ -154,7 +154,7 @@ impl EventHandler for SocketHandler {
         self.socket.as_raw_fd()
     }
     fn poll(&self) {
-        let mut buf = [0u8; 32*1024];
+        let mut buf = [0u8; 32 * 1024];
         let mut headbuf = [0u8; ETH_HLEN + 4];
 
         while self.socket.recv(&mut headbuf, 0x02 /* MSG_PEEK */).is_ok() {

@@ -13,7 +13,7 @@ pub fn get_volume_callback(proto: &'static str) -> EventCallback {
         let name = format!("volume.{}", if volume.send > 0 { "out" } else { "in" });
         let mut tags = volume.connection.to_tags();
 
-        tags.insert("proto".to_string(), proto.to_string());
+        tags.insert("proto", proto);
 
         let vol = if volume.send > 0 {
             volume.send
@@ -61,14 +61,14 @@ impl Connection {
     pub fn to_tags(&self) -> Tags {
         let mut tags = Tags::new();
 
-        tags.insert("process".to_string(), self.name.clone());
-        tags.insert("task_id".to_string(), self.task_id.to_string());
+        tags.insert("process", self.name.as_str());
+        tags.insert("task_id", self.task_id.to_string());
 
-        tags.insert("d_ip".to_string(), self.destination_ip.to_string());
-        tags.insert("d_port".to_string(), self.destination_port.to_string());
+        tags.insert("d_ip", self.destination_ip.to_string());
+        tags.insert("d_port", self.destination_port.to_string());
 
-        tags.insert("s_ip".to_string(), self.source_ip.to_string());
-        tags.insert("s_port".to_string(), self.source_port.to_string());
+        tags.insert("s_ip", self.source_ip.to_string());
+        tags.insert("s_port", self.source_port.to_string());
 
         tags
     }
