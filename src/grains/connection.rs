@@ -23,9 +23,9 @@ pub fn get_volume_callback(proto: &'static str) -> EventCallback {
 
         Some(Message::Single(Measurement::new(
             COUNTER | HISTOGRAM,
-            name.clone(),
+            name,
             Unit::Byte(vol as u64),
-            tags.clone(),
+            tags,
         )))
     })
 }

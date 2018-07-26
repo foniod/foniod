@@ -1,7 +1,27 @@
-use std::collections::BTreeMap;
+use std::ops::RangeBounds;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::vec::Drain;
 
-pub type Tags = BTreeMap<String, String>;
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Tags(Vec<(String, String)>);
+
+impl Tags {
+    pub fn new() -> Tags {
+        Tags(Vec::with_capacity(16))
+    }
+
+    pub fn insert(&mut self, k: String, v: String) {
+        self.0.push((k, v));
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item=&(String, String)> {
+        self.0.iter()
+    }
+
+    pub fn drain<R>(&mut self, r: R) -> Drain<(String, String)> where R: RangeBounds<usize> {
+        self.0.drain(r)
+    }
+}
 
 pub mod kind {
     pub type Kind = u16;

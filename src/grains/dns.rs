@@ -21,7 +21,7 @@ impl EBPFGrain<'static> for DNS {
                 COUNTER | HISTOGRAM | METER,
                 "dns.answer".to_string(),
                 Unit::Count(1),
-                tags.clone(),
+                tags,
             )))
         })
     }
