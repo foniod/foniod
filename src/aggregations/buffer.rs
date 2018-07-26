@@ -1,16 +1,17 @@
 use std::collections::HashMap;
+use std::hash::Hasher;
 use std::sync::Mutex;
 use std::time::Duration;
 
 use actix::prelude::*;
 use futures::Future;
-use ring::digest;
+use metrohash::MetroHash128;
 
 use backends::{Flush, Message};
 use config::BufferConfig;
-use metrics::{Measurement, Unit, Tags};
+use metrics::{Measurement, Tags, Unit};
 
-pub struct Buffer(Mutex<HashMap<Vec<u8>, Measurement>>, Recipient<Message>);
+pub struct Buffer(Mutex<HashMap<(u64, u64), Measurement>>, Recipient<Message>);
 impl Actor for Buffer {
     type Context = Context<Self>;
 }
@@ -74,14 +75,14 @@ impl Handler<Flush> for Buffer {
     }
 }
 
-fn hash(name: &str, tags: &Tags) -> Vec<u8> {
-    let mut ctx = digest::Context::new(&digest::SHA256);
-    ctx.update(name.as_bytes());
+fn hash(name: &str, tags: &Tags) -> (u64, u64) {
+    let mut ctx = MetroHash128::new();
+    ctx.write(name.as_bytes());
 
     for (k, v) in tags.iter() {
-        ctx.update(k.as_bytes());
-        ctx.update(v.as_bytes());
+        ctx.write(k.as_bytes());
+        ctx.write(v.as_bytes());
     }
 
-    ctx.finish().as_ref().to_vec()
+    ctx.finish128()
 }

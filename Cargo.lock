@@ -604,9 +604,9 @@ dependencies = [
  "lazy-socket 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
+ "metrohash 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "redbpf 0.1.0",
  "regex 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ring 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_core 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_s3 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustls 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -764,6 +764,11 @@ dependencies = [
 [[package]]
 name = "memoffset"
 version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "metrohash"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -2008,6 +2013,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum memchr 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "148fab2e51b4f1cfc66da2a7c32981d1d3c083a803978268bb11fe4b86925e7a"
 "checksum memchr 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "796fba70e76612589ed2ce7f45282f5af869e0fdd7cc6199fa1aa1f1d591ba9d"
 "checksum memoffset 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0f9dc261e2b62d7a622bf416ea3c5245cdd5d9a7fcc428c0d06804dfce1775b3"
+"checksum metrohash 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "2c5cfbc7023a83b9093ade0e1a1b82da100d5878464c15b03aa483141350d993"
 "checksum mime 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)" = "fe51c8699d2dc522bf8c1ebe26ea2193d151fb54bcdfd7d0318750c189994cd9"
 "checksum mio 0.6.15 (registry+https://github.com/rust-lang/crates.io-index)" = "4fcfcb32d63961fb6f367bfd5d21e4600b92cd310f71f9dca25acae196eb1560"
 "checksum mio-uds 0.6.6 (registry+https://github.com/rust-lang/crates.io-index)" = "84c7b5caa3a118a6e34dbac36504503b1e8dc5835e833306b9d6af0e05929f79"
