@@ -1,6 +1,8 @@
 ingrainD
 ========
 
+[![CircleCI](https://circleci.com/gh/redsift/ingraind.svg?style=svg)](https://circleci.com/gh/redsift/ingraind)
+
 Data-first monitoring.
 
 InGrain is a security monitoring software for complex containerized
