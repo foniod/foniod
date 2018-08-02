@@ -3,6 +3,7 @@ pub mod dns;
 pub mod tcpv4;
 pub mod tls;
 pub mod udp;
+pub mod file;
 
 pub use backends::{BackendHandler, Message};
 pub use metrics::kind::*;
