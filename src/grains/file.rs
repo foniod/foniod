@@ -48,7 +48,7 @@ impl From<_data_file> for FileAccess {
     fn from(data: _data_file) -> FileAccess {
         FileAccess {
             process: to_string(unsafe { &*(&data.comm as *const [i8] as *const [u8]) }),
-            name: to_string(unsafe { &*(&data.name[0] as *const [i8] as *const [u8]) }),
+            name: to_string(unsafe { &*(&data.path[0].name as *const [i8] as *const [u8]) }),
         }
     }
 }

@@ -28,6 +28,15 @@
 #include <linux/bpf.h>
 #include "include/bpf_helpers.h"
 
+struct bpf_map_def SEC("maps/actionlist") actionlist = {
+    .type = BPF_MAP_TYPE_HASH,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(struct _data_action),
+    .max_entries = 102400,
+    .pinning = 0,
+    .namespace = "",
+};
+
 struct bpf_map_def SEC("maps/calltrack") calltrack = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(u64),
@@ -59,7 +68,6 @@ int trace_kread_entry(struct pt_regs *ctx)
 
   struct file *file = (struct file *) PT_REGS_PARM1(ctx);
   struct path path;
-  struct qstr d_name;
   struct inode *inode;
   struct dentry *de, *de_cur;
   unsigned long i_ino;
@@ -70,41 +78,50 @@ int trace_kread_entry(struct pt_regs *ctx)
   check |= bpf_probe_read(&inode, sizeof(inode), (void *)&file->f_inode);
   check |= bpf_probe_read(&mode, sizeof(mode), (void *)&inode->i_mode);
 
-  if (check != 0) {
+  // Only track regular files for now
+  if (check != 0 || !S_ISREG(mode)) {
     return 0;
   }
 
-  if (d_name.len == 0 || !S_ISREG(mode))
-    return 0;
-
-  // store counts and sizes by pid & file
   struct _data_file info = {
     .id = tid,
     .ts = bpf_ktime_get_ns()
   };
 
-  bpf_get_current_comm(&info.comm, sizeof(info.comm));
-  info.name_len = d_name.len;
-  bpf_probe_read(&info.name[0], sizeof(info.name[0]), (void *)&path.dentry->d_iname);
-
+  de = de_cur = path.dentry;
+  bool should_record = false;
   #pragma clang loop unroll(full)
-  for (u8 i = 0; i < 32; i++) {
-    check |= bpf_probe_read(&de, sizeof(d_name), (void *)&path.dentry->d_parent);
+  for (u8 i = 0; i < PATH_DEPTH; i++) {
+    check |= bpf_probe_read(&info.path[i].name,
+                            sizeof(info.path[i].name),
+                            (void *)&de->d_iname);
     check |= bpf_probe_read(&inode, sizeof(inode), (void *)&de->d_inode);
     check |= bpf_probe_read(&i_ino, sizeof(i_ino), (void *)&inode->i_ino);
-
-    void *ptr = bpf_map_lookup_elem(&calltrack, &i_ino);
-    if (check != 0 || ptr != 0 || i_ino == 0) {
+    check |= bpf_probe_read(&de, sizeof(void *), (void *)&de_cur->d_parent);
+    if (check != 0) {
       return 0;
     }
 
+    info.path[i].inode = i_ino;
+    struct _data_action *ptr = (struct _data_action *) bpf_map_lookup_elem(&actionlist, &i_ino);
+    if (ptr != 0) {
+      if (ptr->action == IGNORE) {
+        return 0;
+      } else if (ptr-> action == RECORD) {
+        should_record = true;
+        break;
+      }
+    }
+
     if (de_cur == de) {
-      return 0;
+      break;
     }
 
     de_cur = de;
   }
+  if (!should_record) return 0;
 
+  bpf_get_current_comm(&info.comm, sizeof(info.comm));
   bpf_perf_event_output(ctx, &rw, cpu, &info, sizeof(info));
 
   /* bpf_perf_event_output(ctx, &rw, cpu, &info, sizeof(info)); */

@@ -30,17 +30,25 @@
 #include <linux/ptrace.h>
 #pragma clang diagnostic pop
 
-#define USER_LEN 16
-#define PATH_DEPTH 5
+#define PATH_DEPTH 10
+
+struct _data_action {
+  enum {
+    IGNORE = 0,
+    RECORD = 1
+  } action;
+};
+
+struct _data_path_segment {
+  u32 inode;
+  char name[DNAME_INLINE_LEN];
+};
 
 struct _data_file {
   u64 id;
   u64 ts;
   char comm[TASK_COMM_LEN];
-  u16 name_len;
-  char name[PATH_DEPTH][DNAME_INLINE_LEN];
-  u32 inode;
-  char user[USER_LEN];
+  struct _data_path_segment path[PATH_DEPTH];
 };
 
 struct _data_volumes {
