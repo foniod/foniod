@@ -37,6 +37,15 @@ struct bpf_map_def SEC("maps/actionlist") actionlist = {
     .namespace = "",
 };
 
+struct bpf_map_def SEC("maps/volumes") volumes = {
+    .type = BPF_MAP_TYPE_HASH,
+    .key_size = sizeof(u32),
+    .value_size = sizeof(struct _data_volumes),
+    .max_entries = 102400,
+    .pinning = 0,
+    .namespace = "",
+};
+
 struct bpf_map_def SEC("maps/calltrack") calltrack = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(u64),
@@ -60,8 +69,8 @@ struct bpf_map_def SEC("maps/rw") rw = {
 __u32 _version SEC("version") = 0xFFFFFFFE;
 char _license[] SEC("license") = "GPL";
 
-SEC("kprobe/vfs_read")
-int trace_kread_entry(struct pt_regs *ctx)
+static __inline__
+struct _data_volumes* track_file_access(struct pt_regs *ctx)
 {
 	u32 cpu = bpf_get_smp_processor_id();
   u32 tid = bpf_get_current_pid_tgid();
@@ -83,12 +92,12 @@ int trace_kread_entry(struct pt_regs *ctx)
     return 0;
   }
 
+  de = de_cur = path.dentry;
   struct _data_file info = {
     .id = tid,
     .ts = bpf_ktime_get_ns()
   };
 
-  de = de_cur = path.dentry;
   bool should_record = false;
   #pragma clang loop unroll(full)
   for (u8 i = 0; i < PATH_DEPTH; i++) {
@@ -102,12 +111,12 @@ int trace_kread_entry(struct pt_regs *ctx)
       return 0;
     }
 
-    info.path[i].inode = i_ino;
+    info.path[i].ino = i_ino;
     struct _data_action *ptr = (struct _data_action *) bpf_map_lookup_elem(&actionlist, &i_ino);
     if (ptr != 0) {
-      if (ptr->action == IGNORE) {
+      if (ptr->action == ACTION_IGNORE) {
         return 0;
-      } else if (ptr-> action == RECORD) {
+      } else if (ptr->action == ACTION_RECORD) {
         should_record = true;
         break;
       }
@@ -119,32 +128,47 @@ int trace_kread_entry(struct pt_regs *ctx)
 
     de_cur = de;
   }
-  if (!should_record) return 0;
+  if (!should_record) {
+    return 0;
+  }
 
   bpf_get_current_comm(&info.comm, sizeof(info.comm));
-  bpf_perf_event_output(ctx, &rw, cpu, &info, sizeof(info));
 
-  /* bpf_perf_event_output(ctx, &rw, cpu, &info, sizeof(info)); */
-  /* struct _data_volumes *valp, zero = {}; */
-  /* valp = counts.lookup_or_init(&info, &zero); */
+  struct _data_volumes *vol = bpf_map_lookup_elem(&volumes, &info.path[0].ino);
+  if (vol == 0) {
+    struct _data_volumes v = {};
+    check = bpf_map_update_elem(&volumes, &info.path[0].ino, &v, 0);
+    vol = bpf_map_lookup_elem(&volumes, &info.path[0].ino);
+    if (check != 0 || vol == 0) {
+      return 0;
+    }
 
-  /* int is_read = 1; */
-  /* if (is_read) { */
-  /*   valp->reads++; */
-  /*   valp->rbytes += count; */
-  /* } else { */
-  /*   valp->writes++; */
-  /*   valp->wbytes += count; */
-  /* } */
+    bpf_perf_event_output(ctx, &rw, cpu, &info, sizeof(info));
+  }
+
+  return vol;
+};
+
+SEC("kprobe/vfs_read")
+int trace_kread_entry(struct pt_regs *ctx)
+{
+  struct _data_volumes *vol = track_file_access(ctx);
+  if (vol != 0) {
+    vol->reads++;
+    vol->rbytes += (size_t) PT_REGS_PARM3(ctx);
+  }
+
+  return 0;
+}
+
+SEC("kprobe/vfs_write")
+int trace_kwrite_entry(struct pt_regs *ctx)
+{
+  struct _data_volumes *vol = track_file_access(ctx);
+  if (vol != 0) {
+    vol->writes++;
+    vol->wbytes += (size_t) PT_REGS_PARM3(ctx);
+  }
 
   return 0;
 };
-
-/* SEC("kprobe/vfs_write") */
-/* int trace_kwrite_entry(struct pt_regs *ctx) */
-/* { */
-/* 	u32 cpu = bpf_get_smp_processor_id(); */
-/*   u8 data = 1; */
-/*   bpf_perf_event_output(ctx, &rw, cpu, &data, sizeof(data)); */
-/*   return 0; */
-/* }; */

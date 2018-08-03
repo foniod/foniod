@@ -31,16 +31,15 @@
 #pragma clang diagnostic pop
 
 #define PATH_DEPTH 10
+#define ACTION_IGNORE 0
+#define ACTION_RECORD 1
 
 struct _data_action {
-  enum {
-    IGNORE = 0,
-    RECORD = 1
-  } action;
+  u8 action;
 };
 
 struct _data_path_segment {
-  u32 inode;
+  u32 ino;
   char name[DNAME_INLINE_LEN];
 };
 
