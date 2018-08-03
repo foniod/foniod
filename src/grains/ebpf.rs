@@ -8,19 +8,20 @@ use redbpf::{Module, PerfMap, Result};
 
 use lazy_socket::raw::Socket;
 
-use std::marker::PhantomData;
 use std::os::unix::io::FromRawFd;
 
 pub struct Grain<T> {
     module: Module,
-    _type: PhantomData<T>,
+    native: T,
 }
 
 pub trait EBPFGrain<'code> {
     fn code() -> &'code [u8];
     fn get_handler(id: &str) -> EventCallback;
+    fn loaded(&mut self, module: &mut Module) {}
+    fn attached(&mut self, backends: &[BackendHandler]) {}
 
-    fn load() -> Result<Grain<Self>>
+    fn load(mut self) -> Result<Grain<Self>>
     where
         Self: Sized,
     {
@@ -29,9 +30,10 @@ pub trait EBPFGrain<'code> {
             prog.load(module.version, module.license.clone()).unwrap();
         }
 
+        self.loaded(&mut module);
         Ok(Grain {
             module,
-            _type: PhantomData,
+            native: self,
         })
     }
 }
@@ -52,6 +54,7 @@ where
             prog.attach_probe().unwrap();
         }
 
+        self.native.attached(backends);
         self.bind_perf(backends)
     }
 
@@ -66,6 +69,7 @@ where
             prog.attach_xdp(iface).unwrap();
         }
 
+        self.native.attached(backends);
         self.bind_perf(backends)
     }
 
@@ -93,7 +97,7 @@ where
         backends: &[BackendHandler],
     ) -> Vec<Box<dyn EventHandler>> {
         use redbpf::ProgramKind::*;
-        self.module
+        let handlers = self.module
             .programs
             .iter_mut()
             .filter(|p| p.kind == SocketFilter)
@@ -106,6 +110,9 @@ where
                     callback: T::get_handler(prog.name.as_str()),
                 }) as Box<dyn EventHandler>
             })
-            .collect()
+            .collect();
+        self.native.attached(backends);
+
+        handlers
     }
 }

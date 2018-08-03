@@ -4,6 +4,8 @@ use std::ptr;
 use std::sync::Mutex;
 use std::time::{Instant,Duration};
 
+use redbpf::Module;
+
 use grains::*;
 
 include!(concat!(env!("OUT_DIR"), "/file.rs"));
@@ -11,6 +13,10 @@ include!(concat!(env!("OUT_DIR"), "/file.rs"));
 pub struct Files;
 
 impl EBPFGrain<'static> for Files {
+    fn loaded(&mut self, module: &mut Module) {
+        let (idx, map) = module.maps.iter_mut().enumerate().find(|(i, v)| v.name == "volumes").unwrap();
+    }
+
     fn code() -> &'static [u8] {
         include_bytes!(concat!(env!("OUT_DIR"), "/file.elf"))
     }
