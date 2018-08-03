@@ -4,6 +4,7 @@ use std::ptr;
 include!(concat!(env!("OUT_DIR"), "/dns.rs"));
 
 use grains::*;
+use grains::protocol::ip::to_ipv4;
 
 pub struct DNS;
 
@@ -43,8 +44,8 @@ impl From<_data_dns_query> for DNSQuery {
     fn from(data: _data_dns_query) -> DNSQuery {
         DNSQuery {
             id: to_le(data.id),
-            destination_ip: to_ip(data.daddr),
-            source_ip: to_ip(data.saddr),
+            destination_ip: to_ipv4(data.daddr),
+            source_ip: to_ipv4(data.saddr),
             destination_port: to_le(data.dport),
             source_port: to_le(data.sport),
             address: from_dns_prefix_labels(unsafe {

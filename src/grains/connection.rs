@@ -4,6 +4,7 @@ use std::net::Ipv4Addr;
 use std::ptr;
 
 use grains::*;
+use grains::protocol::ip::to_ipv4;
 
 include!(concat!(env!("OUT_DIR"), "/connection.rs"));
 
@@ -79,8 +80,8 @@ impl From<_data_connect> for Connection {
         Connection {
             task_id: data.id,
             name: to_string(unsafe { &*(&data.comm as *const [i8] as *const [u8]) }),
-            source_ip: to_ip(data.saddr),
-            destination_ip: to_ip(data.daddr),
+            source_ip: to_ipv4(data.saddr),
+            destination_ip: to_ipv4(data.daddr),
             destination_port: to_le(data.dport),
             source_port: to_le(data.sport),
         }

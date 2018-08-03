@@ -1,6 +1,7 @@
 #![allow(non_camel_case_types)]
 
 use grains::*;
+use grains::protocol::ETH_HLEN;
 use metrics::Tags;
 
 use rustls::internal::msgs::{
