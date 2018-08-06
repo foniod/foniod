@@ -30,7 +30,7 @@
 
 struct bpf_map_def SEC("maps/actionlist") actionlist = {
     .type = BPF_MAP_TYPE_HASH,
-    .key_size = sizeof(u32),
+    .key_size = sizeof(u64),
     .value_size = sizeof(struct _data_action),
     .max_entries = 102400,
     .pinning = 0,
