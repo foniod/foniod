@@ -12,6 +12,7 @@ pub mod uname;
 use bpf_sys::{bpf_insn, bpf_map_def};
 use goblin::elf::{section_header as hdr, Elf, Reloc, SectionHeader, Sym};
 
+use std::rc::Rc;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::io;
@@ -51,6 +52,14 @@ pub struct Map {
     pub name: String,
     pub kind: u32,
     fd: RawFd,
+}
+
+pub struct MapIter<'map, T> {
+    start: bool,
+    map: &'map Map,
+    key: Rc<T>,
+    new_key: Rc<T>
+
 }
 
 pub struct Rel {
@@ -255,7 +264,7 @@ impl Module {
 
 #[inline]
 fn get_split_section_name<'o>(
-    object: &'o Elf,
+    object: &'o Elf<'_>,
     shdr: &'o SectionHeader,
     shndx: usize,
 ) -> Result<(Option<&'o str>, Option<&'o str>)> {
@@ -321,21 +330,69 @@ impl Map {
         })
     }
 
-    pub fn set(&mut self, key: VoidPtr, value: VoidPtr) {
+    pub fn iter<T>(&self) -> MapIter<'_, T> {
+        MapIter::new(&self)
+    }
+
+    pub fn set(&self, key: VoidPtr, value: VoidPtr) {
         unsafe {
             bpf_sys::bpf_update_elem(self.fd, key, value, 0);
         }
     }
 
-    pub fn get(&mut self, key: VoidPtr, value: VoidPtr) {
+    pub fn get(&self, key: VoidPtr, value: VoidPtr) {
         unsafe {
             bpf_sys::bpf_lookup_elem(self.fd, key, value);
         }
     }
 
-    pub fn delete(&mut self, key: VoidPtr) {
+    pub fn delete(&self, key: VoidPtr) {
         unsafe {
             bpf_sys::bpf_delete_elem(self.fd, key);
+        }
+    }
+}
+
+impl<'map, T> MapIter<'map, T> {
+    fn new(map: &'map Map) -> MapIter<'map, T> {
+        unsafe {
+            MapIter {
+                start: true,
+                map,
+                key: Rc::new(mem::zeroed()),
+                new_key: Rc::new(mem::zeroed())
+            }
+        }
+    }
+}
+
+impl<'map, T> Iterator for MapIter<'map, T>{
+    type Item = Rc<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let key = Rc::get_mut(&mut self.key).unwrap();
+        let new_key = Rc::get_mut(&mut self.new_key).unwrap();
+
+        let ret = match self.start {
+            true => unsafe {
+                self.start = false;
+                bpf_sys::bpf_get_first_key(self.map.fd,
+                                           key as *mut T as VoidPtr,
+                                           mem::size_of::<T>())
+            }
+            _ => unsafe {
+                let ret = bpf_sys::bpf_get_next_key(self.map.fd,
+                                                    key as *mut T as VoidPtr,
+                                                    new_key as *mut T as VoidPtr);
+                mem::swap(key, new_key);
+                ret
+            }
+        };
+
+        if ret != 0 {
+            None
+        } else {
+            Some(self.key.clone())
         }
     }
 }
