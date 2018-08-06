@@ -84,8 +84,7 @@ impl<'a> From<&'a [u8]> for ### {
         unsafe { ptr::read(x.as_ptr() as *const ###) }
     }
 }
-"
-            .replace("###", &data_type[1]);
+".replace("###", &data_type[1]);
         code.push_str(&trait_impl);
     }
 
@@ -140,7 +139,6 @@ fn source_files(
                     } else {
                         None
                     }
-                })
-                .is_some()
+                }).is_some()
         }))
 }
