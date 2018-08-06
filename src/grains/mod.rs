@@ -1,15 +1,15 @@
 mod connection;
 mod ebpf;
-mod perfhandler;
-mod sockethandler;
 mod events;
+mod perfhandler;
 mod protocol;
+mod sockethandler;
 
 pub mod dns;
+pub mod file;
 pub mod tcpv4;
 pub mod tls;
 pub mod udp;
-pub mod file;
 
 pub use grains::ebpf::*;
 pub use grains::events::*;

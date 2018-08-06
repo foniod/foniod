@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 
-use grains::*;
 use grains::protocol::ETH_HLEN;
+use grains::*;
 use metrics::Tags;
 
 use rustls::internal::msgs::{
@@ -65,8 +65,7 @@ fn parse_clienthello(payload: ClientHelloPayload, mut tags: Tags) -> Option<Mess
                 .map(|sni| match &sni.payload {
                     ServerNamePayload::HostName(dnsn) => format!("{}", AsRef::<str>::as_ref(&dnsn)),
                     _ => unreachable!(),
-                })
-                .collect::<Vec<String>>()
+                }).collect::<Vec<String>>()
                 .join(","),
         );
     }

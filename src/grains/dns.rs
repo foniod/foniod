@@ -3,8 +3,8 @@
 use std::ptr;
 include!(concat!(env!("OUT_DIR"), "/dns.rs"));
 
-use grains::*;
 use grains::protocol::ip::to_ipv4;
+use grains::*;
 
 pub struct DNS;
 

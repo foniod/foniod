@@ -1,7 +1,7 @@
-use grains::send_to;
+use backends::BackendHandler;
 use grains::events::*;
 use grains::protocol::*;
-use backends::BackendHandler;
+use grains::send_to;
 
 use lazy_socket::raw::Socket;
 

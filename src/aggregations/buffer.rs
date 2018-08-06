@@ -38,8 +38,7 @@ impl Buffer {
                     Unit::Byte(x) => Unit::Byte(x + msg.value.get()),
                     Unit::Count(x) => Unit::Count(x + msg.value.get()),
                 }
-            })
-            .or_insert(msg);
+            }).or_insert(msg);
     }
 }
 
