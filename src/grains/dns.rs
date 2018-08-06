@@ -13,7 +13,7 @@ impl EBPFGrain<'static> for DNS {
         include_bytes!(concat!(env!("OUT_DIR"), "/dns.elf"))
     }
 
-    fn get_handler(_id: &str) -> EventCallback {
+    fn get_handler(&self, _id: &str) -> EventCallback {
         Box::new(|raw| {
             let query = DNSQuery::from(_data_dns_query::from(raw));
             let tags = query.to_tags();

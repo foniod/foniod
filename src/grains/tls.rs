@@ -20,7 +20,7 @@ impl EBPFGrain<'static> for TLS {
         include_bytes!(concat!(env!("OUT_DIR"), "/tls.elf"))
     }
 
-    fn get_handler(_id: &str) -> EventCallback {
+    fn get_handler(&self, _id: &str) -> EventCallback {
         Box::new(|raw| tls_to_message(raw))
     }
 }

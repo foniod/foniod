@@ -10,7 +10,7 @@ impl EBPFGrain<'static> for UDP {
         include_bytes!(concat!(env!("OUT_DIR"), "/udp.elf"))
     }
 
-    fn get_handler(_id: &str) -> EventCallback {
+    fn get_handler(&self, _id: &str) -> EventCallback {
         get_volume_callback("udp")
     }
 }

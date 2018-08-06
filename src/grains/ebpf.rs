@@ -1,7 +1,7 @@
-use grains::BackendHandler;
-use grains::events::{EventHandler, EventCallback};
+use grains::events::{EventCallback, EventHandler};
 use grains::perfhandler::PerfHandler;
 use grains::sockethandler::SocketHandler;
+use grains::BackendHandler;
 
 use redbpf::cpus;
 use redbpf::{Module, PerfMap, Result};
@@ -17,7 +17,7 @@ pub struct Grain<T> {
 
 pub trait EBPFGrain<'code> {
     fn code() -> &'code [u8];
-    fn get_handler(id: &str) -> EventCallback;
+    fn get_handler(&self, id: &str) -> EventCallback;
     fn loaded(&mut self, module: &mut Module) {}
     fn attached(&mut self, backends: &[BackendHandler]) {}
 
@@ -82,7 +82,7 @@ where
                 output.push(Box::new(PerfHandler {
                     name: m.name.clone(),
                     perfmap: pm,
-                    callback: T::get_handler(m.name.as_str()),
+                    callback: self.native.get_handler(m.name.as_str()),
                     backends: backends.to_vec(),
                 }));
             }
@@ -97,22 +97,36 @@ where
         backends: &[BackendHandler],
     ) -> Vec<Box<dyn EventHandler>> {
         use redbpf::ProgramKind::*;
-        let handlers = self.module
+        let socket_fds = self
+            .module
             .programs
             .iter_mut()
             .filter(|p| p.kind == SocketFilter)
             .map(|prog| {
                 println!("Program: {}, {:?}", prog.name, prog.kind);
-                let fd = prog.attach_socketfilter(iface).unwrap();
-                Box::new(SocketHandler {
-                    socket: unsafe { Socket::from_raw_fd(fd) },
-                    backends: backends.to_vec(),
-                    callback: T::get_handler(prog.name.as_str()),
-                }) as Box<dyn EventHandler>
-            })
-            .collect();
-        self.native.attached(backends);
+                prog.attach_socketfilter(iface).unwrap()
+            }).collect::<Vec<_>>();
 
+        // we need to get out of mutable borrow land to continue.
+        // this is because we cannot simultaneously borrow the `native` as
+        // immutable and `programs ` as mutable
+        // Therefore it is needed to refilter, but after that ordering should be
+        // the same
+        let handlers = self
+            .module
+            .programs
+            .iter()
+            .filter(|p| p.kind == SocketFilter)
+            .zip(&socket_fds)
+            .map(|(prog, fd)| {
+                Box::new(SocketHandler {
+                    socket: unsafe { Socket::from_raw_fd(*fd) },
+                    backends: backends.to_vec(),
+                    callback: self.native.get_handler(prog.name.as_str()),
+                }) as Box<dyn EventHandler>
+            }).collect();
+
+        self.native.attached(backends);
         handlers
     }
 }

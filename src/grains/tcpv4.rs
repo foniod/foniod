@@ -10,7 +10,7 @@ impl EBPFGrain<'static> for TCP4 {
         include_bytes!(concat!(env!("OUT_DIR"), "/tcpv4.elf"))
     }
 
-    fn get_handler(id: &str) -> EventCallback {
+    fn get_handler(&self, id: &str) -> EventCallback {
         match id {
             "tcp4_connections" => Box::new(|raw| {
                 let connection = Connection::from(_data_connect::from(raw));
