@@ -46,6 +46,7 @@ struct _data_path_segment {
 struct _data_file {
   u64 id;
   u64 ts;
+  u64 key;
   char comm[TASK_COMM_LEN];
   struct _data_path_segment path[PATH_DEPTH];
 };

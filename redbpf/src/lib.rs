@@ -12,6 +12,7 @@ pub mod uname;
 use bpf_sys::{bpf_insn, bpf_map_def};
 use goblin::elf::{section_header as hdr, Elf, Reloc, SectionHeader, Sym};
 
+use std::ptr::null_mut;
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::ffi::CString;
@@ -366,25 +367,23 @@ impl<'map, T> MapIter<'map, T> {
     }
 }
 
-impl<'map, T> Iterator for MapIter<'map, T>{
+impl<'map, T> Iterator for MapIter<'map, T> where T: PartialEq {
     type Item = Rc<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let key = Rc::get_mut(&mut self.key).unwrap();
-        let new_key = Rc::get_mut(&mut self.new_key).unwrap();
+        let mut key = Rc::get_mut(&mut self.key).unwrap();
 
         let ret = match self.start {
             true => unsafe {
                 self.start = false;
-                bpf_sys::bpf_get_first_key(self.map.fd,
-                                           key as *mut T as VoidPtr,
-                                           mem::size_of::<T>())
+                bpf_sys::bpf_get_next_key(self.map.fd,
+                                          null_mut(),
+                                          key as *mut T as VoidPtr)
             }
             _ => unsafe {
                 let ret = bpf_sys::bpf_get_next_key(self.map.fd,
                                                     key as *mut T as VoidPtr,
-                                                    new_key as *mut T as VoidPtr);
-                mem::swap(key, new_key);
+                                                    key as *mut T as VoidPtr);
                 ret
             }
         };

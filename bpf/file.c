@@ -38,10 +38,10 @@ struct bpf_map_def SEC("maps/actionlist") actionlist = {
 };
 
 struct bpf_map_def SEC("maps/volumes") volumes = {
-    .type = BPF_MAP_TYPE_HASH,
-    .key_size = sizeof(u32),
+    .type = BPF_MAP_TYPE_LRU_HASH,
+    .key_size = sizeof(u64),
     .value_size = sizeof(struct _data_volumes),
-    .max_entries = 102400,
+    .max_entries = 1024000,
     .pinning = 0,
     .namespace = "",
 };
@@ -59,7 +59,7 @@ struct bpf_map_def SEC("maps/rw") rw = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(u32),
     .value_size = sizeof(u32),
-    .max_entries = 1024,
+    .max_entries = 10240,
     .pinning = 0,
     .namespace = "",
 };
@@ -73,7 +73,7 @@ static __inline__
 struct _data_volumes* track_file_access(struct pt_regs *ctx)
 {
 	u32 cpu = bpf_get_smp_processor_id();
-  u32 tid = bpf_get_current_pid_tgid();
+  u64 tid = bpf_get_current_pid_tgid();
 
   struct file *file = (struct file *) PT_REGS_PARM1(ctx);
   struct path path;
@@ -133,12 +133,13 @@ struct _data_volumes* track_file_access(struct pt_regs *ctx)
   }
 
   bpf_get_current_comm(&info.comm, sizeof(info.comm));
+  info.key = tid | info.path[0].ino;
 
   struct _data_volumes *vol = bpf_map_lookup_elem(&volumes, &info.path[0].ino);
   if (vol == 0) {
     struct _data_volumes v = {};
-    check = bpf_map_update_elem(&volumes, &info.path[0].ino, &v, 0);
-    vol = bpf_map_lookup_elem(&volumes, &info.path[0].ino);
+    check = bpf_map_update_elem(&volumes, &info.key, &v, 0);
+    vol = bpf_map_lookup_elem(&volumes, &info.key);
     if (check != 0 || vol == 0) {
       return 0;
     }
