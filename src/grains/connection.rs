@@ -55,7 +55,7 @@ pub struct Connection {
     pub destination_port: u16,
     pub source_ip: Ipv4Addr,
     pub source_port: u16,
-    pub proto: String
+    pub proto: String,
 }
 
 impl ToTags for Connection {
@@ -86,7 +86,7 @@ impl From<_data_connect> for Connection {
             destination_ip: to_ipv4(data.daddr),
             destination_port: to_le(data.dport),
             source_port: to_le(data.sport),
-            proto: "".to_string()
+            proto: "".to_string(),
         }
     }
 }
