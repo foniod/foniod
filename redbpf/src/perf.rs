@@ -114,7 +114,7 @@ impl PerfMap {
         }
     }
 
-    pub fn read(&self) -> Option<Event> {
+    pub fn read(&self) -> Option<Event<'_>> {
         unsafe {
             let header = self.base_ptr.load(Ordering::SeqCst);
             let data_head = (*header).data_head;

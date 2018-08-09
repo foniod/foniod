@@ -39,7 +39,6 @@ use grains::*;
 
 fn main() {
     let system = actix::System::new("userspace");
-
     let mut backends = vec![];
 
     // let app = vec![
@@ -62,11 +61,13 @@ fn main() {
 
     if let Ok(bucket) = env::var("AWS_BUCKET") {
         let interval_s = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
-        backends.push(AddSystemDetails::launch(Buffer::launch(
+        backends.push(Buffer::launch(
             &BufferConfig { interval_s },
-            S3::new(s3::Region::EuWest2, bucket).start().recipient(),
-        )));
+            AddSystemDetails::launch(S3::new(s3::Region::EuWest2, bucket).start().recipient()),
+        ));
     }
+
+    // STATSD_TAG_WHITELIST="process,q_addr"
 
     if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
         backends.push(AddSystemDetails::launch(
@@ -88,17 +89,27 @@ fn main() {
 
     thread::spawn(move || {
         let mut grains: Vec<Box<dyn EventHandler>> = vec![];
-        let mut tcp_g = tcpv4::TCP4::load().unwrap();
-        grains.append(&mut tcp_g.attach_kprobes(&backends));
 
-        let mut udp_g = udp::UDP::load().unwrap();
-        grains.append(&mut udp_g.attach_kprobes(&backends));
+        if let Ok(_) = env::var("FILES") {
+            let mut files = file::Files.load().unwrap();
+            grains.append(&mut files.attach_kprobes(&backends));
+        }
 
-        if let Ok(dns_if) = env::var("DNS_IF") {
-            let mut dns_g = dns::DNS::load().unwrap();
+        if let Ok(_) = env::var("NET_TCP") {
+            let mut tcp_g = tcpv4::TCP4.load().unwrap();
+            grains.append(&mut tcp_g.attach_kprobes(&backends));
+        }
+
+        if let Ok(_) = env::var("NET_UDP") {
+            let mut udp_g = udp::UDP.load().unwrap();
+            grains.append(&mut udp_g.attach_kprobes(&backends));
+        }
+
+        if let Ok(dns_if) = env::var("NET_DNS_TLS_IF") {
+            let mut dns_g = dns::DNS.load().unwrap();
             grains.append(&mut dns_g.attach_xdps(&dns_if, &backends));
 
-            let mut tls_g = tls::TLS::load().unwrap();
+            let mut tls_g = tls::TLS.load().unwrap();
             grains.append(&mut tls_g.attach_socketfilters(&dns_if, &backends));
         }
 

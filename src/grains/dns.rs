@@ -3,6 +3,7 @@
 use std::ptr;
 include!(concat!(env!("OUT_DIR"), "/dns.rs"));
 
+use grains::protocol::ip::to_ipv4;
 use grains::*;
 
 pub struct DNS;
@@ -12,7 +13,7 @@ impl EBPFGrain<'static> for DNS {
         include_bytes!(concat!(env!("OUT_DIR"), "/dns.elf"))
     }
 
-    fn get_handler(_id: &str) -> EventCallback {
+    fn get_handler(&self, _id: &str) -> EventCallback {
         Box::new(|raw| {
             let query = DNSQuery::from(_data_dns_query::from(raw));
             let tags = query.to_tags();
@@ -43,8 +44,8 @@ impl From<_data_dns_query> for DNSQuery {
     fn from(data: _data_dns_query) -> DNSQuery {
         DNSQuery {
             id: to_le(data.id),
-            destination_ip: to_ip(data.daddr),
-            source_ip: to_ip(data.saddr),
+            destination_ip: to_ipv4(data.daddr),
+            source_ip: to_ipv4(data.saddr),
             destination_port: to_le(data.dport),
             source_port: to_le(data.sport),
             address: from_dns_prefix_labels(unsafe {
@@ -56,8 +57,8 @@ impl From<_data_dns_query> for DNSQuery {
     }
 }
 
-impl DNSQuery {
-    pub fn to_tags(&self) -> Tags {
+impl ToTags for DNSQuery {
+    fn to_tags(self) -> Tags {
         let mut tags = Tags::new();
 
         tags.insert("q_type", self.qclass.to_string());

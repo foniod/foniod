@@ -12,6 +12,8 @@ pub mod uname;
 use bpf_sys::{bpf_insn, bpf_map_def};
 use goblin::elf::{section_header as hdr, Elf, Reloc, SectionHeader, Sym};
 
+use std::ptr::null_mut;
+use std::rc::Rc;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::io;
@@ -51,6 +53,13 @@ pub struct Map {
     pub name: String,
     pub kind: u32,
     fd: RawFd,
+}
+
+pub struct MapIter<'map, T> {
+    start: bool,
+    map: &'map Map,
+    key: Rc<T>,
+
 }
 
 pub struct Rel {
@@ -255,7 +264,7 @@ impl Module {
 
 #[inline]
 fn get_split_section_name<'o>(
-    object: &'o Elf,
+    object: &'o Elf<'_>,
     shdr: &'o SectionHeader,
     shndx: usize,
 ) -> Result<(Option<&'o str>, Option<&'o str>)> {
@@ -320,26 +329,24 @@ impl Map {
             fd,
         })
     }
-
-    pub fn set(&mut self, key: VoidPtr, value: VoidPtr) {
+    pub fn set(&self, key: VoidPtr, value: VoidPtr) {
         unsafe {
             bpf_sys::bpf_update_elem(self.fd, key, value, 0);
         }
     }
 
-    pub fn get(&mut self, key: VoidPtr, value: VoidPtr) {
+    pub fn get(&self, key: VoidPtr, value: VoidPtr) {
         unsafe {
             bpf_sys::bpf_lookup_elem(self.fd, key, value);
         }
     }
 
-    pub fn delete(&mut self, key: VoidPtr) {
+    pub fn delete(&self, key: VoidPtr) {
         unsafe {
             bpf_sys::bpf_delete_elem(self.fd, key);
         }
     }
 }
-
 #[inline]
 fn add_rel(
     rels: &mut Vec<Rel>,

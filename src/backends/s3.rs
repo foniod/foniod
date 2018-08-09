@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use actix::prelude::*;
 use futures::Future;
 pub use rusoto_core::region::Region;
-use rusoto_s3::{PutObjectRequest, S3 as RusotoS3, S3Client};
+use rusoto_s3::{PutObjectRequest, S3Client, S3 as RusotoS3};
 use serde_json;
 
 use serde::Serialize;
@@ -71,7 +71,7 @@ impl Handler<Message> for S3 {
                     .collect::<Vec<String>>()
                     .join(",\n")
             ),
-            Message::Single(msg) => serde_json::to_string(&[&msg]).unwrap(),
+            Message::Single(msg) => serde_json::to_string(&[format_by_type(msg)]).unwrap(),
         }.into();
 
         ::actix::spawn(
@@ -81,8 +81,7 @@ impl Handler<Message> for S3 {
                     key: format!("{}_{}", &self.hostname, timestamp_now()),
                     body: Some(body),
                     ..Default::default()
-                })
-                .and_then(|_| Ok(()))
+                }).and_then(|_| Ok(()))
                 .or_else(|_| Ok(())),
         );
     }

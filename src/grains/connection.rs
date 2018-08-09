@@ -3,18 +3,18 @@
 use std::net::Ipv4Addr;
 use std::ptr;
 
+use grains::protocol::ip::to_ipv4;
 use grains::*;
 
 include!(concat!(env!("OUT_DIR"), "/connection.rs"));
 
 pub fn get_volume_callback(proto: &'static str) -> EventCallback {
     Box::new(move |raw| {
-        let volume = Volume::from(_data_volume::from(raw));
+        let mut volume = Volume::from(_data_volume::from(raw));
         let name = format!("volume.{}", if volume.send > 0 { "out" } else { "in" });
-        let mut tags = volume.connection.to_tags();
+        volume.connection.proto = proto.to_string();
 
-        tags.insert("proto", proto);
-
+        let tags = volume.connection.to_tags();
         let vol = if volume.send > 0 {
             volume.send
         } else {
@@ -55,10 +55,11 @@ pub struct Connection {
     pub destination_port: u16,
     pub source_ip: Ipv4Addr,
     pub source_port: u16,
+    pub proto: String,
 }
 
-impl Connection {
-    pub fn to_tags(&self) -> Tags {
+impl ToTags for Connection {
+    fn to_tags(self) -> Tags {
         let mut tags = Tags::new();
 
         tags.insert("process", self.name.as_str());
@@ -70,6 +71,8 @@ impl Connection {
         tags.insert("s_ip", self.source_ip.to_string());
         tags.insert("s_port", self.source_port.to_string());
 
+        tags.insert("proto", self.proto);
+
         tags
     }
 }
@@ -79,10 +82,11 @@ impl From<_data_connect> for Connection {
         Connection {
             task_id: data.id,
             name: to_string(unsafe { &*(&data.comm as *const [i8] as *const [u8]) }),
-            source_ip: to_ip(data.saddr),
-            destination_ip: to_ip(data.daddr),
+            source_ip: to_ipv4(data.saddr),
+            destination_ip: to_ipv4(data.daddr),
             destination_port: to_le(data.dport),
             source_port: to_le(data.sport),
+            proto: "".to_string(),
         }
     }
 }

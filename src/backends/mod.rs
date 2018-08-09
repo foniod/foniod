@@ -8,8 +8,7 @@ use metrics::Measurement;
 
 pub type BackendHandler = actix::Recipient<Message>;
 
-#[derive(Debug, Clone, Message, Serialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, Message)]
 pub enum Message {
     Single(Measurement),
     List(Vec<Measurement>),

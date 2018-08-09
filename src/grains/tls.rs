@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)]
 
+use grains::protocol::ETH_HLEN;
 use grains::*;
 use metrics::Tags;
 
@@ -19,7 +20,7 @@ impl EBPFGrain<'static> for TLS {
         include_bytes!(concat!(env!("OUT_DIR"), "/tls.elf"))
     }
 
-    fn get_handler(_id: &str) -> EventCallback {
+    fn get_handler(&self, _id: &str) -> EventCallback {
         Box::new(|raw| tls_to_message(raw))
     }
 }
@@ -64,8 +65,7 @@ fn parse_clienthello(payload: ClientHelloPayload, mut tags: Tags) -> Option<Mess
                 .map(|sni| match &sni.payload {
                     ServerNamePayload::HostName(dnsn) => format!("{}", AsRef::<str>::as_ref(&dnsn)),
                     _ => unreachable!(),
-                })
-                .collect::<Vec<String>>()
+                }).collect::<Vec<String>>()
                 .join(","),
         );
     }
