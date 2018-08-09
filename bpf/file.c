@@ -40,7 +40,7 @@ struct bpf_map_def SEC("maps/actionlist") actionlist = {
 struct bpf_map_def SEC("maps/calltrack") calltrack = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(u64),
-    .value_size = sizeof(struct sock *),
+    .value_size = sizeof(struct file *),
     .max_entries = 10240,
     .pinning = 0,
     .namespace = "",
@@ -61,16 +61,20 @@ __u32 _version SEC("version") = 0xFFFFFFFE;
 char _license[] SEC("license") = "GPL";
 
 static __inline__
-int track_file_access(struct pt_regs *ctx, u8 is_read)
+int track_file_access(struct pt_regs *ctx, struct file *file, u8 is_read)
 {
   u64 tid = bpf_get_current_pid_tgid();
 
-  struct file *file = (struct file *) PT_REGS_PARM1(ctx);
   struct path path;
   struct inode *inode;
   struct dentry *de, *de_cur;
   unsigned long i_ino;
   umode_t mode;
+
+  size_t size = (size_t) PT_REGS_RC(ctx);
+  if (size == 0) {
+    return 0;
+  }
 
   int check = 0;
   check |= bpf_probe_read(&path, sizeof(path), (void *)&file->f_path);
@@ -83,7 +87,6 @@ int track_file_access(struct pt_regs *ctx, u8 is_read)
   }
   de = de_cur = path.dentry;
 
-  size_t size = (size_t) PT_REGS_PARM3(ctx);
   struct _data_volume vol = {
       .read = is_read ? size : 0,
       .write = is_read ? 0 : size
@@ -137,11 +140,41 @@ int track_file_access(struct pt_regs *ctx, u8 is_read)
 SEC("kprobe/vfs_read")
 int trace_kread_entry(struct pt_regs *ctx)
 {
-  return track_file_access(ctx, 1);
+	u64 pid = bpf_get_current_pid_tgid();
+  struct file *f = (void *) PT_REGS_PARM1(ctx);
+  bpf_map_update_elem(&calltrack, &pid, &f, BPF_ANY);
+  return 0;
 }
 
 SEC("kprobe/vfs_write")
 int trace_kwrite_entry(struct pt_regs *ctx)
 {
-  return track_file_access(ctx, 0);
+	u64 pid = bpf_get_current_pid_tgid();
+  struct file *f = (void *) PT_REGS_PARM1(ctx);
+  bpf_map_update_elem(&calltrack, &pid, &f, BPF_ANY);
+  return 0;
+}
+
+SEC("kretprobe/vfs_read")
+int trace_kread_exit(struct pt_regs *ctx)
+{
+	u64 pid = bpf_get_current_pid_tgid();
+  struct file **file = (struct file **) bpf_map_lookup_elem(&calltrack, &pid);
+  if (file == 0) {
+    return 0;
+  } else {
+    return track_file_access(ctx, *file, 1);
+  }
+}
+
+SEC("kretprobe/vfs_write")
+int trace_kwrite_exit(struct pt_regs *ctx)
+{
+	u64 pid = bpf_get_current_pid_tgid();
+  struct file **file = (struct file **) bpf_map_lookup_elem(&calltrack, &pid);
+  if (file == 0) {
+    return 0;
+  } else {
+    return track_file_access(ctx, *file, 0);
+  }
 }
