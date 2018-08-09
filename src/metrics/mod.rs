@@ -26,6 +26,14 @@ impl Tags {
     }
 }
 
+pub trait ToTags {
+    fn to_tags(self) -> Tags;
+}
+
+impl ToTags for Tags {
+    fn to_tags(self) -> Tags { self }
+}
+
 pub mod kind {
     pub type Kind = u16;
     pub const COUNTER: Kind = 1;

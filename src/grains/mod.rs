@@ -18,7 +18,7 @@ pub use grains::sockethandler::SocketHandler;
 
 pub use backends::{BackendHandler, Message};
 pub use metrics::kind::*;
-pub use metrics::{Measurement, Tags, Unit};
+pub use metrics::{Measurement, Tags, Unit, ToTags};
 pub use std::net::Ipv4Addr;
 
 pub fn to_le(i: u16) -> u16 {

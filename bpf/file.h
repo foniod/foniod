@@ -46,16 +46,14 @@ struct _data_path_segment {
 struct _data_file {
   u64 id;
   u64 ts;
-  u64 key;
   char comm[TASK_COMM_LEN];
   struct _data_path_segment path[PATH_DEPTH];
 };
 
-struct _data_volumes {
-  u64 reads;
-  u64 writes;
-  u64 rbytes;
-  u64 wbytes;
+struct _data_volume {
+  struct _data_file file;
+  size_t read;
+  size_t write;
 };
 
 #endif

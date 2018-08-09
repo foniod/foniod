@@ -37,15 +37,6 @@ struct bpf_map_def SEC("maps/actionlist") actionlist = {
     .namespace = "",
 };
 
-struct bpf_map_def SEC("maps/volumes") volumes = {
-    .type = BPF_MAP_TYPE_LRU_HASH,
-    .key_size = sizeof(u64),
-    .value_size = sizeof(struct _data_volumes),
-    .max_entries = 1024000,
-    .pinning = 0,
-    .namespace = "",
-};
-
 struct bpf_map_def SEC("maps/calltrack") calltrack = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(u64),
@@ -70,9 +61,8 @@ __u32 _version SEC("version") = 0xFFFFFFFE;
 char _license[] SEC("license") = "GPL";
 
 static __inline__
-struct _data_volumes* track_file_access(struct pt_regs *ctx)
+int track_file_access(struct pt_regs *ctx, u8 is_read)
 {
-	u32 cpu = bpf_get_smp_processor_id();
   u64 tid = bpf_get_current_pid_tgid();
 
   struct file *file = (struct file *) PT_REGS_PARM1(ctx);
@@ -91,18 +81,23 @@ struct _data_volumes* track_file_access(struct pt_regs *ctx)
   if (check != 0 || !S_ISREG(mode)) {
     return 0;
   }
-
   de = de_cur = path.dentry;
-  struct _data_file info = {
-    .id = tid,
-    .ts = bpf_ktime_get_ns()
+
+  size_t size = (size_t) PT_REGS_PARM3(ctx);
+  struct _data_volume vol = {
+      .read = is_read ? size : 0,
+      .write = is_read ? 0 : size
   };
+
+  struct _data_file *info = &vol.file;
+  info->id = tid;
+  info->ts = bpf_ktime_get_ns();
 
   bool should_record = false;
   #pragma clang loop unroll(full)
   for (u8 i = 0; i < PATH_DEPTH; i++) {
-    check |= bpf_probe_read(&info.path[i].name,
-                            sizeof(info.path[i].name),
+    check |= bpf_probe_read(&info->path[i].name,
+                            sizeof(info->path[i].name),
                             (void *)&de->d_iname);
     check |= bpf_probe_read(&inode, sizeof(inode), (void *)&de->d_inode);
     check |= bpf_probe_read(&i_ino, sizeof(i_ino), (void *)&inode->i_ino);
@@ -111,7 +106,7 @@ struct _data_volumes* track_file_access(struct pt_regs *ctx)
       return 0;
     }
 
-    info.path[i].ino = i_ino;
+    info->path[i].ino = i_ino;
     struct _data_action *ptr = (struct _data_action *) bpf_map_lookup_elem(&actionlist, &i_ino);
     if (ptr != 0) {
       if (ptr->action == ACTION_IGNORE) {
@@ -132,44 +127,21 @@ struct _data_volumes* track_file_access(struct pt_regs *ctx)
     return 0;
   }
 
-  bpf_get_current_comm(&info.comm, sizeof(info.comm));
-  info.key = tid | info.path[0].ino;
+  u32 cpu = bpf_get_smp_processor_id();
+  bpf_get_current_comm(&info->comm, sizeof(info->comm));
+  bpf_perf_event_output(ctx, &rw, cpu, &vol, sizeof(vol));
 
-  struct _data_volumes *vol = bpf_map_lookup_elem(&volumes, &info.path[0].ino);
-  if (vol == 0) {
-    struct _data_volumes v = {};
-    check = bpf_map_update_elem(&volumes, &info.key, &v, 0);
-    vol = bpf_map_lookup_elem(&volumes, &info.key);
-    if (check != 0 || vol == 0) {
-      return 0;
-    }
-
-    bpf_perf_event_output(ctx, &rw, cpu, &info, sizeof(info));
-  }
-
-  return vol;
+  return 0;
 };
 
 SEC("kprobe/vfs_read")
 int trace_kread_entry(struct pt_regs *ctx)
 {
-  struct _data_volumes *vol = track_file_access(ctx);
-  if (vol != 0) {
-    vol->reads++;
-    vol->rbytes += (size_t) PT_REGS_PARM3(ctx);
-  }
-
-  return 0;
+  return track_file_access(ctx, 1);
 }
 
 SEC("kprobe/vfs_write")
 int trace_kwrite_entry(struct pt_regs *ctx)
 {
-  struct _data_volumes *vol = track_file_access(ctx);
-  if (vol != 0) {
-    vol->writes++;
-    vol->wbytes += (size_t) PT_REGS_PARM3(ctx);
-  }
-
-  return 0;
-};
+  return track_file_access(ctx, 0);
+}

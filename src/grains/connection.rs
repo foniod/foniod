@@ -58,8 +58,8 @@ pub struct Connection {
     pub source_port: u16,
 }
 
-impl Connection {
-    pub fn to_tags(&self) -> Tags {
+impl ToTags for Connection {
+    fn to_tags(self) -> Tags {
         let mut tags = Tags::new();
 
         tags.insert("process", self.name.as_str());

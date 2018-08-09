@@ -59,7 +59,6 @@ pub struct MapIter<'map, T> {
     start: bool,
     map: &'map Map,
     key: Rc<T>,
-    new_key: Rc<T>
 
 }
 
@@ -330,11 +329,6 @@ impl Map {
             fd,
         })
     }
-
-    pub fn iter<T>(&self) -> MapIter<'_, T> {
-        MapIter::new(&self)
-    }
-
     pub fn set(&self, key: VoidPtr, value: VoidPtr) {
         unsafe {
             bpf_sys::bpf_update_elem(self.fd, key, value, 0);
@@ -353,49 +347,6 @@ impl Map {
         }
     }
 }
-
-impl<'map, T> MapIter<'map, T> {
-    fn new(map: &'map Map) -> MapIter<'map, T> {
-        unsafe {
-            MapIter {
-                start: true,
-                map,
-                key: Rc::new(mem::zeroed()),
-                new_key: Rc::new(mem::zeroed())
-            }
-        }
-    }
-}
-
-impl<'map, T> Iterator for MapIter<'map, T> where T: PartialEq {
-    type Item = Rc<T>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut key = Rc::get_mut(&mut self.key).unwrap();
-
-        let ret = match self.start {
-            true => unsafe {
-                self.start = false;
-                bpf_sys::bpf_get_next_key(self.map.fd,
-                                          null_mut(),
-                                          key as *mut T as VoidPtr)
-            }
-            _ => unsafe {
-                let ret = bpf_sys::bpf_get_next_key(self.map.fd,
-                                                    key as *mut T as VoidPtr,
-                                                    key as *mut T as VoidPtr);
-                ret
-            }
-        };
-
-        if ret != 0 {
-            None
-        } else {
-            Some(self.key.clone())
-        }
-    }
-}
-
 #[inline]
 fn add_rel(
     rels: &mut Vec<Rel>,
