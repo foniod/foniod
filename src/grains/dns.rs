@@ -57,8 +57,8 @@ impl From<_data_dns_query> for DNSQuery {
     }
 }
 
-impl DNSQuery {
-    pub fn to_tags(&self) -> Tags {
+impl ToTags for DNSQuery {
+    fn to_tags(self) -> Tags {
         let mut tags = Tags::new();
 
         tags.insert("q_type", self.qclass.to_string());
