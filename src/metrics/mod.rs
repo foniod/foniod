@@ -31,7 +31,9 @@ pub trait ToTags {
 }
 
 impl ToTags for Tags {
-    fn to_tags(self) -> Tags { self }
+    fn to_tags(self) -> Tags {
+        self
+    }
 }
 
 pub mod kind {

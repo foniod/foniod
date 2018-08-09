@@ -17,11 +17,7 @@ const ACTION_IGNORE: u8 = 0;
 const ACTION_RECORD: u8 = 1;
 
 fn find_map_by_name<'a>(module: &'a Module, needle: &str) -> &'a Map {
-    module
-        .maps
-        .iter()
-        .find(|v| v.name == needle)
-        .unwrap()
+    module.maps.iter().find(|v| v.name == needle).unwrap()
 }
 
 pub struct Files;
@@ -33,7 +29,7 @@ pub struct FileAccess {
     pub path: String,
     pub ino: ino_t,
     pub read: usize,
-    pub write: usize
+    pub write: usize,
 }
 
 impl EBPFGrain<'static> for Files {
@@ -91,7 +87,7 @@ impl From<_data_volume> for FileAccess {
             path,
             ino,
             read: data.read,
-            write: data.write
+            write: data.write,
         }
     }
 }

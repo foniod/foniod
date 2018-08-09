@@ -105,7 +105,6 @@ fn main() {
             grains.append(&mut udp_g.attach_kprobes(&backends));
         }
 
-
         if let Ok(dns_if) = env::var("NET_DNS_TLS_IF") {
             let mut dns_g = dns::DNS.load().unwrap();
             grains.append(&mut dns_g.attach_xdps(&dns_if, &backends));
