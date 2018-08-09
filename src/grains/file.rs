@@ -1,11 +1,6 @@
 #![allow(non_camel_case_types)]
 
-use std::collections::HashMap;
 use std::ptr;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
 
 use std::fs::metadata;
 use std::os::unix::fs::MetadataExt;
@@ -21,21 +16,15 @@ type ino_t = u64;
 const ACTION_IGNORE: u8 = 0;
 const ACTION_RECORD: u8 = 1;
 
-fn find_map_by_name<'a>(module: &'a mut Module, needle: &str) -> (usize, &'a mut Map) {
+fn find_map_by_name<'a>(module: &'a Module, needle: &str) -> &'a Map {
     module
         .maps
-        .iter_mut()
-        .enumerate()
-        .find(|(i, v)| v.name == needle)
+        .iter()
+        .find(|v| v.name == needle)
         .unwrap()
 }
 
-pub struct Files {
-    files: Arc<Mutex<HashMap<ino_t, FileAccess>>>,
-    actionlist: HashMap<String, String>,
-    backends: Vec<BackendHandler>,
-    volumes: Option<Map>,
-}
+pub struct Files;
 
 #[derive(Debug)]
 pub struct FileAccess {
@@ -47,20 +36,9 @@ pub struct FileAccess {
     pub write: usize
 }
 
-impl Files {
-    pub fn new() -> Files {
-        Files {
-            files: Arc::new(Mutex::new(HashMap::new())),
-            actionlist: HashMap::new(),
-            backends: vec![],
-            volumes: None,
-        }
-    }
-}
-
 impl EBPFGrain<'static> for Files {
     fn loaded(&mut self, module: &mut Module) {
-        let (_, actionlist) = find_map_by_name(module, "actionlist");
+        let actionlist = find_map_by_name(module, "actionlist");
 
         let mut record = _data_action {
             action: ACTION_RECORD,
@@ -72,15 +50,11 @@ impl EBPFGrain<'static> for Files {
         );
     }
 
-    fn attached(&mut self, backends: &[BackendHandler]) {
-        self.backends.extend_from_slice(backends);
-    }
-
     fn code() -> &'static [u8] {
         include_bytes!(concat!(env!("OUT_DIR"), "/file.elf"))
     }
 
-    fn get_handler(&self, id: &str) -> EventCallback {
+    fn get_handler(&self, _id: &str) -> EventCallback {
         Box::new(move |raw| {
             let file = FileAccess::from(_data_volume::from(raw));
             let name = format!("file.{}", if file.write > 0 { "write" } else { "read" });

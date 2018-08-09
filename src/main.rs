@@ -39,7 +39,6 @@ use grains::*;
 
 fn main() {
     let system = actix::System::new("userspace");
-
     let mut backends = vec![];
 
     // let app = vec![
@@ -68,6 +67,8 @@ fn main() {
         )));
     }
 
+    // STATSD_TAG_WHITELIST="process,q_addr"
+
     if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
         backends.push(AddSystemDetails::launch(
             Statsd::new(&host, u16::from_str_radix(&port, 10).unwrap())
@@ -88,17 +89,28 @@ fn main() {
 
     thread::spawn(move || {
         let mut grains: Vec<Box<dyn EventHandler>> = vec![];
-        let mut tcp_g = tcpv4::TCP4::load().unwrap();
-        grains.append(&mut tcp_g.attach_kprobes(&backends));
 
-        let mut udp_g = udp::UDP::load().unwrap();
-        grains.append(&mut udp_g.attach_kprobes(&backends));
+        if let Ok(_) = env::var("FILES") {
+            let mut files = file::Files.load().unwrap();
+            grains.append(&mut files.attach_kprobes(&backends));
+        }
 
-        if let Ok(dns_if) = env::var("DNS_IF") {
-            let mut dns_g = dns::DNS::load().unwrap();
+        if let Ok(_) = env::var("NET_TCP") {
+            let mut tcp_g = tcpv4::TCP4.load().unwrap();
+            grains.append(&mut tcp_g.attach_kprobes(&backends));
+        }
+
+        if let Ok(_) = env::var("NET_UDP") {
+            let mut udp_g = udp::UDP.load().unwrap();
+            grains.append(&mut udp_g.attach_kprobes(&backends));
+        }
+
+
+        if let Ok(dns_if) = env::var("NET_DNS_TLS_IF") {
+            let mut dns_g = dns::DNS.load().unwrap();
             grains.append(&mut dns_g.attach_xdps(&dns_if, &backends));
 
-            let mut tls_g = tls::TLS::load().unwrap();
+            let mut tls_g = tls::TLS.load().unwrap();
             grains.append(&mut tls_g.attach_socketfilters(&dns_if, &backends));
         }
 

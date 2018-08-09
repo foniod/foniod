@@ -18,8 +18,8 @@ pub struct Grain<T> {
 pub trait EBPFGrain<'code> {
     fn code() -> &'code [u8];
     fn get_handler(&self, id: &str) -> EventCallback;
-    fn loaded(&mut self, module: &mut Module) {}
-    fn attached(&mut self, backends: &[BackendHandler]) {}
+    fn loaded(&mut self, _module: &mut Module) {}
+    fn attached(&mut self, _backends: &[BackendHandler]) {}
 
     fn load(mut self) -> Result<Grain<Self>>
     where
