@@ -61,10 +61,10 @@ fn main() {
 
     if let Ok(bucket) = env::var("AWS_BUCKET") {
         let interval_s = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
-        backends.push(AddSystemDetails::launch(Buffer::launch(
+        backends.push(Buffer::launch(
             &BufferConfig { interval_s },
-            S3::new(s3::Region::EuWest2, bucket).start().recipient(),
-        )));
+            AddSystemDetails::launch(S3::new(s3::Region::EuWest2, bucket).start().recipient()),
+        ));
     }
 
     // STATSD_TAG_WHITELIST="process,q_addr"

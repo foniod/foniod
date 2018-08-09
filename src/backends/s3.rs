@@ -71,7 +71,7 @@ impl Handler<Message> for S3 {
                     .collect::<Vec<String>>()
                     .join(",\n")
             ),
-            Message::Single(msg) => serde_json::to_string(&[&msg]).unwrap(),
+            Message::Single(msg) => serde_json::to_string(&[format_by_type(msg)]).unwrap(),
         }.into();
 
         ::actix::spawn(
