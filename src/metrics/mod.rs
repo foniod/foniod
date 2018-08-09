@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec::Drain;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Tags(Vec<(String, String)>);
+pub struct Tags(pub Vec<(String, String)>);
 
 impl Tags {
     pub fn new() -> Tags {

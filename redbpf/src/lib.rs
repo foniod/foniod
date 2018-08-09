@@ -12,8 +12,6 @@ pub mod uname;
 use bpf_sys::{bpf_insn, bpf_map_def};
 use goblin::elf::{section_header as hdr, Elf, Reloc, SectionHeader, Sym};
 
-use std::ptr::null_mut;
-use std::rc::Rc;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::io;
@@ -53,13 +51,6 @@ pub struct Map {
     pub name: String,
     pub kind: u32,
     fd: RawFd,
-}
-
-pub struct MapIter<'map, T> {
-    start: bool,
-    map: &'map Map,
-    key: Rc<T>,
-
 }
 
 pub struct Rel {

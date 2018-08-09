@@ -32,7 +32,7 @@ mod config;
 mod grains;
 mod metrics;
 
-use aggregations::{AddSystemDetails, Buffer};
+use aggregations::{AddSystemDetails, Buffer, TagWhitelist};
 use backends::{console::Console, s3, s3::S3, statsd::Statsd};
 use config::BufferConfig;
 use grains::*;
@@ -70,15 +70,28 @@ fn main() {
     // STATSD_TAG_WHITELIST="process,q_addr"
 
     if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
-        backends.push(AddSystemDetails::launch(
+        let mut backend = AddSystemDetails::launch(
             Statsd::new(&host, u16::from_str_radix(&port, 10).unwrap())
                 .start()
                 .recipient(),
-        ));
+        );
+
+        if let Ok(whitelist) = env::var("TAG_WHITELIST") {
+            backend =
+                TagWhitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
+        }
+
+        backends.push(backend);
     }
 
     if let Ok(_) = env::var("CONSOLE") {
-        backends.push(Console::start_default().recipient());
+        let mut backend = Console::start_default().recipient();
+        if let Ok(whitelist) = env::var("CONSOLE_TAG_WHITELIST") {
+            backend =
+                TagWhitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
+        }
+
+        backends.push(backend);
     }
 
     let panic_hook = std::panic::take_hook();
