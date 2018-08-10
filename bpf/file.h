@@ -27,6 +27,8 @@
 #pragma clang diagnostic ignored "-Waddress-of-packed-member"
 #include <linux/dcache.h>
 #include <linux/stat.h>
+#include <linux/path.h>
+#include <linux/fs.h>
 #include <linux/ptrace.h>
 #pragma clang diagnostic pop
 
