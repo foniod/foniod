@@ -67,9 +67,12 @@ fn generate_bindings(flags: &[String], out_dir: &Path, source: &Path) -> Result<
         static ref RE: Regex = Regex::new(&format!(r"struct ({}) \{{", TYPE_REGEX)).unwrap();
     }
 
+    let mut flags = flags.to_vec();
+    flags.push("-Wno-unused-function".to_string());
+
     let bindings = bindgen::builder()
         .header(source.to_str().expect("Filename conversion error!"))
-        .clang_args(flags)
+        .clang_args(&flags)
         .whitelist_type(TYPE_REGEX)
         .generate()
         .expect("Unable to generate bindings!");
