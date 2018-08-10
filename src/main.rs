@@ -67,8 +67,6 @@ fn main() {
         ));
     }
 
-    // STATSD_TAG_WHITELIST="process,q_addr"
-
     if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
         let mut backend = AddSystemDetails::launch(
             Statsd::new(&host, u16::from_str_radix(&port, 10).unwrap())
