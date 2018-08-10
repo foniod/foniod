@@ -49,7 +49,7 @@ struct bpf_map_def SEC("maps/dns_queries") dns_queries = {
 __u32 _version SEC("version") = 0xFFFFFFFE;
 char _license[] SEC("license") = "GPL";
 
-static __inline__
+__inline_fn
 s8 parse_dns_packet(struct xdp_md *ctx, void *buffer, void *data_end, struct _data_dns_query *query) {
   struct ethhdr *eth = (struct ethhdr *) buffer;
   struct iphdr *ip;

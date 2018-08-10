@@ -60,11 +60,16 @@ struct bpf_map_def SEC("maps/rw") rw = {
 __u32 _version SEC("version") = 0xFFFFFFFE;
 char _license[] SEC("license") = "GPL";
 
-static __inline__
-int track_file_access(struct pt_regs *ctx, struct file *file, u8 is_read)
+__inline_fn
+int track_file_access(struct pt_regs *ctx,  u8 is_read)
 {
   u64 tid = bpf_get_current_pid_tgid();
+  struct file **filep = (struct file **) bpf_map_lookup_elem(&calltrack, &tid);
+  if (filep == 0) {
+    return 0;
+  }
 
+  struct file *file = *filep;
   struct path path;
   struct inode *inode;
   struct dentry *de, *de_cur;
@@ -158,23 +163,11 @@ int trace_kwrite_entry(struct pt_regs *ctx)
 SEC("kretprobe/vfs_read")
 int trace_kread_exit(struct pt_regs *ctx)
 {
-	u64 pid = bpf_get_current_pid_tgid();
-  struct file **file = (struct file **) bpf_map_lookup_elem(&calltrack, &pid);
-  if (file == 0) {
-    return 0;
-  } else {
-    return track_file_access(ctx, *file, 1);
-  }
+  return track_file_access(ctx, 1);
 }
 
 SEC("kretprobe/vfs_write")
 int trace_kwrite_exit(struct pt_regs *ctx)
 {
-	u64 pid = bpf_get_current_pid_tgid();
-  struct file **file = (struct file **) bpf_map_lookup_elem(&calltrack, &pid);
-  if (file == 0) {
-    return 0;
-  } else {
-    return track_file_access(ctx, *file, 0);
-  }
+  return track_file_access(ctx, 0);
 }

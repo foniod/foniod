@@ -27,6 +27,7 @@
  * are interpreted by elf_bpf loader
  */
 #define SEC(NAME) __attribute__((section(NAME), used))
+#define __inline_fn static __attribute__((always_inline))
 
 // Identifier for current CPU used in perf_submit and perf_read
 // Prefer BPF_F_CURRENT_CPU flag, falls back to call helper for older kernel

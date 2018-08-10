@@ -61,7 +61,7 @@ struct bpf_map_def SEC("maps/tcp4_volume") tcp4_volume = {
 __u32 _version SEC("version") = 0xFFFFFFFE;
 char _license[] SEC("license") = "GPL";
 
-static __inline__
+__inline_fn
 int store_to_task_map(struct bpf_map_def *map, void *ptr)
 {
 	u64 pid = bpf_get_current_pid_tgid();
@@ -90,7 +90,7 @@ int trace_outbound_entry(struct pt_regs *ctx)
 #define SEND 1
 #define RECV 2
 
-static __inline__
+__inline_fn
 int traffic_volume(struct bpf_map_def *state, struct bpf_map_def *output, struct pt_regs *ctx, u8 direction)
 {
 	u64 pid = bpf_get_current_pid_tgid();

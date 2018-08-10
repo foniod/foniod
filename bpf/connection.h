@@ -50,7 +50,7 @@ struct _data_volume {
   size_t recv;
 };
 
-static __inline__
+__inline_fn
 struct _data_connect get_connection_details(struct sock **skpp, u64 pid) {
   struct _data_connect data = {};
   struct inet_sock *skp = inet_sk(*skpp);
