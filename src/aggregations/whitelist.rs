@@ -4,14 +4,14 @@ use futures::Future;
 use backends::Message;
 use metrics::Measurement;
 
-pub struct TagWhitelist(Vec<String>, Recipient<Message>);
-impl Actor for TagWhitelist {
+pub struct Whitelist(Vec<String>, Recipient<Message>);
+impl Actor for Whitelist {
     type Context = Context<Self>;
 }
 
-impl TagWhitelist {
+impl Whitelist {
     pub fn launch(allow: Vec<String>, upstream: Recipient<Message>) -> Recipient<Message> {
-        TagWhitelist(allow, upstream).start().recipient()
+        Whitelist(allow, upstream).start().recipient()
     }
 
     fn filter_tags(&self, msg: &mut Measurement) {
@@ -19,7 +19,7 @@ impl TagWhitelist {
     }
 }
 
-impl Handler<Message> for TagWhitelist {
+impl Handler<Message> for Whitelist {
     type Result = ();
 
     fn handle(&mut self, mut msg: Message, _ctx: &mut Context<Self>) -> Self::Result {

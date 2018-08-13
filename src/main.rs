@@ -32,7 +32,7 @@ mod config;
 mod grains;
 mod metrics;
 
-use aggregations::{AddSystemDetails, Buffer, TagWhitelist};
+use aggregations::{AddSystemDetails, Buffer, Whitelist};
 use backends::{console::Console, s3, s3::S3, statsd::Statsd};
 use config::BufferConfig;
 use grains::*;
@@ -76,7 +76,7 @@ fn main() {
 
         if let Ok(whitelist) = env::var("TAG_WHITELIST") {
             backend =
-                TagWhitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
+                Whitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
         }
 
         backends.push(backend);
@@ -86,7 +86,7 @@ fn main() {
         let mut backend = Console::start_default().recipient();
         if let Ok(whitelist) = env::var("CONSOLE_TAG_WHITELIST") {
             backend =
-                TagWhitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
+                Whitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
         }
 
         backends.push(backend);
