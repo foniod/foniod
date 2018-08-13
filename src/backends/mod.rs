@@ -1,7 +1,9 @@
 use actix;
 
 pub mod console;
+#[cfg(feature = "s3-backend")]
 pub mod s3;
+#[cfg(feature = "statsd-backend")]
 pub mod statsd;
 
 use metrics::Measurement;

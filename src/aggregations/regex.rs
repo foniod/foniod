@@ -9,7 +9,10 @@ use metrics::Measurement;
 
 pub struct Regex(HashMap<String, (RegexMatcher, String)>, Recipient<Message>);
 impl Regex {
-    pub fn launch(mut config: Vec<(String, String, String)>, upstream: Recipient<Message>) -> Recipient<Message> {
+    pub fn launch(
+        mut config: Vec<(String, String, String)>,
+        upstream: Recipient<Message>,
+    ) -> Recipient<Message> {
         let rules = config
             .drain(..)
             .map(|(key, replace, regex)| (key, (RegexMatcher::new(&regex).unwrap(), replace)))

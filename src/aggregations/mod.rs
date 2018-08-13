@@ -1,9 +1,9 @@
 mod buffer;
+mod regex;
 mod systemdetails;
 mod whitelist;
-mod regex;
 
 pub use self::buffer::*;
+pub use self::regex::*;
 pub use self::systemdetails::*;
 pub use self::whitelist::*;
-pub use self::regex::*;

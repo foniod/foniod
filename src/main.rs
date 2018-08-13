@@ -8,13 +8,16 @@ extern crate libc;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+#[cfg(feature = "statsd-backend")]
 extern crate cadence;
 extern crate epoll;
 extern crate lazy_socket;
 extern crate metrohash;
 extern crate redbpf;
 extern crate regex;
+#[cfg(feature = "s3-backend")]
 extern crate rusoto_core;
+#[cfg(feature = "s3-backend")]
 extern crate rusoto_s3;
 extern crate rustls;
 extern crate serde_json;
@@ -33,8 +36,8 @@ mod config;
 mod grains;
 mod metrics;
 
-use aggregations::{AddSystemDetails, Buffer, Whitelist, Regex};
-use backends::{console::Console, s3, s3::S3, statsd::Statsd};
+use aggregations::{AddSystemDetails, Buffer, Regex, Whitelist};
+use backends::console::Console;
 use config::BufferConfig;
 use grains::*;
 
@@ -60,38 +63,52 @@ fn main() {
     //     Grain::<udp::UDP>::load().unwrap().bind(backends.clone())
     // ];
 
-    if let Ok(bucket) = env::var("AWS_BUCKET") {
-        let interval_s = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
-        backends.push(Buffer::launch(
-            &BufferConfig { interval_s },
-            AddSystemDetails::launch(S3::new(s3::Region::EuWest2, bucket).start().recipient()),
-        ));
+    #[cfg(feature = "s3-backend")]
+    {
+        if let Ok(bucket) = env::var("AWS_BUCKET") {
+            use backends::s3::{self, S3};
+
+            let interval_s = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
+            backends.push(Buffer::launch(
+                &BufferConfig { interval_s },
+                AddSystemDetails::launch(S3::new(s3::Region::EuWest2, bucket).start().recipient()),
+            ));
+        }
     }
 
-    if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
-        let mut backend = AddSystemDetails::launch(
-            Statsd::new(&host, u16::from_str_radix(&port, 10).unwrap())
-                .start()
-                .recipient(),
-        );
+    #[cfg(feature = "statsd-backend")]
+    {
+        if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
+            use backends::statsd::Statsd;
 
-        if let Ok(whitelist) = env::var("TAG_WHITELIST") {
-            backend =
-                Whitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
+            let mut backend = AddSystemDetails::launch(
+                Statsd::new(&host, u16::from_str_radix(&port, 10).unwrap())
+                    .start()
+                    .recipient(),
+            );
+
+            if let Ok(whitelist) = env::var("TAG_WHITELIST") {
+                backend =
+                    Whitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
+            }
+
+            backend = Regex::launch(
+                vec![(
+                    "process".to_string(),
+                    "docker_conn_proxy".to_string(),
+                    r"conn\d+".to_string(),
+                )],
+                backend,
+            );
+
+            backends.push(backend);
         }
-
-        backend = Regex::launch(vec![("process".to_string(),
-                                      "docker_conn_proxy".to_string(),
-                                      r"conn\d+".to_string())], backend);
-
-        backends.push(backend);
     }
 
     if let Ok(_) = env::var("CONSOLE") {
         let mut backend = Console::start_default().recipient();
         if let Ok(whitelist) = env::var("CONSOLE_TAG_WHITELIST") {
-            backend =
-                Whitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
+            backend = Whitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
         }
 
         backends.push(backend);
