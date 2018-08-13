@@ -18,6 +18,10 @@ impl Tags {
         self.0.iter()
     }
 
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut (String, String)> {
+        self.0.iter_mut()
+    }
+
     pub fn drain<R>(&mut self, r: R) -> Drain<(String, String)>
     where
         R: RangeBounds<usize>,

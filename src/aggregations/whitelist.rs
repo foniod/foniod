@@ -5,10 +5,6 @@ use backends::Message;
 use metrics::Measurement;
 
 pub struct Whitelist(Vec<String>, Recipient<Message>);
-impl Actor for Whitelist {
-    type Context = Context<Self>;
-}
-
 impl Whitelist {
     pub fn launch(allow: Vec<String>, upstream: Recipient<Message>) -> Recipient<Message> {
         Whitelist(allow, upstream).start().recipient()
@@ -17,6 +13,10 @@ impl Whitelist {
     fn filter_tags(&self, msg: &mut Measurement) {
         msg.tags.0.retain(|(k, _v)| self.0.contains(k));
     }
+}
+
+impl Actor for Whitelist {
+    type Context = Context<Self>;
 }
 
 impl Handler<Message> for Whitelist {

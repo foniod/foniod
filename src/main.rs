@@ -13,6 +13,7 @@ extern crate epoll;
 extern crate lazy_socket;
 extern crate metrohash;
 extern crate redbpf;
+extern crate regex;
 extern crate rusoto_core;
 extern crate rusoto_s3;
 extern crate rustls;
@@ -32,7 +33,7 @@ mod config;
 mod grains;
 mod metrics;
 
-use aggregations::{AddSystemDetails, Buffer, Whitelist};
+use aggregations::{AddSystemDetails, Buffer, Whitelist, Regex};
 use backends::{console::Console, s3, s3::S3, statsd::Statsd};
 use config::BufferConfig;
 use grains::*;
@@ -78,6 +79,10 @@ fn main() {
             backend =
                 Whitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
         }
+
+        backend = Regex::launch(vec![("process".to_string(),
+                                      "docker_conn_proxy".to_string(),
+                                      r"conn\d+".to_string())], backend);
 
         backends.push(backend);
     }
