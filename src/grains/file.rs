@@ -79,7 +79,9 @@ impl From<_data_volume> for FileAccess {
             .iter()
             .map(|s| to_string(unsafe { &*(&s.name as *const [i8] as *const [u8]) }))
             .collect::<Vec<String>>()
-            .join("/");
+            .join("/")
+            .trim_left_matches('/')
+            .to_string();
 
         FileAccess {
             id: data.file.id,
