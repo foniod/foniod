@@ -33,9 +33,19 @@ epoll = "4.0"
 metrohash = "1"
 regex = "1.0"
 
-cadence = { version =  "0.14", optional = true }
-rusoto_core = { version = "0.32", optional = true }
-rusoto_s3 = { version =  "0.32", optional = true }
+[dependencies.cadence]
+version =  "0.14"
+optional = true
+
+[dependencies.rusoto_core]
+git = "https://github.com/redsift/rusoto"
+features = ["rustls"]
+default-features = false
+optional = true
+
+[dependencies.rusoto_s3]
+git = "https://github.com/redsift/rusoto"
+optional = true
 
 [features]
 default = ["statsd-backend"]

@@ -23,7 +23,7 @@ impl S3 {
 
         S3 {
             hostname: get_fqdn().unwrap(),
-            client: S3Client::simple(region),
+            client: S3Client::new(region),
             bucket: bucket.into(),
         }
     }
@@ -72,11 +72,11 @@ impl Handler<Message> for S3 {
                     .join(",\n")
             ),
             Message::Single(msg) => serde_json::to_string(&[format_by_type(msg)]).unwrap(),
-        }.into();
+        }.into_bytes().into();
 
         ::actix::spawn(
             self.client
-                .put_object(&PutObjectRequest {
+                .put_object(PutObjectRequest {
                     bucket: self.bucket.clone(),
                     key: format!("{}_{}", &self.hostname, timestamp_now()),
                     body: Some(body),
