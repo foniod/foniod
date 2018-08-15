@@ -48,6 +48,6 @@ git = "https://github.com/redsift/rusoto"
 optional = true
 
 [features]
-default = ["statsd-backend"]
+default = ["statsd-backend", "s3-backend"]
 s3-backend = ["rusoto_core", "rusoto_s3"]
 statsd-backend = ["cadence"]
