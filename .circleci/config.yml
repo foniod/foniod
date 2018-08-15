@@ -44,12 +44,7 @@ jobs:
           docker_layer_caching: true
 
       - run:
-          name: Login to a regsitry
-          command: |
-            echo ${QUAY_PASS} | docker login --username ${QUAY_USER} --password-stdin quay.io
-
-      - run:
-          name: Build Docker image
+          name: Build static binary
           command: |
             cargo build --target=x86_64-unknown-linux-musl --release || exit 1
 
