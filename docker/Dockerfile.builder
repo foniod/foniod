@@ -13,8 +13,13 @@ RUN apt-get update \
        curl \
        git \
        clang \
-    && curl https://sh.rustup.rs -sSf > rustup.sh \
-    && sh rustup.sh -y --default-toolchain nightly --no-modify-path \
+       musl musl-tools musl-dev 
+
+RUN curl https://sh.rustup.rs -sSf > rustup.sh \
+    && sh rustup.sh -y \
+          --default-toolchain nightly \
+          --no-modify-path \
+    && rustup target add x86_64-unknown-linux-musl \
     && rustup --version \
     && cargo --version \
     && rustc --version

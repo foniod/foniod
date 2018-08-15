@@ -1,13 +1,10 @@
 FROM quay.io/redsift/ingraind-build:latest AS build
 
 ADD . /build/
-RUN cargo build --release
+RUN cp /tmp/bcc/build/src/cc/libbpf.a /build/bpf-sys/lib/ \
+    && cargo build --target=x86_64-unknown-linux-musl --release
 
-FROM debian:stable
+FROM scratch
 
-RUN apt update && apt install -y libssl1.1 ca-certificates
-
-COPY --from=build /usr/lib/x86_64-linux-gnu/libbpf.so* /usr/lib/
-COPY --from=build /build/target/release/ingraind /bin
-
-CMD /bin/ingraind
+COPY --from=build /build/target/x86_64-unknown-linux-musl/release/ingraind /ingraind
+CMD ["/ingraind"]

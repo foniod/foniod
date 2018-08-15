@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  build:
+  docker:
     environment:
       CONTAINER_NAME: "quay.io/redsift/ingraind"
 
@@ -31,8 +31,35 @@ jobs:
             docker images $CONTAINER_NAME
             docker push $CONTAINER_NAME 
 
+  static:
+    working_directory: /build
+    docker:
+      - image: quay.io/redsift/ingraind-build:latest
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /build
+
+      - setup_remote_docker:
+          docker_layer_caching: true
+
+      - run:
+          name: Login to a regsitry
+          command: |
+            echo ${QUAY_PASS} | docker login --username ${QUAY_USER} --password-stdin quay.io
+
+      - run:
+          name: Build Docker image
+          command: |
+            cargo build --target=x86_64-unknown-linux-musl --release || exit 1
+
+      - store_artifacts:
+          path: /build/target/x86_64-unknown-linux-musl/release/ingraind 
+          destination: ingraind
+
 workflows:
   version: 2
   build_pack:
     jobs:
-      - build
+      - docker
+      - static

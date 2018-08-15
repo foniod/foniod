@@ -3,13 +3,9 @@ FROM ingraind-build AS build
 ARG KERNEL_SOURCE=/build/kernel/
 
 ADD . /build/
-RUN cargo build --release
+RUN cargo build --target=x86_64-unknown-linux-musl --release
 
-FROM ubuntu:18.04
+FROM scratch
 
-RUN apt update && apt install -y libssl1.1 ca-certificates
-
-COPY --from=build /usr/lib/x86_64-linux-gnu/libbpf.so* /usr/lib/
-COPY --from=build /build/target/release/ingraind /bin
-
-CMD ["/bin/ingraind"]
+COPY --from=build /build/target/x86_64-unknown-linux-musl/release/ingraind /ingraind
+CMD ["/ingraind"]
