@@ -1,6 +1,4 @@
-FROM ingraind-build AS build
-
-ARG KERNEL_SOURCE=/build/kernel/
+FROM quay.io/redsift/ingraind-build:latest AS build
 
 ADD . /build/
 RUN cargo build --target=x86_64-unknown-linux-musl --release
