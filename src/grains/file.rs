@@ -1,9 +1,8 @@
 #![allow(non_camel_case_types)]
 
-use std::ptr;
-
 use std::fs::metadata;
 use std::os::unix::fs::MetadataExt;
+use std::ptr;
 
 use redbpf::{Map, Module, VoidPtr};
 
@@ -20,7 +19,11 @@ fn find_map_by_name<'a>(module: &'a Module, needle: &str) -> &'a Map {
     module.maps.iter().find(|v| v.name == needle).unwrap()
 }
 
-pub struct Files;
+pub struct Files(pub FilesConfig);
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FilesConfig {
+    pub monitor_dirs: Vec<String>,
+}
 
 #[derive(Debug)]
 pub struct FileAccess {
@@ -32,22 +35,31 @@ pub struct FileAccess {
     pub write: usize,
 }
 
+impl ToEpollHandler for Grain<Files> {
+    fn to_eventoutputs(&mut self, backends: &[BackendHandler]) -> EventOutputs {
+        self.attach_kprobes(backends)
+    }
+}
+
 impl EBPFGrain<'static> for Files {
+    fn code() -> &'static [u8] {
+        include_bytes!(concat!(env!("OUT_DIR"), "/file.elf"))
+    }
+
     fn loaded(&mut self, module: &mut Module) {
         let actionlist = find_map_by_name(module, "actionlist");
 
         let mut record = _data_action {
             action: ACTION_RECORD,
         };
-        let mut ino = metadata("/").unwrap().ino();
-        actionlist.set(
-            &mut ino as *mut ino_t as VoidPtr,
-            &mut record as *mut _data_action as VoidPtr,
-        );
-    }
 
-    fn code() -> &'static [u8] {
-        include_bytes!(concat!(env!("OUT_DIR"), "/file.elf"))
+        for dir in self.0.monitor_dirs.iter() {
+            let mut ino = metadata(dir).unwrap().ino();
+            actionlist.set(
+                &mut ino as *mut ino_t as VoidPtr,
+                &mut record as *mut _data_action as VoidPtr,
+            );
+        }
     }
 
     fn get_handler(&self, _id: &str) -> EventCallback {

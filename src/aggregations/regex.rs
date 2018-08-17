@@ -8,15 +8,29 @@ use backends::Message;
 use metrics::Measurement;
 
 pub struct Regex(HashMap<String, (RegexMatcher, String)>, Recipient<Message>);
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RegexPattern {
+    pub regex: String,
+    pub replace_with: String,
+    pub key: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RegexConfig {
+    pub patterns: Vec<RegexPattern>,
+}
+
 impl Regex {
-    pub fn launch(
-        mut config: Vec<(String, String, String)>,
-        upstream: Recipient<Message>,
-    ) -> Recipient<Message> {
+    pub fn launch(mut config: RegexConfig, upstream: Recipient<Message>) -> Recipient<Message> {
         let rules = config
+            .patterns
             .drain(..)
-            .map(|(key, replace, regex)| (key, (RegexMatcher::new(&regex).unwrap(), replace)))
-            .collect();
+            .map(|p| {
+                (
+                    p.key,
+                    (RegexMatcher::new(&p.regex).unwrap(), p.replace_with),
+                )
+            }).collect();
 
         Regex(rules, upstream).start().recipient()
     }

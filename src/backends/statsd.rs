@@ -1,4 +1,6 @@
+use std::env;
 use std::net::UdpSocket;
+use std::str::FromStr;
 
 use actix::prelude::*;
 use cadence::{BufferedUdpMetricSink, Counted, QueuingMetricSink, StatsdClient};
@@ -8,18 +10,31 @@ use metrics::Measurement;
 
 pub struct Statsd {
     client: StatsdClient,
+    config: StatsdConfig,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StatsdConfig {
+    pub use_tags: bool,
 }
 
 impl Statsd {
-    pub fn new(host: &str, port: u16) -> Statsd {
+    pub fn new(config: StatsdConfig) -> Statsd {
         let helper_socket = UdpSocket::bind("0.0.0.0:0").unwrap();
         helper_socket.set_nonblocking(true).unwrap();
 
-        let udp_sink = BufferedUdpMetricSink::from((host, port), helper_socket).unwrap();
+        let host =
+            env::var("STATSD_HOST").expect("The STATSD_HOST environment variable has to be set!");
+        let port =
+            env::var("STATSD_PORT").expect("The STATSD_PORT environment variable has to be set!");
+        let port = u16::from_str(&port).expect("STATSD_PORT has to be a valid port number");
+
+        let udp_sink = BufferedUdpMetricSink::from((host.as_str(), port), helper_socket).expect(
+            &format!("Invalid statsd server settings: {}:{}", host, port),
+        );
         let queuing_sink = QueuingMetricSink::from(udp_sink);
         let client = StatsdClient::from_sink("ingraind.metrics", queuing_sink);
 
-        Statsd { client }
+        Statsd { client, config }
     }
 
     fn count_with_tags(&mut self, msg: &Measurement) {

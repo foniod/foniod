@@ -6,7 +6,18 @@ include!(concat!(env!("OUT_DIR"), "/dns.rs"));
 use grains::protocol::ip::to_ipv4;
 use grains::*;
 
-pub struct DNS;
+pub struct DNS(pub DnsConfig);
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DnsConfig {
+    interface: String,
+}
+
+impl ToEpollHandler for Grain<DNS> {
+    fn to_eventoutputs(&mut self, backends: &[BackendHandler]) -> EventOutputs {
+        let iface = self.native.0.interface.clone();
+        self.attach_xdps(iface.as_str(), backends)
+    }
+}
 
 impl EBPFGrain<'static> for DNS {
     fn code() -> &'static [u8] {

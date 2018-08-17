@@ -5,9 +5,14 @@ use backends::Message;
 use metrics::Measurement;
 
 pub struct Whitelist(Vec<String>, Recipient<Message>);
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WhitelistConfig {
+    pub allow: Vec<String>,
+}
+
 impl Whitelist {
-    pub fn launch(allow: Vec<String>, upstream: Recipient<Message>) -> Recipient<Message> {
-        Whitelist(allow, upstream).start().recipient()
+    pub fn launch(config: WhitelistConfig, upstream: Recipient<Message>) -> Recipient<Message> {
+        Whitelist(config.allow, upstream).start().recipient()
     }
 
     fn filter_tags(&self, msg: &mut Measurement) {

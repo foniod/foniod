@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)]
 
+use grains::ebpf::{Grain, ToEpollHandler};
 use grains::protocol::ETH_HLEN;
 use grains::*;
 use metrics::Tags;
@@ -13,7 +14,18 @@ use rustls::CipherSuite;
 
 use std::net::Ipv4Addr;
 
-pub struct TLS;
+pub struct TLS(pub TlsConfig);
+#[derive(Serialize, Deserialize, Debug)]
+pub struct TlsConfig {
+    interface: String,
+}
+
+impl ToEpollHandler for Grain<TLS> {
+    fn to_eventoutputs(&mut self, backends: &[BackendHandler]) -> EventOutputs {
+        let iface = self.native.0.interface.clone();
+        self.attach_socketfilters(iface.as_str(), backends)
+    }
+}
 
 impl EBPFGrain<'static> for TLS {
     fn code() -> &'static [u8] {

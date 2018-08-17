@@ -25,10 +25,10 @@ extern crate tokio;
 extern crate toml;
 extern crate uuid;
 
+use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::thread;
-
-use actix::Actor;
 
 mod aggregations;
 mod backends;
@@ -36,117 +36,60 @@ mod config;
 mod grains;
 mod metrics;
 
-use aggregations::{AddSystemDetails, Buffer, Regex, Whitelist};
-use backends::console::Console;
-use config::BufferConfig;
 use grains::*;
 
+use actix::Recipient;
+
 fn main() {
-    let system = actix::System::new("userspace");
-    let mut backends = vec![];
-
-    // let app = vec![
-    //     Grain::<tcpv4::TCP4>::load().unwrap().bind(vec![
-    //         Pipeline {
-    //             config: Backend::Statsd(StatsdConfig { use_tags: true }),
-    //             steps: vec![
-    //                 Aggregators::AddKernel,
-    //                 Aggregators::AddHostname,
-    //                 Aggregators::Holdback(HoldbackConfig { interval_s: 30 }),
-    //             ],
-    //         }.initialise(),
-    //         Pipeline {
-    //             config: Backend::Console(),
-    //             steps: vec![]
-    //         },
-    //     ]);
-    //     Grain::<udp::UDP>::load().unwrap().bind(backends.clone())
-    // ];
-
-    #[cfg(feature = "s3-backend")]
-    {
-        if let Ok(bucket) = env::var("AWS_BUCKET") {
-            use backends::s3::{self, S3};
-
-            let interval_s = u64::from_str_radix(&env::var("AWS_INTERVAL").unwrap(), 10).unwrap();
-            backends.push(Buffer::launch(
-                &BufferConfig { interval_s },
-                AddSystemDetails::launch(S3::new(s3::Region::EuWest2, bucket).start().recipient()),
-            ));
-        }
-    }
-
-    #[cfg(feature = "statsd-backend")]
-    {
-        if let (Ok(host), Ok(port)) = (env::var("STATSD_HOST"), env::var("STATSD_PORT")) {
-            use backends::statsd::Statsd;
-
-            let mut backend = AddSystemDetails::launch(
-                Statsd::new(&host, u16::from_str_radix(&port, 10).unwrap())
-                    .start()
-                    .recipient(),
-            );
-
-            if let Ok(whitelist) = env::var("TAG_WHITELIST") {
-                backend =
-                    Whitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
-            }
-
-            backend = Regex::launch(
-                vec![(
-                    "process".to_string(),
-                    "docker_conn_proxy".to_string(),
-                    r"conn\d+".to_string(),
-                )],
-                backend,
-            );
-
-            backends.push(backend);
-        }
-    }
-
-    if let Ok(_) = env::var("CONSOLE") {
-        let mut backend = Console::start_default().recipient();
-        if let Ok(whitelist) = env::var("CONSOLE_TAG_WHITELIST") {
-            backend = Whitelist::launch(whitelist.split(',').map(String::from).collect(), backend);
-        }
-
-        backends.push(backend);
-    }
-
     let panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic| {
         panic_hook(panic);
         std::process::exit(1);
     }));
 
+    let system = actix::System::new("userspace");
+
+    let mut config: config::Config = {
+        let file = env::args().nth(1).expect("Usage: ingraind <config file>");
+        let content = fs::read(file).expect("Unable to read config file");
+        toml::from_slice(content.as_slice()).expect("Error while parsing config file")
+    };
+
+    let backends = config
+        .pipeline
+        .drain()
+        .map(|(key, mut pipeline)| {
+            let mut backend = pipeline.backend.into_recipient();
+            let mut steps = pipeline.steps.unwrap_or(vec![]);
+            steps.reverse();
+
+            for step in steps.drain(..) {
+                backend = step.into_recipient(backend);
+            }
+
+            (key, backend)
+        }).collect::<HashMap<String, Recipient<Message>>>();
+
     thread::spawn(move || {
-        let mut grains: Vec<Box<dyn EventHandler>> = vec![];
+        let epollables = config
+            .probe
+            .drain(..)
+            .flat_map(|probe| {
+                let mut grain = probe.grain.into_grain();
+                let pipelines = probe
+                    .pipelines
+                    .iter()
+                    .map(|p| {
+                        backends
+                            .get(p)
+                            .expect(&format!("Invalid configuration: pipeline {} not found!", p))
+                            .clone()
+                    }).collect::<Vec<Recipient<Message>>>();
 
-        if let Ok(_) = env::var("FILES") {
-            let mut files = file::Files.load().unwrap();
-            grains.append(&mut files.attach_kprobes(&backends));
-        }
+                grain.to_eventoutputs(pipelines.as_slice())
+            }).collect();
 
-        if let Ok(_) = env::var("NET_TCP") {
-            let mut tcp_g = tcpv4::TCP4.load().unwrap();
-            grains.append(&mut tcp_g.attach_kprobes(&backends));
-        }
-
-        if let Ok(_) = env::var("NET_UDP") {
-            let mut udp_g = udp::UDP.load().unwrap();
-            grains.append(&mut udp_g.attach_kprobes(&backends));
-        }
-
-        if let Ok(dns_if) = env::var("NET_DNS_TLS_IF") {
-            let mut dns_g = dns::DNS.load().unwrap();
-            grains.append(&mut dns_g.attach_xdps(&dns_if, &backends));
-
-            let mut tls_g = tls::TLS.load().unwrap();
-            grains.append(&mut tls_g.attach_socketfilters(&dns_if, &backends));
-        }
-
-        let _ = grains::epoll_loop(grains, 100).or_else::<(), _>(|err| {
+        let _ = grains::epoll_loop(epollables, 100).or_else::<(), _>(|err| {
             println!("Epoll failed: {}", err);
             std::process::exit(2);
         });

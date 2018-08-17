@@ -4,6 +4,11 @@ use grains::connection::get_volume_callback;
 use grains::*;
 
 pub struct UDP;
+impl ToEpollHandler for Grain<UDP> {
+    fn to_eventoutputs(&mut self, backends: &[BackendHandler]) -> EventOutputs {
+        self.attach_kprobes(backends)
+    }
+}
 
 impl EBPFGrain<'static> for UDP {
     fn code() -> &'static [u8] {

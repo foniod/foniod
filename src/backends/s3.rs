@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 
 use actix::prelude::*;
 use futures::Future;
@@ -18,12 +19,15 @@ pub struct S3 {
 }
 
 impl S3 {
-    pub fn new(region: Region, bucket: impl Into<String>) -> S3 {
+    pub fn new() -> S3 {
         use redbpf::uname::*;
+
+        let bucket = env::var("AWS_S3_BUCKET")
+            .expect("The AWS_S3_BUCKET environment variable has to be specified!");
 
         S3 {
             hostname: get_fqdn().unwrap(),
-            client: S3Client::new(region),
+            client: S3Client::new(Region::default()),
             bucket: bucket.into(),
         }
     }
@@ -72,7 +76,8 @@ impl Handler<Message> for S3 {
                     .join(",\n")
             ),
             Message::Single(msg) => serde_json::to_string(&[format_by_type(msg)]).unwrap(),
-        }.into_bytes().into();
+        }.into_bytes()
+        .into();
 
         ::actix::spawn(
             self.client

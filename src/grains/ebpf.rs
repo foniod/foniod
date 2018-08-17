@@ -10,12 +10,18 @@ use lazy_socket::raw::Socket;
 
 use std::os::unix::io::FromRawFd;
 
+pub type EventOutputs = Vec<Box<dyn EventHandler>>;
+
 pub struct Grain<T> {
     module: Module,
-    native: T,
+    pub native: T,
 }
 
-pub trait EBPFGrain<'code> {
+pub trait ToEpollHandler {
+    fn to_eventoutputs(&mut self, _backends: &[BackendHandler]) -> EventOutputs;
+}
+
+pub trait EBPFGrain<'code>: Sized {
     fn code() -> &'code [u8];
     fn get_handler(&self, id: &str) -> EventCallback;
     fn loaded(&mut self, _module: &mut Module) {}
@@ -42,7 +48,7 @@ impl<'code, 'module, T> Grain<T>
 where
     T: EBPFGrain<'code>,
 {
-    pub fn attach_kprobes(&mut self, backends: &[BackendHandler]) -> Vec<Box<dyn EventHandler>> {
+    pub fn attach_kprobes(&mut self, backends: &[BackendHandler]) -> EventOutputs {
         use redbpf::ProgramKind::*;
         for prog in self
             .module
@@ -58,11 +64,7 @@ where
         self.bind_perf(backends)
     }
 
-    pub fn attach_xdps(
-        &mut self,
-        iface: &str,
-        backends: &[BackendHandler],
-    ) -> Vec<Box<dyn EventHandler>> {
+    pub fn attach_xdps(&mut self, iface: &str, backends: &[BackendHandler]) -> EventOutputs {
         use redbpf::ProgramKind::*;
         for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
             println!("Program: {}, {:?}", prog.name, prog.kind);
@@ -73,9 +75,9 @@ where
         self.bind_perf(backends)
     }
 
-    fn bind_perf(&mut self, backends: &[BackendHandler]) -> Vec<Box<dyn EventHandler>> {
+    fn bind_perf(&mut self, backends: &[BackendHandler]) -> EventOutputs {
         let online_cpus = cpus::get_online().unwrap();
-        let mut output: Vec<Box<dyn EventHandler>> = vec![];
+        let mut output: EventOutputs = vec![];
         for ref mut m in self.module.maps.iter_mut().filter(|m| m.kind == 4) {
             for cpuid in online_cpus.iter() {
                 let pm = PerfMap::bind(m, -1, *cpuid, 16, -1, 0).unwrap();
@@ -92,10 +94,10 @@ where
     }
 
     pub fn attach_socketfilters(
-        mut self,
+        &mut self,
         iface: &str,
         backends: &[BackendHandler],
-    ) -> Vec<Box<dyn EventHandler>> {
+    ) -> EventOutputs {
         use redbpf::ProgramKind::*;
         let socket_fds = self
             .module

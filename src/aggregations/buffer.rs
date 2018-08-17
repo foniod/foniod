@@ -8,16 +8,20 @@ use futures::Future;
 use metrohash::MetroHash128;
 
 use backends::{Flush, Message};
-use config::BufferConfig;
 use metrics::{Measurement, Tags, Unit};
 
 pub struct Buffer(Mutex<HashMap<(u64, u64), Measurement>>, Recipient<Message>);
+#[derive(Serialize, Deserialize, Debug)]
+pub struct BufferConfig {
+    pub interval_s: u64,
+}
+
 impl Actor for Buffer {
     type Context = Context<Self>;
 }
 
 impl Buffer {
-    pub fn launch(config: &BufferConfig, upstream: Recipient<Message>) -> Recipient<Message> {
+    pub fn launch(config: BufferConfig, upstream: Recipient<Message>) -> Recipient<Message> {
         let interval = config.interval_s;
         Buffer::create(move |ctx| {
             ctx.run_interval(Duration::from_secs(interval), |_, ctx| {

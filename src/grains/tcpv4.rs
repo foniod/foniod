@@ -5,6 +5,12 @@ use grains::*;
 
 pub struct TCP4;
 
+impl ToEpollHandler for Grain<TCP4> {
+    fn to_eventoutputs(&mut self, backends: &[BackendHandler]) -> EventOutputs {
+        self.attach_kprobes(backends)
+    }
+}
+
 impl EBPFGrain<'static> for TCP4 {
     fn code() -> &'static [u8] {
         include_bytes!(concat!(env!("OUT_DIR"), "/tcpv4.elf"))
