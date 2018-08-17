@@ -54,6 +54,7 @@ jobs:
       - run:
           name: Build static binary
           command: |
+            cargo test --target=x86_64-unknown-linux-musl --release || exit 1
             cargo build --target=x86_64-unknown-linux-musl --release || exit 1
 
       - save_cache:
