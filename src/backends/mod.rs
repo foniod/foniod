@@ -4,14 +4,14 @@ use serde_json;
 use std::collections::HashMap;
 
 pub mod console;
+#[cfg(feature = "http-backend")]
+pub mod http;
 #[cfg(feature = "s3-backend")]
 pub mod s3;
 #[cfg(feature = "statsd-backend")]
 pub mod statsd;
-#[cfg(feature = "http-backend")]
-pub mod http;
 
-use metrics::{Measurement, Unit, kind::Kind};
+use metrics::{kind::Kind, Measurement, Unit};
 
 pub type BackendHandler = actix::Recipient<Message>;
 
@@ -47,7 +47,9 @@ impl Message {
                     .collect::<Vec<String>>()
                     .join(",\n")
             ),
-            Message::Single(msg) => serde_json::to_string(&[SerializedMeasurement::from(msg)]).unwrap(),
+            Message::Single(msg) => {
+                serde_json::to_string(&[SerializedMeasurement::from(msg)]).unwrap()
+            }
         }
     }
 }

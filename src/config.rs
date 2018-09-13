@@ -42,6 +42,7 @@ pub enum Grain {
 pub enum Backend {
     S3,
     StatsD(statsd::StatsdConfig),
+    HTTP(http::HTTPConfig),
     Console,
 }
 
@@ -70,6 +71,7 @@ impl Backend {
         match self {
             Backend::S3 => s3::S3::new().start().recipient(),
             Backend::StatsD(config) => statsd::Statsd::new(config).start().recipient(),
+            Backend::HTTP(config) => http::HTTP::new(config).start().recipient(),
             Backend::Console => console::Console.start().recipient(),
         }
     }

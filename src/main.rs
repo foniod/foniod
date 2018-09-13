@@ -11,6 +11,10 @@ extern crate serde_derive;
 #[cfg(feature = "statsd-backend")]
 extern crate cadence;
 extern crate epoll;
+#[cfg(feature = "http-backend")]
+extern crate hyper;
+#[cfg(feature = "http-backend")]
+extern crate hyper_rustls;
 extern crate lazy_socket;
 extern crate metrohash;
 extern crate redbpf;
