@@ -1,6 +1,5 @@
-#![feature(rust_2018_preview)]
 #![warn(rust_2018_idioms)]
-#![cfg_attr(feature = "cargo-clippy", allow(clippy))]
+#![cfg_attr(feature = "cargo-clippy", allow(clippy:all))]
 
 pub mod build;
 pub mod cpus;
