@@ -4,12 +4,18 @@ extern crate regex;
 #[macro_use]
 extern crate lazy_static;
 extern crate redbpf;
+extern crate ring;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 
 use failure::{err_msg, Error};
 use regex::Regex;
+use ring::digest;
+use std::collections::HashMap;
 use std::env;
 use std::ffi::OsString;
-use std::fs::{self, read_dir};
+use std::fs::{self, read_dir, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -115,15 +121,65 @@ fn main() -> Result<(), Error> {
         .map(|f| f.clone().into_string().unwrap())
         .collect();
 
+    let mut cache = BuildCache::new(&out_dir);
+
     for file in source_files("./bpf", "c")? {
-        build(&flags[..], out_dir, &file).expect("Failed building BPF plugin!");
+        if cache.file_changed(&file) {
+            build(&flags[..], out_dir, &file).expect("Failed building BPF plugin!");
+        }
     }
     for file in source_files("./bpf", "h")? {
-        generate_bindings(&bindgen_flags[..], out_dir, &file)
-            .expect("Failed generating data bindings!");
+        if cache.file_changed(&file) {
+            generate_bindings(&bindgen_flags[..], out_dir, &file)
+                .expect("Failed generating data bindings!");
+        }
     }
 
+    cache.save();
+
     Ok(())
+}
+
+#[derive(Serialize, Deserialize)]
+struct BuildCache(HashMap<String, Vec<u8>>, PathBuf);
+
+impl BuildCache {
+    fn new(dir: &Path) -> BuildCache {
+        let file = dir.join(".build_manifest");
+        let cache = match File::open(&file)
+            .map_err(serde_json::Error::io)
+            .and_then(|f| serde_json::from_reader(f))
+        {
+            Ok(cache) => cache,
+            Err(_) => HashMap::new(),
+        };
+
+        println!("{:?}", cache);
+        BuildCache(cache, file)
+    }
+
+    /// Error conditions will return true
+    fn file_changed(&mut self, file: &Path) -> bool {
+        let fname = match file.to_str() {
+            Some(n) => n,
+            None => return true
+        }.to_string();
+        let entry = self.0.entry(fname).or_default();
+
+        let digest = match fs::read(file) {
+            Ok(content) => digest::digest(&digest::SHA256, content.as_slice()),
+            Err(_) => return true
+        };
+
+        let is_match = digest.as_ref() == entry.as_slice();
+        *entry = digest.as_ref().to_vec();
+
+        !is_match
+    }
+
+    fn save(&self) {
+        serde_json::to_writer(File::create(&self.1).unwrap(), &self.0).unwrap();
+    }
 }
 
 fn source_files(
