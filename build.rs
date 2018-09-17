@@ -83,9 +83,7 @@ fn generate_bindings(flags: &[String], out_dir: &Path, source: &Path) -> Result<
         .generate()
         .expect("Unable to generate bindings!");
 
-    let mut code = "".to_owned();
-
-    code.push_str(&bindings.to_string());
+    let mut code = bindings.to_string();
     for data_type in RE.captures_iter(&code.clone()) {
         let trait_impl = r"
 impl<'a> From<&'a [u8]> for ### {
@@ -118,7 +116,8 @@ fn main() -> Result<(), Error> {
     };
     let bindgen_flags: Vec<String> = flags
         .iter()
-        .map(|f| f.clone().into_string().unwrap())
+        .cloned()
+        .map(|f| f.into_string().unwrap())
         .collect();
 
     let mut cache = BuildCache::new(&out_dir);
