@@ -1,3 +1,4 @@
+#![allow(non_upper_case_globals)]
 use crate::{LoadError, Map, Result, VoidPtr};
 
 use std::cell::RefCell;

@@ -52,6 +52,7 @@ pub struct Map {
     fd: RawFd,
 }
 
+#[allow(dead_code)]
 pub struct Rel {
     shndx: usize,
     target: usize,
