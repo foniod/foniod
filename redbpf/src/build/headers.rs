@@ -4,24 +4,7 @@ use std::env;
 use std::ffi::OsString;
 use std::process::Command;
 
-pub const BUILD_FLAGS: [&'static str; 16] = [
-    "-D__BPF_TRACING__",
-    "-D__KERNEL__",
-    "-D__ASM_SYSREG_H",
-    "-Wno-unused-value",
-    "-Wno-pointer-sign",
-    "-Wno-compare-distinct-pointer-types",
-    "-Wno-unused-parameter",
-    "-Wno-missing-field-initializers",
-    "-Wno-initializer-overrides",
-    "-fno-stack-protector",
-    "-Wunused",
-    "-Wall",
-    "-Werror",
-    "-O2",
-    "-emit-llvm",
-    "-c",
-];
+use crate::build::Error;
 
 pub const KERNEL_HEADERS: [&'static str; 6] = [
     "arch/x86/include",
@@ -31,13 +14,6 @@ pub const KERNEL_HEADERS: [&'static str; 6] = [
     "arch/x86/include/uapi",
     "include/uapi",
 ];
-
-#[derive(Debug)]
-pub enum Error {
-    OSUnsupported,
-    KernelHeadersNotFound,
-    InvalidOutput,
-}
 
 pub fn headers() -> Result<Vec<OsString>, Error> {
     let headers_base_path = env_kernel_path().or_else(|_| arch_kernel_path())?;

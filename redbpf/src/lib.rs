@@ -1,6 +1,16 @@
 #![warn(rust_2018_idioms)]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy:all))]
 
+#[cfg(feature = "build")]
+extern crate bindgen;
+#[cfg(feature = "build")]
+#[macro_use]
+extern crate lazy_static;
+#[cfg(feature = "build")]
+#[macro_use]
+extern crate serde_derive;
+
+#[cfg(feature = "build")]
 pub mod build;
 pub mod cpus;
 mod error;
