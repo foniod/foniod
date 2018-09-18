@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use actix::prelude::*;
 use futures::{finished, Future};
-use hyper::{client::HttpConnector, header, Body, Client, Method, Request, Uri};
+use hyper::{client::HttpConnector, header, Body, Client, Method, Request, Uri, HeaderMap};
 use hyper_rustls::HttpsConnector;
 
 use backends::Message;
@@ -8,12 +10,12 @@ use backends::Message;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HTTPConfig {
     uri: String,
-    authorization: String,
+    headers: HashMap<String, String>,
     threads: Option<usize>,
 }
 
 pub struct HTTP {
-    authorization: String,
+    headers: HeaderMap,
     uri: Uri,
     client: Client<HttpsConnector<HttpConnector>>,
 }
@@ -25,8 +27,17 @@ impl HTTP {
             .build(HttpsConnector::new(config.threads.unwrap_or(4)));
         let uri = config.uri.parse().unwrap();
 
+        let headers = {
+            let mut headers = HeaderMap::new();
+            for (h, v) in config.headers.iter() {
+                headers.insert(header::HeaderName::from_bytes(h.as_bytes()).unwrap(), v.parse().unwrap());
+            }
+
+            headers
+        };
+
         HTTP {
-            authorization: config.authorization,
+            headers,
             client,
             uri,
         }
@@ -44,10 +55,9 @@ impl Handler<Message> for HTTP {
         let mut req = Request::new(Body::from(msg.to_string()));
         *req.method_mut() = Method::POST;
         *req.uri_mut() = self.uri.clone();
+        req.headers_mut().clone_from(&self.headers);
         req.headers_mut()
-            .insert(header::CONTENT_TYPE, "application.json()".parse().unwrap());
-        req.headers_mut()
-            .insert(header::AUTHORIZATION, self.authorization.parse().unwrap());
+            .insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
 
         ::actix::spawn(
             self.client

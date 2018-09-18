@@ -65,6 +65,21 @@ interace = "eth0"
 [pipeline.console.config]
 backend = "Console"
 
+# The HTTP backend sends JSON data to the specified endpoint.
+#
+# All configuration is done through the config file, including authorization
+# tokens, or other credential-style information.
+#
+# If the server returns with an error, there's no back-off mechanism, or any
+# type of awareness of this.
+[pipeline.http.config]
+backend = "HTTP"
+uri = "http://example.redsift.com/insert"
+[pipeline.http.config.headers]
+authorization = "token"
+"custom-header" = "some value"
+
+
 # The StatsD backend sends incoming metrics to a StatsD server using UDP.
 #
 # If the server supports Datadog extensions, then `use_tags` can be set to
