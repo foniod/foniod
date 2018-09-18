@@ -2,8 +2,6 @@
 #![cfg_attr(feature = "cargo-clippy", allow(clippy:all))]
 
 #[cfg(feature = "build")]
-extern crate bindgen;
-#[cfg(feature = "build")]
 #[macro_use]
 extern crate lazy_static;
 #[cfg(feature = "build")]
