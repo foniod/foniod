@@ -23,7 +23,7 @@ pub struct HTTP {
 impl HTTP {
     pub fn new(config: HTTPConfig) -> HTTP {
         let client = Client::builder()
-            .keep_alive(true)
+            .keep_alive(false)
             .build(HttpsConnector::new(config.threads.unwrap_or(4)));
         let uri = config.uri.parse().unwrap();
 
