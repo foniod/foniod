@@ -6,13 +6,12 @@ use std::env;
 use std::io;
 use std::ffi::OsString;
 use std::fs::read_dir;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use redbpf::build::{build, generate_bindings, cache::BuildCache, headers::headers};
 
 fn main() -> Result<(), Error> {
-    let _out_dir = env::var("OUT_DIR")?;
-    let out_dir = Path::new(&_out_dir);
+    let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
     let headers = headers().unwrap();
     let flags = {
@@ -34,18 +33,17 @@ fn main() -> Result<(), Error> {
 
     for file in source_files("./bpf", "c")? {
         if cache.file_changed(&file) {
-            build(&flags[..], out_dir, &file).expect("Failed building BPF plugin!");
+            build(&flags[..], &out_dir, &file).expect("Failed building BPF plugin!");
         }
     }
     for file in source_files("./bpf", "h")? {
         if cache.file_changed(&file) {
-            generate_bindings(&bindgen_flags[..], out_dir, &file)
+            generate_bindings(&bindgen_flags[..], &out_dir, &file)
                 .expect("Failed generating data bindings!");
         }
     }
 
     cache.save();
-
     Ok(())
 }
 
