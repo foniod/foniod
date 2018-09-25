@@ -6,7 +6,7 @@ ingraind
 Data-first monitoring.
 
 ingraind is a security monitoring agent built around [RedBPF](https://github.com/redsift/redbpf)
-for complex containerized environments and endpoints. The ingraind agent is built around eBPF
+for complex containerized environments and endpoints. The ingraind agent uses eBPF
 probes to provide safe and performant instrumentation for any Linux-based environment.
 
 InGrain provides oversight of assets and risks:
