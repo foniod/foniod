@@ -1,8 +1,0 @@
-[package]
-name = "bpf-sys"
-version = "0.1.0"
-authors = ["Peter Parkanyi <peter@redsift.io>"]
-links = "bpf"
-
-[dependencies]
-zero = "0.1"

@@ -1,12 +1,15 @@
 [package]
 name = "ingraind"
 version = "0.1.0"
-authors = ["vagrant"]
+authors = ["Peter Parkanyi <peter@redsift.io>"]
+license = "GPL-3.0"
+description = "eBPF-based system monitoring agent"
+repository = "https://github.com/redsift/ingraind"
 build = "build.rs"
 
 [build-dependencies]
 failure = "0.1"
-redbpf = { path = "./redbpf", features = ["build"] }
+redbpf = { version = "0.1.0", features = ["build"] }
 
 [dependencies]
 actix = "^0.7"
@@ -17,7 +20,7 @@ failure = "0.1"
 
 libc = "0.2"
 lazy-socket = "0.3"
-redbpf = { path = "./redbpf" }
+redbpf = "0.1"
 
 uuid = { version = "0.6", features = ["v4"] }
 serde = "^1.0"
@@ -44,13 +47,15 @@ version =  "0.14"
 optional = true
 
 [dependencies.rusoto_core]
-git = "https://github.com/redsift/rusoto"
-features = ["rustls"]
+version = "0.34.0"
 default-features = false
+features = ["rustls"]
 optional = true
 
 [dependencies.rusoto_s3]
-git = "https://github.com/redsift/rusoto"
+version = "0.34.0"
+default-features = false
+features = ["rustls"]
 optional = true
 
 [features]
