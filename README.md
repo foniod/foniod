@@ -62,16 +62,9 @@ To start `ingraind`, run:
     ./target/release/ingraind config.toml
     
 Depending on the backends used in the config file, some secrets may need to be
-passed as environment variables.
-
-For S3:
- * `AWS_ACCESS_KEY_ID=`: AWS access key
- * `AWS_SECRET_ACCESS_KEY=`: AWS secret key
- * `AWS_S3_BUCKET=`: Target bucket for JSON files in S3
-
-For StatsD:
- * `STATSD_HOST=`: Host name/IP address of the statsd server
- * `STATSD_PORT=`: Statsd port
+passed as environment variables. These are documented in
+[config.toml.example](./config.toml.example), which should be a good starting point,
+and a sane default to get `ingraind` running, printing everything to the standard output.
  
 ## Repo structure
 
