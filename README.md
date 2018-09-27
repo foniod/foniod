@@ -17,6 +17,8 @@ InGrain provides oversight of assets and risks:
  * Your resources - malware using your users machines compute resources to mine
    cryptocurrency.
    
+This is what `curl https://redsift.com` looks like if seen through ingraind:
+
 ![ingrain listening to DNS & TLS](./screencast.gif)
 
 ## Requirements
