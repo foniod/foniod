@@ -16,6 +16,8 @@ InGrain provides oversight of assets and risks:
    to your web servers.
  * Your resources - malware using your users machines compute resources to mine
    cryptocurrency.
+   
+![ingrain listening to DNS & TLS](./screencast.gif)
 
 ## Requirements
  
