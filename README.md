@@ -1,7 +1,7 @@
 ingraind
 ========
 
-[![CircleCI](https://circleci.com/gh/redsift/ingraind.svg?style=svg&circle-token=43ad83e41013d8ac90f385b70e062881d6830df8)](https://circleci.com/gh/redsift/ingraind)
+[![CircleCI](https://circleci.com/gh/redsift/ingraind.svg?style=shield)](https://circleci.com/gh/redsift/ingraind)
 
 Data-first monitoring.
 
