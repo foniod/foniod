@@ -1,7 +1,8 @@
-#![cfg_attr(feature = "cargo-clippy", allow(clippy:all))]
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::all))]
 
 #[macro_use]
 extern crate actix;
+extern crate env_logger;
 extern crate failure;
 extern crate futures;
 extern crate libc;
@@ -16,6 +17,8 @@ extern crate hyper;
 #[cfg(feature = "http-backend")]
 extern crate hyper_rustls;
 extern crate lazy_socket;
+#[macro_use]
+extern crate log;
 extern crate metrohash;
 extern crate redbpf;
 extern crate regex;
@@ -25,6 +28,7 @@ extern crate rusoto_core;
 extern crate rusoto_s3;
 extern crate rustls;
 extern crate serde_json;
+extern crate syslog;
 extern crate tokio;
 extern crate toml;
 extern crate uuid;
@@ -44,6 +48,21 @@ use grains::*;
 
 use actix::Recipient;
 
+fn init_logging(config: &config::Config) {
+    if let Some(ref backend) = config.log {
+        use config::Logging::*;
+        use syslog::Facility;
+
+        match backend {
+            EnvLogger => env_logger::init(),
+            Syslog(c) => syslog::init(Facility::LOG_USER, c.log_level, Some("ingraind"))
+                .expect("Could not initialise syslog backend!"),
+        };
+    } else {
+        env_logger::init();
+    }
+}
+
 fn main() {
     let panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic| {
@@ -59,10 +78,11 @@ fn main() {
         toml::from_slice(content.as_slice()).expect("Error while parsing config file")
     };
 
+    init_logging(&config);
     let backends = config
         .pipeline
         .drain()
-        .map(|(key, mut pipeline)| {
+        .map(|(key, pipeline)| {
             let mut backend = pipeline.backend.into_recipient();
             let mut steps = pipeline.steps.unwrap_or(vec![]);
             steps.reverse();
@@ -72,7 +92,8 @@ fn main() {
             }
 
             (key, backend)
-        }).collect::<HashMap<String, Recipient<Message>>>();
+        })
+        .collect::<HashMap<String, Recipient<Message>>>();
 
     thread::spawn(move || {
         let epollables = config
@@ -88,13 +109,15 @@ fn main() {
                             .get(p)
                             .expect(&format!("Invalid configuration: pipeline {} not found!", p))
                             .clone()
-                    }).collect::<Vec<Recipient<Message>>>();
+                    })
+                    .collect::<Vec<Recipient<Message>>>();
 
                 grain.to_eventoutputs(pipelines.as_slice())
-            }).collect();
+            })
+            .collect();
 
         let _ = grains::epoll_loop(epollables, 100).or_else::<(), _>(|err| {
-            println!("Epoll failed: {}", err);
+            error!("Epoll failed: {}", err);
             std::process::exit(2);
         });
     });

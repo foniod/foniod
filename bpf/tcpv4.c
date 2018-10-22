@@ -64,7 +64,7 @@ char _license[] SEC("license") = "GPL";
 __inline_fn
 int store_to_task_map(struct bpf_map_def *map, void *ptr)
 {
-	u64 pid = bpf_get_current_pid_tgid();
+  u64 pid = bpf_get_current_pid_tgid();
   bpf_map_update_elem(map, &pid, &ptr, BPF_ANY);
   return 0;
 }
@@ -93,13 +93,13 @@ int trace_outbound_entry(struct pt_regs *ctx)
 __inline_fn
 int traffic_volume(struct bpf_map_def *state, struct bpf_map_def *output, struct pt_regs *ctx, u8 direction)
 {
-	u64 pid = bpf_get_current_pid_tgid();
+  u64 pid = bpf_get_current_pid_tgid();
   int size = (int) PT_REGS_RC(ctx);
 
-	struct sock **skpp = bpf_map_lookup_elem(state, &pid);
-	if (skpp == 0) {
-		return 0;	
-	}
+  struct sock **skpp = bpf_map_lookup_elem(state, &pid);
+  if (skpp == 0) {
+    return 0;
+  }
 
   if (size <= 0) {
     bpf_map_delete_elem(state, &pid);
@@ -134,21 +134,21 @@ int trace_recvmsg_return(struct pt_regs *ctx)
 SEC("kretprobe/tcp_v4_connect")
 int trace_outbound_return(struct pt_regs *ctx)
 {
-	int ret = PT_REGS_RC(ctx);
-	u64 pid = bpf_get_current_pid_tgid();
+  int ret = PT_REGS_RC(ctx);
+  u64 pid = bpf_get_current_pid_tgid();
 
-	struct sock **skpp;
-	skpp = bpf_map_lookup_elem(&currsock, &pid);
-	if (skpp == 0) {
-		return 0;	// missed entry
-	}
+  struct sock **skpp;
+  skpp = bpf_map_lookup_elem(&currsock, &pid);
+  if (skpp == 0) {
+    return 0;	// missed entry
+  }
 
-	if (ret != 0) {
-		// failed to send SYNC packet, may not have populated
-		// socket __sk_common.{skc_rcv_saddr, ...}
+  if (ret != 0) {
+    // failed to send SYNC packet, may not have populated
+    // socket __sk_common.{skc_rcv_saddr, ...}
     bpf_map_delete_elem(&currsock, &pid);
     return 0;
-	}
+  }
 
   struct _data_connect data = get_connection_details(skpp, pid);
 
@@ -157,9 +157,9 @@ int trace_outbound_return(struct pt_regs *ctx)
     return 0;
   }
 
-	u32 cpu = bpf_get_smp_processor_id();
+  u32 cpu = bpf_get_smp_processor_id();
   bpf_perf_event_output(ctx, &tcp4_connections, cpu, &data, sizeof(data));
 
   bpf_map_delete_elem(&currsock, &pid);
-	return 0;
+  return 0;
 }

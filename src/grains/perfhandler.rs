@@ -24,7 +24,7 @@ impl EventHandler for PerfHandler {
         while let Some(ev) = self.perfmap.read() {
             match ev {
                 Event::Lost(lost) => {
-                    println!("Possibly lost {} samples for {}", lost.count, &self.name);
+                    warn!("Possibly lost {} samples for {}", lost.count, &self.name);
                 }
                 Event::Sample(sample) => {
                     let msg = unsafe {

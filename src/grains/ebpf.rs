@@ -56,7 +56,7 @@ where
             .iter_mut()
             .filter(|p| p.kind == Kprobe || p.kind == Kretprobe)
         {
-            println!("Program: {}, {:?}", prog.name, prog.kind);
+            info!("Loaded: {}, {:?}", prog.name, prog.kind);
             prog.attach_probe().unwrap();
         }
 
@@ -67,7 +67,7 @@ where
     pub fn attach_xdps(&mut self, iface: &str, backends: &[BackendHandler]) -> EventOutputs {
         use redbpf::ProgramKind::*;
         for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
-            println!("Program: {}, {:?}", prog.name, prog.kind);
+            info!("Loaded: {}, {:?}", prog.name, prog.kind);
             prog.attach_xdp(iface).unwrap();
         }
 
@@ -105,7 +105,7 @@ where
             .iter_mut()
             .filter(|p| p.kind == SocketFilter)
             .map(|prog| {
-                println!("Program: {}, {:?}", prog.name, prog.kind);
+                info!("Attached: {}, {:?}", prog.name, prog.kind);
                 prog.attach_socketfilter(iface).unwrap()
             }).collect::<Vec<_>>();
 
