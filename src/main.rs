@@ -1,7 +1,8 @@
-#![cfg_attr(feature = "cargo-clippy", allow(clippy:all))]
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::all))]
 
 #[macro_use]
 extern crate actix;
+extern crate env_logger;
 extern crate failure;
 extern crate futures;
 extern crate libc;
@@ -16,6 +17,8 @@ extern crate hyper;
 #[cfg(feature = "http-backend")]
 extern crate hyper_rustls;
 extern crate lazy_socket;
+#[macro_use]
+extern crate log;
 extern crate metrohash;
 extern crate redbpf;
 extern crate regex;
@@ -50,6 +53,7 @@ fn main() {
         panic_hook(panic);
         std::process::exit(1);
     }));
+    env_logger::init();
 
     let system = actix::System::new("userspace");
 
@@ -62,7 +66,7 @@ fn main() {
     let backends = config
         .pipeline
         .drain()
-        .map(|(key, mut pipeline)| {
+        .map(|(key, pipeline)| {
             let mut backend = pipeline.backend.into_recipient();
             let mut steps = pipeline.steps.unwrap_or(vec![]);
             steps.reverse();
@@ -72,7 +76,8 @@ fn main() {
             }
 
             (key, backend)
-        }).collect::<HashMap<String, Recipient<Message>>>();
+        })
+        .collect::<HashMap<String, Recipient<Message>>>();
 
     thread::spawn(move || {
         let epollables = config
@@ -88,13 +93,15 @@ fn main() {
                             .get(p)
                             .expect(&format!("Invalid configuration: pipeline {} not found!", p))
                             .clone()
-                    }).collect::<Vec<Recipient<Message>>>();
+                    })
+                    .collect::<Vec<Recipient<Message>>>();
 
                 grain.to_eventoutputs(pipelines.as_slice())
-            }).collect();
+            })
+            .collect();
 
         let _ = grains::epoll_loop(epollables, 100).or_else::<(), _>(|err| {
-            println!("Epoll failed: {}", err);
+            error!("Epoll failed: {}", err);
             std::process::exit(2);
         });
     });

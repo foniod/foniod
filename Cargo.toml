@@ -33,6 +33,9 @@ epoll = "4.0"
 metrohash = "1"
 regex = "1.0"
 
+log = "0.4"
+env_logger = "^0.5.13"
+
 [dependencies.hyper]
 version = "0.12"
 optional = true

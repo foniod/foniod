@@ -17,7 +17,7 @@ where
             .iter_mut()
             .filter(|p| p.kind == Kprobe || p.kind == Kretprobe)
         {
-            println!("Program: {}, {:?}", prog.name, prog.kind);
+            info!("Attached: {}, {:?}", prog.name, prog.kind);
             prog.attach_probe().unwrap();
         }
 
@@ -31,7 +31,7 @@ where
     ) -> Vec<Box<dyn EventHandler>> {
         use redbpf::ProgramKind::*;
         for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
-            println!("Program: {}, {:?}", prog.name, prog.kind);
+            info!("Attached: {}, {:?}", prog.name, prog.kind);
             prog.attach_xdp(iface).unwrap();
         }
 
@@ -67,7 +67,7 @@ where
             .iter_mut()
             .filter(|p| p.kind == SocketFilter)
             .map(|prog| {
-                println!("Program: {}, {:?}", prog.name, prog.kind);
+                info!("Attached: {}, {:?}", prog.name, prog.kind);
                 let fd = prog.attach_socketfilter(iface).unwrap();
                 Box::new(SocketHandler {
                     socket: unsafe { Socket::from_raw_fd(fd) },
