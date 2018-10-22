@@ -111,6 +111,10 @@ mod tests {
 
         let config: Config = toml::from_str(
             r#"
+[log]
+type = "Syslog"
+log_level = "DEBUG"
+
 [[probe]]
 pipelines = ["statsd"]
 [probe.config]

@@ -1,4 +1,19 @@
 ##########################
+##### Logging
+##########################
+# Permitted log levels are `OFF`, `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`.
+#
+# If `EnvLogger` is used for `type`, the `RUST_LOG` environment
+# variable will control the log level.
+# For a full reference on EnvLogger capabilities, look at
+# http://docs.rs/env_logger.
+#
+# If no `log` section is specified, the default backend is `EnvLogger`
+[log]
+type = "Syslog"
+log_level = "INFO"
+
+##########################
 ##### Probes and Grains
 ##########################
 # For more information about the config file format, visit
