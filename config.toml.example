@@ -112,6 +112,13 @@ backend = "S3"
 # Steps will be walked through in order of definition. They may modify the
 # content of the data coming from the grains, or omitted altogether.
 
+# The AddSystemDetails filter will add `host` and `kernel` fields to
+# the tags list, which carry the FQDN and the `release` field of
+# `uname (2)`, respectively.
+[[pipeline.s3.steps]]
+type = "AddSystemDetails "
+allow = ["k1", "k2"]
+
 # The Whitelist filter will only preserve tags with the listed keys for a metric
 # record.
 [[pipeline.s3.steps]]
