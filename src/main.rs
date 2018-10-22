@@ -28,6 +28,7 @@ extern crate rusoto_core;
 extern crate rusoto_s3;
 extern crate rustls;
 extern crate serde_json;
+extern crate syslog;
 extern crate tokio;
 extern crate toml;
 extern crate uuid;
@@ -47,13 +48,27 @@ use grains::*;
 
 use actix::Recipient;
 
+fn init_logging(config: &config::Config) {
+    if let Some(ref backend) = config.log {
+        use config::Logging::*;
+        use syslog::Facility;
+
+        match backend {
+            EnvLogger => env_logger::init(),
+            Syslog(c) => syslog::init(Facility::LOG_USER, c.log_level, Some("ingraind"))
+                .expect("Could not initialise syslog backend!"),
+        };
+    } else {
+        env_logger::init();
+    }
+}
+
 fn main() {
     let panic_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic| {
         panic_hook(panic);
         std::process::exit(1);
     }));
-    env_logger::init();
 
     let system = actix::System::new("userspace");
 
@@ -63,6 +78,7 @@ fn main() {
         toml::from_slice(content.as_slice()).expect("Error while parsing config file")
     };
 
+    init_logging(&config);
     let backends = config
         .pipeline
         .drain()

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use actix::{Actor, Recipient};
+use log::LevelFilter;
 
 use aggregations::*;
 use backends::*;
@@ -9,8 +10,21 @@ use grains::{EBPFGrain, ToEpollHandler};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
+    pub log: Option<Logging>,
     pub probe: Vec<Probe>,
     pub pipeline: HashMap<String, Pipeline>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type")]
+pub enum Logging {
+    EnvLogger,
+    Syslog(SyslogConfig),
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SyslogConfig {
+    pub log_level: LevelFilter,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -130,6 +144,7 @@ type = "AddSystemDetails"
 type = "Buffer"
 interval_s = 30
 "#,
-        ).unwrap();
+        )
+        .unwrap();
     }
 }
