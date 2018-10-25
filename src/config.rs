@@ -133,6 +133,9 @@ backend = "StatsD"
 use_tags = true
 
 [[pipeline.statsd.steps]]
+type = "Container"
+
+[[pipeline.statsd.steps]]
 type = "Whitelist"
 allow = ["k1", "k2"]
 
