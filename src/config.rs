@@ -67,6 +67,7 @@ pub enum Aggregator {
     Buffer(BufferConfig),
     Regex(RegexConfig),
     Whitelist(WhitelistConfig),
+    Container(ContainerConfig),
 }
 
 impl Aggregator {
@@ -76,6 +77,7 @@ impl Aggregator {
             Aggregator::Buffer(config) => Buffer::launch(config, upstream),
             Aggregator::Regex(config) => Regex::launch(config, upstream),
             Aggregator::Whitelist(config) => Whitelist::launch(config, upstream),
+            Aggregator::Container(config) => Container::launch(config, upstream),
         }
     }
 }
