@@ -28,6 +28,17 @@ impl Tags {
     {
         self.0.drain(r)
     }
+
+    pub fn get(&self, k: impl Into<String>) -> Option<&str> {
+        let ks = k.into();
+        self.0.iter().find_map(|(tk, tv)| {
+            if tk == &ks {
+                Some(tv.as_str())
+            } else {
+                None
+            }
+        })
+    }
 }
 
 pub trait ToTags {

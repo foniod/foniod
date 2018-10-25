@@ -17,6 +17,7 @@ extern crate hyper;
 #[cfg(feature = "http-backend")]
 extern crate hyper_rustls;
 extern crate lazy_socket;
+extern crate lazy_static;
 #[macro_use]
 extern crate log;
 extern crate metrohash;

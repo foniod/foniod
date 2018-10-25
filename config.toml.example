@@ -131,8 +131,7 @@ backend = "S3"
 # the tags list, which carry the FQDN and the `release` field of
 # `uname (2)`, respectively.
 [[pipeline.s3.steps]]
-type = "AddSystemDetails "
-allow = ["k1", "k2"]
+type = "AddSystemDetails"
 
 # The Whitelist filter will only preserve tags with the listed keys for a metric
 # record.
@@ -151,6 +150,11 @@ patterns = [
   { key = "some_key", regex = ".*", replace_with = "some_value"},
   { key = "some_key2", regex = ".*", replace_with = "some_value2"},
 ]
+
+# The Container filter will parse the Docker container ID from the
+# `/proc/<pid>/cgroup` file, and add a `docker_id` tag to the measurement.
+[[pipeline.s3.steps]]
+type = "Container"
 
 # The Buffer aggregation will gather data for `interval_` seconds, and releases
 # it to the next step only after.
