@@ -101,12 +101,18 @@ int track_file_access(struct pt_regs *ctx,  u8 is_read)
   info->id = tid;
   info->ts = bpf_ktime_get_ns();
 
+  struct qstr d_name;
+
   bool should_record = false;
   #pragma clang loop unroll(full)
   for (u8 i = 0; i < PATH_DEPTH; i++) {
+    check |= bpf_probe_read(&d_name,
+                            sizeof(d_name),
+                            (void *)&de->d_name);
+    info->path[i].nlen = d_name.len;
     check |= bpf_probe_read(&info->path[i].name,
                             sizeof(info->path[i].name),
-                            (void *)&de->d_iname);
+                            (void *)d_name.name);
     check |= bpf_probe_read(&inode, sizeof(inode), (void *)&de->d_inode);
     check |= bpf_probe_read(&i_ino, sizeof(i_ino), (void *)&inode->i_ino);
     check |= bpf_probe_read(&de, sizeof(void *), (void *)&de_cur->d_parent);
@@ -145,7 +151,7 @@ int track_file_access(struct pt_regs *ctx,  u8 is_read)
 SEC("kprobe/vfs_read")
 int trace_kread_entry(struct pt_regs *ctx)
 {
-	u64 pid = bpf_get_current_pid_tgid();
+  u64 pid = bpf_get_current_pid_tgid();
   struct file *f = (void *) PT_REGS_PARM1(ctx);
   bpf_map_update_elem(&calltrack, &pid, &f, BPF_ANY);
   return 0;
@@ -154,7 +160,7 @@ int trace_kread_entry(struct pt_regs *ctx)
 SEC("kprobe/vfs_write")
 int trace_kwrite_entry(struct pt_regs *ctx)
 {
-	u64 pid = bpf_get_current_pid_tgid();
+  u64 pid = bpf_get_current_pid_tgid();
   struct file *f = (void *) PT_REGS_PARM1(ctx);
   bpf_map_update_elem(&calltrack, &pid, &f, BPF_ANY);
   return 0;

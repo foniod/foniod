@@ -32,7 +32,7 @@
 #include <linux/ptrace.h>
 #pragma clang diagnostic pop
 
-#define PATH_DEPTH 8
+#define PATH_DEPTH 7
 #define ACTION_IGNORE 0
 #define ACTION_RECORD 1
 
@@ -42,6 +42,7 @@ struct _data_action {
 
 struct _data_path_segment {
   u64 ino;
+  u32 nlen;
   char name[DNAME_INLINE_LEN];
 };
 

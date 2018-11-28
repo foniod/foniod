@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)]
 
+use std::cmp::min;
 use std::fs::metadata;
 use std::os::unix::fs::MetadataExt;
 use std::ptr;
@@ -89,7 +90,11 @@ impl From<_data_volume> for FileAccess {
         path_segments.reverse();
         let path = path_segments
             .iter()
-            .map(|s| to_string(unsafe { &*(&s.name as *const [i8] as *const [u8]) }))
+            .map(|s| {
+                let namebuf = unsafe { &*(&s.name as *const [i8] as *const [u8]) };
+                let len = min(s.name.len(), s.nlen as usize) as usize;
+                to_string(&namebuf[0..len as usize])
+            })
             .collect::<Vec<String>>()
             .join("/")
             .trim_left_matches('/')
