@@ -38,12 +38,14 @@ impl EBPFGrain<'static> for TLS {
 }
 
 fn tls_to_message(buf: &[u8]) -> Option<Message> {
+    let mut version = None;
     let handshake = {
         let offset = tcp_payload_offset(buf);
         let mut packet = TLSMessage::read_bytes(&buf[offset..])?;
 
         if packet.typ == ContentType::Handshake && packet.decode_payload() {
             if let MessagePayload::Handshake(x) = packet.payload {
+                version = packet.version;
                 x
             } else {
                 return None;
@@ -54,6 +56,7 @@ fn tls_to_message(buf: &[u8]) -> Option<Message> {
     };
 
     let tags = tag_ip_and_ports(buf);
+    tags.insert("version", format!("{:?}", &version));
 
     use self::HandshakePayload::*;
     match handshake.payload {
@@ -68,6 +71,8 @@ fn parse_clienthello(payload: ClientHelloPayload, mut tags: Tags) -> Option<Mess
         "ciphersuites_list",
         cipher_suites_to_string(&payload.cipher_suites),
     );
+    
+    tags.insert("client_version", format!("{:?}", &payload.client_version));
 
     if let Some(ref sni) = payload.get_sni_extension() {
         tags.insert(
