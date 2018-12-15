@@ -39,14 +39,13 @@ impl EBPFGrain<'static> for TLS {
 
 fn tls_to_message(buf: &[u8]) -> Option<Message> {
     let mut version = ProtocolVersion::Unknown(0x0000);
-    let handshake = {
+    let (handshake, version) = {
         let offset = tcp_payload_offset(buf);
         let mut packet = TLSMessage::read_bytes(&buf[offset..])?;
 
         if packet.typ == ContentType::Handshake && packet.decode_payload() {
             if let MessagePayload::Handshake(x) = packet.payload {
-                version = packet.version;
-                x
+                (x, packet.version)
             } else {
                 return None;
             }
@@ -55,7 +54,7 @@ fn tls_to_message(buf: &[u8]) -> Option<Message> {
         }
     };
 
-    let tags = tag_ip_and_ports(buf);
+    let mut tags = tag_ip_and_ports(buf);
     tags.insert("version", format!("{:?}", &version));
 
     use self::HandshakePayload::*;
