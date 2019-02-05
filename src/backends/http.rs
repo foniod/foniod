@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use actix::prelude::*;
+use ::actix::prelude::*;
 use futures::{finished, Future};
 use hyper::{client::HttpConnector, header, Body, Client, Method, Request, Uri, HeaderMap};
 use hyper_rustls::HttpsConnector;
 
-use backends::Message;
+use crate::backends::Message;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HTTPConfig {

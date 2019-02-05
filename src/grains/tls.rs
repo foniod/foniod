@@ -1,9 +1,9 @@
 #![allow(non_camel_case_types)]
 
-use grains::ebpf::{Grain, ToEpollHandler};
-use grains::protocol::ETH_HLEN;
-use grains::*;
-use metrics::Tags;
+use crate::grains::ebpf::{Grain, ToEpollHandler};
+use crate::grains::protocol::ETH_HLEN;
+use crate::grains::*;
+use crate::metrics::Tags;
 
 use rustls::internal::msgs::{
     codec::Codec, enums::ContentType, enums::ServerNameType, handshake::ClientHelloPayload,

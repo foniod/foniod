@@ -1,7 +1,7 @@
-use grains::events::{EventCallback, EventHandler};
-use grains::perfhandler::PerfHandler;
-use grains::sockethandler::SocketHandler;
-use grains::BackendHandler;
+use crate::grains::events::{EventCallback, EventHandler};
+use crate::grains::perfhandler::PerfHandler;
+use crate::grains::sockethandler::SocketHandler;
+use crate::grains::BackendHandler;
 
 use redbpf::cpus;
 use redbpf::{Module, PerfMap, Result};

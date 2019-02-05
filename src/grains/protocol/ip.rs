@@ -1,4 +1,4 @@
-use grains::protocol::ETH_HLEN;
+use crate::grains::protocol::ETH_HLEN;
 
 pub use std::net::Ipv4Addr;
 

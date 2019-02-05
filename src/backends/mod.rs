@@ -11,7 +11,7 @@ pub mod s3;
 #[cfg(feature = "statsd-backend")]
 pub mod statsd;
 
-use metrics::{kind::Kind, Measurement, Unit};
+use crate::metrics::{kind::Kind, Measurement, Unit};
 
 pub type BackendHandler = actix::Recipient<Message>;
 

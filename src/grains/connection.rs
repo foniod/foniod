@@ -3,8 +3,8 @@
 use std::net::Ipv4Addr;
 use std::ptr;
 
-use grains::protocol::ip::to_ipv4;
-use grains::*;
+use crate::grains::protocol::ip::to_ipv4;
+use crate::grains::*;
 
 include!(concat!(env!("OUT_DIR"), "/connection.rs"));
 

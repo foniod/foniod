@@ -2,37 +2,10 @@
 
 #[macro_use]
 extern crate actix;
-extern crate env_logger;
-extern crate failure;
-extern crate futures;
-extern crate libc;
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-#[cfg(feature = "statsd-backend")]
-extern crate cadence;
-extern crate epoll;
-#[cfg(feature = "http-backend")]
-extern crate hyper;
-#[cfg(feature = "http-backend")]
-extern crate hyper_rustls;
-extern crate lazy_socket;
-extern crate lazy_static;
 #[macro_use]
 extern crate log;
-extern crate metrohash;
-extern crate redbpf;
-extern crate regex;
-#[cfg(feature = "s3-backend")]
-extern crate rusoto_core;
-#[cfg(feature = "s3-backend")]
-extern crate rusoto_s3;
-extern crate rustls;
-extern crate serde_json;
-extern crate syslog;
-extern crate tokio;
-extern crate toml;
-extern crate uuid;
 
 use std::collections::HashMap;
 use std::env;
@@ -45,13 +18,12 @@ mod config;
 mod grains;
 mod metrics;
 
-use grains::*;
-
 use actix::Recipient;
+use backends::Message;
 
 fn init_logging(config: &config::Config) {
     if let Some(ref backend) = config.log {
-        use config::Logging::*;
+        use crate::config::Logging::*;
         use syslog::Facility;
 
         match backend {

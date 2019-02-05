@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 
-use grains::connection::{Connection, _data_connect, get_volume_callback};
-use grains::*;
+use crate::grains::connection::{Connection, _data_connect, get_volume_callback};
+use crate::grains::*;
 
 pub struct TCP4;
 

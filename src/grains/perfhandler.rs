@@ -1,6 +1,6 @@
-use backends::BackendHandler;
-use grains::events::*;
-use grains::send_to;
+use crate::backends::BackendHandler;
+use crate::grains::events::*;
+use crate::grains::send_to;
 
 use redbpf::PerfMap;
 

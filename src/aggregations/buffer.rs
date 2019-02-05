@@ -3,7 +3,7 @@ use std::hash::Hasher;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use actix::prelude::*;
+use ::actix::prelude::*;
 use futures::Future;
 use metrohash::MetroHash128;
 

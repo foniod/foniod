@@ -2,11 +2,11 @@ use std::env;
 use std::net::UdpSocket;
 use std::str::FromStr;
 
-use actix::prelude::*;
+use ::actix::prelude::*;
 use cadence::{BufferedUdpMetricSink, Counted, QueuingMetricSink, StatsdClient};
 
-use backends::Message;
-use metrics::Measurement;
+use crate::backends::Message;
+use crate::metrics::Measurement;
 
 pub struct Statsd {
     client: StatsdClient,

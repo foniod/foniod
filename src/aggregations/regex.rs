@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use actix::prelude::*;
+use ::actix::prelude::*;
 use futures::Future;
 use regex::Regex as RegexMatcher;
 

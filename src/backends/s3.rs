@@ -1,6 +1,6 @@
 use std::env;
 
-use actix::prelude::*;
+use ::actix::prelude::*;
 use futures::Future;
 pub use rusoto_core::region::Region;
 use rusoto_s3::{PutObjectRequest, S3Client, S3 as RusotoS3};

@@ -7,7 +7,7 @@ use std::ptr;
 
 use redbpf::{Map, Module, VoidPtr};
 
-use grains::*;
+use crate::grains::*;
 
 include!(concat!(env!("OUT_DIR"), "/file.rs"));
 
