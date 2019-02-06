@@ -21,6 +21,11 @@ mod metrics;
 use actix::Recipient;
 use backends::Message;
 
+#[cfg(feature = "capnp-encoding")]
+mod ingraind_capnp {
+    include!(concat!(env!("OUT_DIR"), "/schema/ingraind_capnp.rs"));
+}
+
 fn init_logging(config: &config::Config) {
     if let Some(ref backend) = config.log {
         use crate::config::Logging::*;

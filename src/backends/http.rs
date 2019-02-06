@@ -2,22 +2,26 @@ use std::collections::HashMap;
 
 use ::actix::prelude::*;
 use futures::{finished, Future};
-use hyper::{client::HttpConnector, header, Body, Client, Method, Request, Uri, HeaderMap};
+use hyper::{client::HttpConnector, header, Body, Client, HeaderMap, Method, Request, Uri};
 use hyper_rustls::HttpsConnector;
 
+use crate::backends::encoders::{Encoder, Encoding};
 use crate::backends::Message;
+
+pub struct HTTP {
+    headers: HeaderMap,
+    uri: Uri,
+    client: Client<HttpsConnector<HttpConnector>>,
+    encoder: Encoder,
+    content_type: String
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HTTPConfig {
     uri: String,
     headers: HashMap<String, String>,
     threads: Option<usize>,
-}
-
-pub struct HTTP {
-    headers: HeaderMap,
-    uri: Uri,
-    client: Client<HttpsConnector<HttpConnector>>,
+    encoding: Option<Encoding>,
 }
 
 impl HTTP {
@@ -30,16 +34,30 @@ impl HTTP {
         let headers = {
             let mut headers = HeaderMap::new();
             for (h, v) in config.headers.iter() {
-                headers.insert(header::HeaderName::from_bytes(h.as_bytes()).unwrap(), v.parse().unwrap());
+                headers.insert(
+                    header::HeaderName::from_bytes(h.as_bytes()).unwrap(),
+                    v.parse().unwrap(),
+                );
             }
 
             headers
         };
 
+        let encoding = config.encoding.unwrap_or(Encoding::JSON);
+        let content_type = match &encoding {
+            Encoding::JSON => "application/json",
+            #[cfg(feature = "capnp-encoding")]
+            Encoding::Capnp => "application/octet-stream"
+        }.to_string();
+
+        let encoder = encoding.to_encoder();
+
         HTTP {
             headers,
             client,
             uri,
+            encoder,
+            content_type,
         }
     }
 }
@@ -52,12 +70,12 @@ impl Handler<Message> for HTTP {
     type Result = ();
 
     fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
-        let mut req = Request::new(Body::from(msg.to_string()));
+        let mut req = Request::new(Body::from((self.encoder)(msg)));
         *req.method_mut() = Method::POST;
         *req.uri_mut() = self.uri.clone();
         req.headers_mut().clone_from(&self.headers);
         req.headers_mut()
-            .insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+            .insert(header::CONTENT_TYPE, self.content_type.parse().unwrap());
 
         ::actix::spawn(
             self.client

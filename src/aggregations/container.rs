@@ -7,8 +7,8 @@ use futures::Future;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use backends::Message;
-use metrics::Measurement;
+use crate::backends::Message;
+use crate::metrics::Measurement;
 
 lazy_static! {
     // this pattern actually matches the Docker id from both

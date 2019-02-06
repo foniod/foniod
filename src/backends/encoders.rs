@@ -3,9 +3,31 @@ use std::collections::HashMap;
 use serde_json;
 
 use capnp;
-use sift_rs;
+use crate::ingraind_capnp;
+use super::{Kind, Measurement, Message, Unit};
 
-use super::{Kind, Message, Measurement, Unit};
+#[derive(Serialize, Deserialize, Debug)]
+pub enum Encoding {
+    JSON,
+    #[cfg(feature = "capnp")]
+    Capnp,
+}
+
+pub type Encoder = Box<Fn(Message) -> Vec<u8>>;
+
+impl Encoding {
+    pub fn to_encoder(self) -> Encoder {
+        Box::new(match self {
+            Encoding::JSON => to_json,
+            #[cfg(feature = "capnp")]
+            Encoding::Capnp => to_capnp,
+        })
+    }
+}
+
+pub fn to_capnp(msg: Message) -> Vec<u8> {
+    vec![]
+}
 
 pub fn to_json(mut msg: Message) -> Vec<u8> {
     match msg {

@@ -1,8 +1,8 @@
 use ::actix::prelude::*;
 use futures::Future;
 
-use backends::Message;
-use metrics::Measurement;
+use crate::backends::Message;
+use crate::metrics::Measurement;
 
 pub struct Whitelist(Vec<String>, Recipient<Message>);
 #[derive(Serialize, Deserialize, Debug)]

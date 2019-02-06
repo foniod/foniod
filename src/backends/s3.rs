@@ -5,8 +5,8 @@ use futures::Future;
 pub use rusoto_core::region::Region;
 use rusoto_s3::{PutObjectRequest, S3Client, S3 as RusotoS3};
 
-use backends::Message;
-use metrics::timestamp_now;
+use crate::backends::Message;
+use crate::metrics::timestamp_now;
 
 pub struct S3 {
     hostname: String,
@@ -37,7 +37,7 @@ impl Handler<Message> for S3 {
     type Result = ();
 
     fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
-        let body = msg.to_string().into_bytes().into();
+        let body = super::encoders::to_json(msg).into();
 
         ::actix::spawn(
             self.client

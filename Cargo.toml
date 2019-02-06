@@ -6,10 +6,15 @@ license = "GPL-3.0"
 description = "eBPF-based system monitoring agent"
 repository = "https://github.com/redsift/ingraind"
 build = "build.rs"
+edition = "2018"
 
 [build-dependencies]
 failure = "0.1"
 redbpf = { version = "0.1.0", features = ["build"] }
+
+[build-dependencies.capnpc]
+version = "^0.9.3"
+optional = true
 
 [dependencies]
 actix = "^0.7"
@@ -46,9 +51,12 @@ optional = true
 version = "0.14"
 optional = true
 
-
 [dependencies.cadence]
 version =  "0.14"
+optional = true
+
+[dependencies.capnp]
+version = "0.9"
 optional = true
 
 [dependencies.rusoto_core]
@@ -64,7 +72,8 @@ features = ["rustls"]
 optional = true
 
 [features]
-default = ["statsd-backend", "s3-backend", "http-backend"]
+default = ["statsd-backend", "s3-backend", "http-backend", "capnp-encoding"]
 s3-backend = ["rusoto_core", "rusoto_s3"]
 statsd-backend = ["cadence"]
 http-backend = ["hyper", "hyper-rustls"]
+capnp-encoding = ["capnp", "capnpc"]
