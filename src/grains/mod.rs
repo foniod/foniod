@@ -11,14 +11,14 @@ pub mod tcpv4;
 pub mod tls;
 pub mod udp;
 
-pub use grains::ebpf::*;
-pub use grains::events::*;
-pub use grains::perfhandler::PerfHandler;
-pub use grains::sockethandler::SocketHandler;
+pub use crate::grains::ebpf::*;
+pub use crate::grains::events::*;
+pub use crate::grains::perfhandler::PerfHandler;
+pub use crate::grains::sockethandler::SocketHandler;
 
-pub use backends::{BackendHandler, Message};
-pub use metrics::kind::*;
-pub use metrics::{Measurement, Tags, ToTags, Unit};
+pub use crate::backends::{BackendHandler, Message};
+pub use crate::metrics::kind::*;
+pub use crate::metrics::{Measurement, Tags, ToTags, Unit};
 pub use std::net::Ipv4Addr;
 
 pub fn to_le(i: u16) -> u16 {

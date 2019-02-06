@@ -1,14 +1,13 @@
-extern crate failure;
-extern crate redbpf;
-
 use failure::Error;
 use std::env;
 use std::io;
 use std::ffi::OsString;
 use std::fs::read_dir;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 
 use redbpf::build::{build, generate_bindings, cache::BuildCache, headers::headers};
+
+const CAPNP_SCHEMA: &'static str = "schema/ingraind.capnp";
 
 fn main() -> Result<(), Error> {
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
@@ -41,6 +40,15 @@ fn main() -> Result<(), Error> {
             generate_bindings(&bindgen_flags[..], &out_dir, &file)
                 .expect("Failed generating data bindings!");
         }
+    }
+
+    if cfg!(feature = "capnp-encoding") && cache.file_changed(Path::new(CAPNP_SCHEMA)) {
+        use capnpc::{RustEdition, CompilerCommand};
+        CompilerCommand::new()
+            .file(CAPNP_SCHEMA)
+            .edition(RustEdition::Rust2018)
+            .run()
+            .expect("capnp schema generation failed");
     }
 
     cache.save();

@@ -1,14 +1,14 @@
 use std::fs;
 use std::str::FromStr;
 
-use actix::prelude::*;
+use ::actix::prelude::*;
 use failure::{format_err, Error};
 use futures::Future;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use backends::Message;
-use metrics::Measurement;
+use crate::backends::Message;
+use crate::metrics::Measurement;
 
 lazy_static! {
     // this pattern actually matches the Docker id from both
@@ -80,8 +80,8 @@ fn container_id(re: &Regex, cgroup: &str) -> Option<String> {
 mod test {
     #[test]
     fn regex_can_match_docker() {
-        use aggregations::container::container_id;
-        use aggregations::container::DOCKER_PATTERN;
+        use crate::aggregations::container::container_id;
+        use crate::aggregations::container::DOCKER_PATTERN;
 
         let cgroup = r#"
 10:cpuset:/docker/a844b8599d5e23c620c646b69c6d93c4014247cd0be9ec142c44219b6467e07f
@@ -105,8 +105,8 @@ mod test {
 
     #[test]
     fn regex_can_match_kube() {
-        use aggregations::container::container_id;
-        use aggregations::container::DOCKER_PATTERN;
+        use crate::aggregations::container::container_id;
+        use crate::aggregations::container::DOCKER_PATTERN;
 
         let cgroup = r#"
 12:hugetlb:/kubepods/besteffort/poda21e738c-d6b6-11e8-82df-002590deaca4/a844b8599d5e23c620c646b69c6d93c4014247cd0be9ec142c44219b6467e07f
@@ -142,8 +142,8 @@ mod test {
 
     #[test]
     fn regex_no_match_no_cgroup() {
-        use aggregations::container::container_id;
-        use aggregations::container::DOCKER_PATTERN;
+        use crate::aggregations::container::container_id;
+        use crate::aggregations::container::DOCKER_PATTERN;
 
         let cgroup = r#"
 10:cpuset:/
@@ -167,8 +167,8 @@ mod test {
 
     #[test]
     fn regex_no_match_systemd() {
-        use aggregations::container::container_id;
-        use aggregations::container::DOCKER_PATTERN;
+        use crate::aggregations::container::container_id;
+        use crate::aggregations::container::DOCKER_PATTERN;
 
         let cgroup = r#"
 10:cpuset:/

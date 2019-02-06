@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use actix::prelude::*;
+use ::actix::prelude::*;
 use futures::Future;
 use regex::Regex as RegexMatcher;
 
-use backends::Message;
-use metrics::Measurement;
+use crate::backends::Message;
+use crate::metrics::Measurement;
 
 pub struct Regex(HashMap<String, (RegexMatcher, String)>, Recipient<Message>);
 #[derive(Serialize, Deserialize, Debug)]

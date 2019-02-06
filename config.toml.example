@@ -90,6 +90,7 @@ backend = "Console"
 [pipeline.http.config]
 backend = "HTTP"
 uri = "http://example.redsift.com/insert"
+encoding = "JSON"
 [pipeline.http.config.headers]
 authorization = "token"
 "custom-header" = "some value"

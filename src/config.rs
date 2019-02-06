@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use actix::{Actor, Recipient};
 use log::LevelFilter;
 
-use aggregations::*;
-use backends::*;
-use grains::{dns, file, tcpv4, tls, udp};
-use grains::{EBPFGrain, ToEpollHandler};
+use crate::aggregations::*;
+use crate::backends::*;
+use crate::grains::{dns, file, tcpv4, tls, udp};
+use crate::grains::{EBPFGrain, ToEpollHandler};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -108,10 +108,10 @@ impl Grain {
 mod tests {
     #[test]
     fn can_parse() {
-        use config::Config;
+        use crate::config::Config;
         use toml;
 
-        let config: Config = toml::from_str(
+        let _config: Config = toml::from_str(
             r#"
 [log]
 type = "Syslog"
@@ -124,9 +124,15 @@ type = "Files"
 monitor_dirs = ["/"]
 
 [[probe]]
-pipelines = ["statsd"]
+pipelines = ["statsd", "http"]
 [probe.config]
 type = "TCP4"
+
+[pipeline.http.config]
+backend = "HTTP"
+encoding = "JSON"
+uri = "https://example.com/"
+[pipeline.http.config.headers]
 
 [pipeline.statsd.config]
 backend = "StatsD"

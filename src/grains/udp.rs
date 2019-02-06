@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 
-use grains::connection::get_volume_callback;
-use grains::*;
+use crate::grains::connection::get_volume_callback;
+use crate::grains::*;
 
 pub struct UDP;
 impl ToEpollHandler for Grain<UDP> {

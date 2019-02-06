@@ -1,5 +1,5 @@
-use actix::prelude::*;
-use backends::Message;
+use ::actix::prelude::*;
+use crate::backends::Message;
 
 #[derive(Default)]
 pub struct Console;

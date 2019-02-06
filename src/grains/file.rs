@@ -7,7 +7,7 @@ use std::ptr;
 
 use redbpf::{Map, Module, VoidPtr};
 
-use grains::*;
+use crate::grains::*;
 
 include!(concat!(env!("OUT_DIR"), "/file.rs"));
 
@@ -97,7 +97,7 @@ impl From<_data_volume> for FileAccess {
             })
             .collect::<Vec<String>>()
             .join("/")
-            .trim_left_matches('/')
+            .trim_start_matches('/')
             .to_string();
 
         FileAccess {

@@ -3,8 +3,8 @@
 use std::ptr;
 include!(concat!(env!("OUT_DIR"), "/dns.rs"));
 
-use grains::protocol::ip::to_ipv4;
-use grains::*;
+use crate::grains::protocol::ip::to_ipv4;
+use crate::grains::*;
 
 pub struct DNS(pub DnsConfig);
 #[derive(Serialize, Deserialize, Debug)]
@@ -110,7 +110,7 @@ pub fn from_dns_prefix_labels(address: &[u8]) -> String {
 mod test {
     #[test]
     fn parse_dns_labels() {
-        use dns::from_dns_prefix_labels;
+        use crate::grains::dns::from_dns_prefix_labels;
         assert_eq!(
             from_dns_prefix_labels(b"\x04asdf\x03com\x00"),
             String::from("asdf.com.")

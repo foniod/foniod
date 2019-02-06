@@ -3,12 +3,12 @@ use std::hash::Hasher;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use actix::prelude::*;
+use ::actix::prelude::*;
 use futures::Future;
 use metrohash::MetroHash128;
 
-use backends::{Flush, Message};
-use metrics::{Measurement, Tags, Unit};
+use crate::backends::{Flush, Message};
+use crate::metrics::{Measurement, Tags, Unit};
 
 pub struct Buffer(Mutex<HashMap<(u64, u64), Measurement>>, Recipient<Message>);
 #[derive(Serialize, Deserialize, Debug)]
