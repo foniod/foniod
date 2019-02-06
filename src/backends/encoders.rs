@@ -2,8 +2,6 @@ use std::collections::HashMap;
 
 use serde_json;
 
-use capnp;
-use crate::ingraind_capnp;
 use super::{Kind, Measurement, Message, Unit};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -25,8 +23,39 @@ impl Encoding {
     }
 }
 
+#[cfg(feature = "capnp-encoding")]
 pub fn to_capnp(msg: Message) -> Vec<u8> {
-    vec![]
+    use std::io::Cursor;
+    use capnp::serialize;
+    use crate::ingraind_capnp::*;
+
+    let mut src = match msg {
+        Message::Single(m) => vec![m],
+        Message::List(l) => l,
+    };
+    
+    let mut message = ::capnp::message::Builder::new_default();
+    let mut payload = message.init_root::<ingrain_payload::Builder>();
+
+    let mut data = payload.init_data(src.len() as u32);
+    for (i, mut source) in src.drain(..).enumerate() {
+        let mut m = data.reborrow().get(i as u32);
+        m.set_timestamp(source.timestamp);
+        m.set_kind(source.kind);
+        m.set_name(&source.name);
+        m.set_measurement(source.value.get() as f64);
+
+        let mut tags = m.init_tags(source.tags.0.len() as u32);
+        for (i, mut source) in source.tags.0.drain(..).enumerate() {
+            let mut tag = tags.reborrow().get(i as u32);
+            tag.set_key(&source.0);
+            tag.set_value(&source.1);
+        }
+    }
+
+    let mut buffer = Cursor::new(Vec::new());
+    serialize::write_message(&mut buffer, &message);
+    buffer.into_inner()
 }
 
 pub fn to_json(mut msg: Message) -> Vec<u8> {
