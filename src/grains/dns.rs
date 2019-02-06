@@ -110,7 +110,7 @@ pub fn from_dns_prefix_labels(address: &[u8]) -> String {
 mod test {
     #[test]
     fn parse_dns_labels() {
-        use crate::dns::from_dns_prefix_labels;
+        use crate::grains::dns::from_dns_prefix_labels;
         assert_eq!(
             from_dns_prefix_labels(b"\x04asdf\x03com\x00"),
             String::from("asdf.com.")

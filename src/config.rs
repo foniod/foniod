@@ -124,9 +124,15 @@ type = "Files"
 monitor_dirs = ["/"]
 
 [[probe]]
-pipelines = ["statsd"]
+pipelines = ["statsd", "http"]
 [probe.config]
 type = "TCP4"
+
+[pipeline.http.config]
+backend = "HTTP"
+encoding = "JSON"
+uri = "https://example.com/"
+[pipeline.http.config.headers]
 
 [pipeline.statsd.config]
 backend = "StatsD"
