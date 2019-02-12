@@ -54,8 +54,11 @@ pub enum Grain {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "backend")]
 pub enum Backend {
+    #[cfg(feature = "s3-backend")]
     S3,
+    #[cfg(feature = "statsd-backend")]
     StatsD(statsd::StatsdConfig),
+    #[cfg(feature = "http-backend")]
     HTTP(http::HTTPConfig),
     Console,
 }
@@ -85,8 +88,11 @@ impl Aggregator {
 impl Backend {
     pub fn into_recipient(self) -> Recipient<Message> {
         match self {
+            #[cfg(feature = "s3-backend")]
             Backend::S3 => s3::S3::new().start().recipient(),
+            #[cfg(feature = "statsd-backend")]
             Backend::StatsD(config) => statsd::Statsd::new(config).start().recipient(),
+            #[cfg(feature = "http-backend")]
             Backend::HTTP(config) => http::HTTP::new(config).start().recipient(),
             Backend::Console => console::Console.start().recipient(),
         }
