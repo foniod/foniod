@@ -10,6 +10,7 @@ pub mod file;
 pub mod tcpv4;
 pub mod tls;
 pub mod udp;
+pub mod syscalls;
 
 pub use crate::grains::ebpf::*;
 pub use crate::grains::events::*;
