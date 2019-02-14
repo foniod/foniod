@@ -10,7 +10,7 @@ use rustls::internal::msgs::{
     handshake::HandshakePayload, handshake::HasServerExtensions, handshake::ServerHelloPayload,
     handshake::ServerNamePayload, message::Message as TLSMessage, message::MessagePayload,
 };
-use rustls::{CipherSuite,ProtocolVersion};
+use rustls::{CipherSuite, ProtocolVersion};
 
 use std::net::Ipv4Addr;
 
@@ -33,7 +33,7 @@ impl EBPFGrain<'static> for TLS {
     }
 
     fn get_handler(&self, _id: &str) -> EventCallback {
-        Box::new(|raw| tls_to_message(raw))
+        Box::new(tls_to_message)
     }
 }
 
@@ -70,7 +70,7 @@ fn parse_clienthello(payload: ClientHelloPayload, mut tags: Tags) -> Option<Mess
         "ciphersuites_list",
         cipher_suites_to_string(&payload.cipher_suites),
     );
-    
+
     tags.insert("client_version", format!("{:?}", &payload.client_version));
 
     if let Some(ref sni) = payload.get_sni_extension() {
@@ -81,7 +81,8 @@ fn parse_clienthello(payload: ClientHelloPayload, mut tags: Tags) -> Option<Mess
                 .map(|sni| match &sni.payload {
                     ServerNamePayload::HostName(dnsn) => format!("{}", AsRef::<str>::as_ref(&dnsn)),
                     _ => unreachable!(),
-                }).collect::<Vec<String>>()
+                })
+                .collect::<Vec<String>>()
                 .join(","),
         );
     }
@@ -91,7 +92,11 @@ fn parse_clienthello(payload: ClientHelloPayload, mut tags: Tags) -> Option<Mess
 
 fn parse_serverhello(payload: ServerHelloPayload, mut tags: Tags) -> Option<Message> {
     tags.insert("ciphersuite_str", format!("{:?}", payload.cipher_suite));
-    if let Some(proto) = payload.get_alpn_protocol() {
+    if let Ok(proto) = payload
+        .get_alpn_protocol()
+        .ok_or(())
+        .and_then(|bs| String::from_utf8(bs.to_vec()).map_err(|_| ()))
+    {
         tags.insert("alpn_str", proto);
     }
 

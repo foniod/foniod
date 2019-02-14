@@ -34,7 +34,7 @@ serde_derive = "^1.0"
 serde_json = "^1.0"
 toml = "^0.4"
 
-rustls = "0.13"
+rustls = "0.15"
 epoll = "4.0"
 metrohash = "1"
 regex = "1.0"
@@ -48,7 +48,7 @@ version = "0.12"
 optional = true
 
 [dependencies.hyper-rustls]
-version = "0.14"
+version = "0.16"
 optional = true
 
 [dependencies.cadence]
@@ -59,21 +59,22 @@ optional = true
 version = "0.9"
 optional = true
 
-[dependencies.rusoto_core]
-version = "0.34.0"
-default-features = false
-features = ["rustls"]
-optional = true
+# [dependencies.rusoto_core]
+# version = "0.36.0"
+# default-features = false
+# features = ["rustls"]
+# optional = true
 
-[dependencies.rusoto_s3]
-version = "0.34.0"
-default-features = false
-features = ["rustls"]
-optional = true
+# [dependencies.rusoto_s3]
+# version = "0.36.0"
+# default-features = false
+# features = ["rustls"]
+# optional = true
 
 [features]
-default = ["statsd-backend", "s3-backend", "http-backend", "capnp-encoding"]
-s3-backend = ["rusoto_core", "rusoto_s3"]
+default = ["statsd-backend", "http-backend", "capnp-encoding"]
+# s3-backend = ["rusoto_core", "rusoto_s3"]
+s3-backend = []
 statsd-backend = ["cadence"]
 http-backend = ["hyper", "hyper-rustls"]
 capnp-encoding = ["capnp", "capnpc"]
