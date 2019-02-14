@@ -5,7 +5,7 @@ use log::LevelFilter;
 
 use crate::aggregations::*;
 use crate::backends::*;
-use crate::grains::{dns, file, tcpv4, tls, udp};
+use crate::grains::{dns, file, tcpv4, tls, udp, syscalls};
 use crate::grains::{EBPFGrain, ToEpollHandler};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,6 +49,7 @@ pub enum Grain {
     UDP,
     DNS(dns::DnsConfig),
     TLS(tls::TlsConfig),
+    Syscall(syscalls::SyscallConfig),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -107,6 +108,7 @@ impl Grain {
             Grain::Files(config) => Box::new(file::Files(config).load().unwrap()),
             Grain::DNS(config) => Box::new(dns::DNS(config).load().unwrap()),
             Grain::TLS(config) => Box::new(tls::TLS(config).load().unwrap()),
+            Grain::Syscall(config) => Box::new(syscalls::Syscall(config).load().unwrap()),
         }
     }
 }
@@ -133,6 +135,12 @@ monitor_dirs = ["/"]
 pipelines = ["statsd", "http"]
 [probe.config]
 type = "TCP4"
+
+[[probe]]
+pipelines = ["statsd"]
+[probe.config]
+type = "Syscall"
+monitor_syscalls = ["read"]
 
 [pipeline.http.config]
 backend = "HTTP"
