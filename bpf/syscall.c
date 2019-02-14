@@ -32,6 +32,15 @@ struct bpf_map_def SEC("maps/syscall_tp_trigger") syscall_event = {
     .namespace = "",
 };
 
+struct bpf_map_def SEC("maps/host_pid") host_pid = {
+    .type = BPF_MAP_TYPE_HASH,
+    .key_size = sizeof(u8),
+    .value_size = sizeof(u32),
+    .max_entries = 16,
+    .pinning = 0,
+    .namespace = "",
+};
+
 
 // Version number to stay compatible with gobpf-elf-loader
 // This should be resolved to running kernel version
@@ -40,9 +49,16 @@ char _license[] SEC("license") = "GPL";
 
 SEC("kprobe/syscall_enter")
 int syscall_tp_handler(struct pt_regs *ctx) {
+  u8 key = 1;
+  u32 *ignore_pid = bpf_map_lookup_elem(&host_pid, &key);
+  u64 pid_tgid = bpf_get_current_pid_tgid();
+  if (ignore_pid != 0 && (pid_tgid >> 32) == *ignore_pid) {
+    return 0;
+  }
+  
   struct _data_syscall_tracepoint data = {};
   data.syscall_nr = PT_REGS_RC(ctx);
-  data.id = bpf_get_current_pid_tgid();
+  data.id = pid_tgid;
   bpf_get_current_comm(&data.comm, sizeof(data.comm));
 
   u32 cpu = bpf_get_smp_processor_id();

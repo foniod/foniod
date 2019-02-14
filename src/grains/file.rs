@@ -3,9 +3,8 @@
 use std::cmp::min;
 use std::fs::metadata;
 use std::os::unix::fs::MetadataExt;
-use std::ptr;
 
-use redbpf::{Map, Module, VoidPtr};
+use redbpf::{Module, VoidPtr};
 
 use crate::grains::*;
 
@@ -15,10 +14,6 @@ type ino_t = u64;
 
 const ACTION_IGNORE: u8 = 0;
 const ACTION_RECORD: u8 = 1;
-
-fn find_map_by_name<'a>(module: &'a Module, needle: &str) -> &'a Map {
-    module.maps.iter().find(|v| v.name == needle).unwrap()
-}
 
 pub struct Files(pub FilesConfig);
 #[derive(Serialize, Deserialize, Debug)]
