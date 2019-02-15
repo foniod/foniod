@@ -5,7 +5,7 @@ use log::LevelFilter;
 
 use crate::aggregations::*;
 use crate::backends::*;
-use crate::grains::{dns, file, tcpv4, tls, udp};
+use crate::grains::{dns, file, tcpv4, tls, udp, syscalls};
 use crate::grains::{EBPFGrain, ToEpollHandler};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,13 +49,17 @@ pub enum Grain {
     UDP,
     DNS(dns::DnsConfig),
     TLS(tls::TlsConfig),
+    Syscall(syscalls::SyscallConfig),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "backend")]
 pub enum Backend {
+    #[cfg(feature = "s3-backend")]
     S3,
+    #[cfg(feature = "statsd-backend")]
     StatsD(statsd::StatsdConfig),
+    #[cfg(feature = "http-backend")]
     HTTP(http::HTTPConfig),
     Console,
 }
@@ -85,8 +89,11 @@ impl Aggregator {
 impl Backend {
     pub fn into_recipient(self) -> Recipient<Message> {
         match self {
+            #[cfg(feature = "s3-backend")]
             Backend::S3 => s3::S3::new().start().recipient(),
+            #[cfg(feature = "statsd-backend")]
             Backend::StatsD(config) => statsd::Statsd::new(config).start().recipient(),
+            #[cfg(feature = "http-backend")]
             Backend::HTTP(config) => http::HTTP::new(config).start().recipient(),
             Backend::Console => console::Console.start().recipient(),
         }
@@ -101,6 +108,7 @@ impl Grain {
             Grain::Files(config) => Box::new(file::Files(config).load().unwrap()),
             Grain::DNS(config) => Box::new(dns::DNS(config).load().unwrap()),
             Grain::TLS(config) => Box::new(tls::TLS(config).load().unwrap()),
+            Grain::Syscall(config) => Box::new(syscalls::Syscall(config).load().unwrap()),
         }
     }
 }
@@ -127,6 +135,12 @@ monitor_dirs = ["/"]
 pipelines = ["statsd", "http"]
 [probe.config]
 type = "TCP4"
+
+[[probe]]
+pipelines = ["statsd"]
+[probe.config]
+type = "Syscall"
+monitor_syscalls = ["read"]
 
 [pipeline.http.config]
 backend = "HTTP"

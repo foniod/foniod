@@ -47,7 +47,7 @@ char _license[] SEC("license") = "GPL";
 SEC("kprobe/udp_sendmsg")
 int trace_sendmsg_entry(struct pt_regs *ctx)
 {
-	u64 pid = bpf_get_current_pid_tgid();
+  u64 pid = bpf_get_current_pid_tgid();
   struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
   size_t size = (size_t) PT_REGS_PARM3(ctx);
 
@@ -62,13 +62,13 @@ int trace_sendmsg_entry(struct pt_regs *ctx)
     bpf_perf_event_output(ctx, &udp_volume, cpu, &data, sizeof(data));
   }
 
-	return 0;
+  return 0;
 };
 
 SEC("kprobe/udp_rcv")
 int trace_recvmsg_entry(struct pt_regs *ctx)
 {
-	u64 pid = bpf_get_current_pid_tgid();
+  u64 pid = bpf_get_current_pid_tgid();
   struct sk_buff *skb = (struct sk_buff *) PT_REGS_PARM1(ctx);
   u32 size = 0;
   struct sock *sk;
@@ -87,5 +87,5 @@ int trace_recvmsg_entry(struct pt_regs *ctx)
     bpf_perf_event_output(ctx, &udp_volume, cpu, &data, sizeof(data));
   }
 
-	return 0;
+  return 0;
 };

@@ -10,6 +10,7 @@ pub mod file;
 pub mod tcpv4;
 pub mod tls;
 pub mod udp;
+pub mod syscalls;
 
 pub use crate::grains::ebpf::*;
 pub use crate::grains::events::*;
@@ -20,6 +21,8 @@ pub use crate::backends::{BackendHandler, Message};
 pub use crate::metrics::kind::*;
 pub use crate::metrics::{Measurement, Tags, ToTags, Unit};
 pub use std::net::Ipv4Addr;
+
+use redbpf::{Map, Module, VoidPtr};
 
 pub fn to_le(i: u16) -> u16 {
     (i >> 8) | (i << 8)
@@ -36,4 +39,8 @@ pub fn send_to(upstreams: &[BackendHandler], msg: Message) {
     for upstream in upstreams.iter() {
         upstream.do_send(msg.clone()).unwrap();
     }
+}
+
+pub fn find_map_by_name<'a>(module: &'a Module, needle: &str) -> &'a Map {
+    module.maps.iter().find(|v| v.name == needle).unwrap()
 }

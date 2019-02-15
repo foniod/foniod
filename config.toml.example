@@ -70,6 +70,19 @@ pipelines = ["console"]
 type = "TLS"
 interace = "eth0"
 
+# The Syscall grain allows tracking the frequency of specific system calls, system-wide.
+
+# A mandatory parameter is `monitor_syscalls`, listing the system calls from which statistics will be collected.
+# Using this on high-frequency syscalls (e.g. `read` or `write`) will impact CPU usage.
+#
+# Currently only x86_64 is supported.
+# A full list of Linux syscalls can be found at https://filippo.io/linux-syscall-table/
+[[probe]]
+pipelines = ["console"]
+[probe.config]
+type = "Syscall"
+monitor_syscalls = ["exit", "execve"]
+
 ##########################
 ##### Pipeline defintions
 ##########################

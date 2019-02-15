@@ -64,11 +64,43 @@ where
         self.bind_perf(backends)
     }
 
+    pub fn attach_kprobes_to_names(&mut self, name: impl AsRef<str>, backends: &[BackendHandler]) -> EventOutputs {
+        use redbpf::ProgramKind::*;
+        for prog in self
+            .module
+            .programs
+            .iter_mut()
+            .filter(|p| p.kind == Kprobe || p.kind == Kretprobe)
+        {
+            info!("Loaded: {}, {:?}", prog.name, prog.kind);
+            prog.attach_probe_to_name(name.as_ref()).unwrap();
+        }
+
+        self.native.attached(backends);
+        self.bind_perf(backends)
+    }
+
     pub fn attach_xdps(&mut self, iface: &str, backends: &[BackendHandler]) -> EventOutputs {
         use redbpf::ProgramKind::*;
         for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
             info!("Loaded: {}, {:?}", prog.name, prog.kind);
             prog.attach_xdp(iface).unwrap();
+        }
+
+        self.native.attached(backends);
+        self.bind_perf(backends)
+    }
+
+    pub fn attach_tracepoints(
+        &mut self,
+        category: &str,
+        name: &str,
+        backends: &[BackendHandler],
+    ) -> Vec<Box<dyn EventHandler>> {
+        use redbpf::ProgramKind::*;
+        for prog in self.module.programs.iter_mut().filter(|p| p.kind == Tracepoint) {
+            info!("Attached: {}, {:?}", prog.name, prog.kind);
+            prog.attach_tracepoint(category, name).unwrap();
         }
 
         self.native.attached(backends);

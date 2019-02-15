@@ -1,11 +1,11 @@
 use failure::Error;
 use std::env;
-use std::io;
 use std::ffi::OsString;
 use std::fs::read_dir;
-use std::path::{PathBuf, Path};
+use std::io;
+use std::path::{Path, PathBuf};
 
-use redbpf::build::{build, generate_bindings, cache::BuildCache, headers::headers};
+use redbpf::build::{build, cache::BuildCache, generate_bindings, headers::headers};
 
 const CAPNP_SCHEMA: &'static str = "schema/ingraind.capnp";
 
@@ -42,18 +42,26 @@ fn main() -> Result<(), Error> {
         }
     }
 
-    if cfg!(feature = "capnp-encoding") && cache.file_changed(Path::new(CAPNP_SCHEMA)) {
-        use capnpc::{RustEdition, CompilerCommand};
+    build_capnp(&mut cache);
+
+    cache.save();
+    Ok(())
+}
+
+#[cfg(feature = "capnp-encoding")]
+fn build_capnp(cache: &mut BuildCache) {
+    if cache.file_changed(Path::new(CAPNP_SCHEMA)) {
+        use capnpc::{CompilerCommand, RustEdition};
         CompilerCommand::new()
             .file(CAPNP_SCHEMA)
             .edition(RustEdition::Rust2018)
             .run()
             .expect("capnp schema generation failed");
     }
-
-    cache.save();
-    Ok(())
 }
+
+#[cfg(not(feature = "capnp-encoding"))]
+fn build_capnp(_: &mut BuildCache) {}
 
 fn source_files(
     dir: &'static str,
@@ -71,6 +79,7 @@ fn source_files(
                     } else {
                         None
                     }
-                }).is_some()
+                })
+                .is_some()
         }))
 }
