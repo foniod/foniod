@@ -7,4 +7,4 @@ RUN cargo build --target=x86_64-unknown-linux-musl --release
 FROM scratch
 
 COPY --from=build /build/target/x86_64-unknown-linux-musl/release/ingraind /ingraind
-CMD ["/ingraind"]
+CMD ["/ingraind", "/ingraind.toml"]
