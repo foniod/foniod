@@ -25,15 +25,15 @@ impl Encoding {
 
 #[cfg(feature = "capnp-encoding")]
 pub fn to_capnp(msg: Message) -> Vec<u8> {
-    use std::io::Cursor;
-    use capnp::serialize;
     use crate::ingraind_capnp::*;
+    use capnp::serialize;
+    use std::io::Cursor;
 
     let mut src = match msg {
         Message::Single(m) => vec![m],
         Message::List(l) => l,
     };
-    
+
     let mut message = ::capnp::message::Builder::new_default();
     let mut payload = message.init_root::<ingrain_payload::Builder>();
 
@@ -42,7 +42,7 @@ pub fn to_capnp(msg: Message) -> Vec<u8> {
         let mut m = data.reborrow().get(i as u32);
         m.set_timestamp(source.timestamp);
         m.set_kind(source.kind);
-        m.set_name(&source.name);
+        m.set_name(&serialized_name(&source));
         m.set_measurement(source.value.get() as f64);
 
         let mut tags = m.init_tags(source.tags.0.len() as u32);
@@ -70,6 +70,15 @@ pub fn to_json(mut msg: Message) -> Vec<u8> {
     }
 }
 
+fn serialized_name(msg: &Measurement) -> String {
+    let (type_str, measurement) = match msg.value {
+        Unit::Byte(x) => ("byte", x),
+        Unit::Count(x) => ("count", x),
+    };
+
+    format!("{}_{}", &msg.name, type_str)
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct SerializedMeasurement {
     timestamp: u64,
@@ -81,19 +90,14 @@ struct SerializedMeasurement {
 
 impl From<Measurement> for SerializedMeasurement {
     fn from(mut msg: Measurement) -> SerializedMeasurement {
-        let (type_str, measurement) = match msg.value {
-            Unit::Byte(x) => ("byte", x),
-            Unit::Count(x) => ("count", x),
-        };
-
-        let name = format!("{}_{}", &msg.name, type_str);
+        let name = serialized_name(&msg);
 
         SerializedMeasurement {
             timestamp: msg.timestamp,
             kind: msg.kind,
-            name,
-            measurement,
+            measurement: msg.value.get(),
             tags: msg.tags.drain(..).collect(),
+            name,
         }
     }
 }
