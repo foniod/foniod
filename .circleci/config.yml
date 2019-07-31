@@ -1,6 +1,74 @@
-version: 2
+version: 2.1
+commands:
+  install_rust:
+    steps:
+      - run:
+          name: Install rust
+          command: |
+            curl --proto '=https' --tlsv1.2 -sSf -o rustup.sh https://sh.rustup.rs
+            chmod 755 rustup.sh
+            ./rustup.sh -y
+            . /root/.cargo/env
+            rustup target add x86_64-unknown-linux-musl
+            rustup component add rustfmt
+
 jobs:
-  pack:
+  ubuntu:
+    parameters:
+      version:
+        type: string
+        default: "latest"
+      kernel_version:
+        type: string
+        default: "$(uname -r)"
+    working_directory: /build
+    docker:
+      - image: ubuntu:<< parameters.version >>
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /build
+
+      - run:
+          name: Install deps
+          command: |
+            apt-get update
+            apt-get install -y curl clang llvm musl-tools capnproto libelf-dev linux-headers-<< parameters.kernel_version >> ca-certificates{,-java}
+
+      - install_rust
+
+      - run:
+          name: Build static binary
+          command: |
+            . /root/.cargo/env
+            cargo test --target=x86_64-unknown-linux-musl --release || exit 1
+            cargo build --target=x86_64-unknown-linux-musl --release || exit 1
+
+  fedora:
+    working_directory: /build
+    docker:
+      - image: fedora:29
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /build
+
+      - run:
+          name: Install deps
+          command: |
+            yum install -y clang llvm capnproto kernel-4.18.16-300.fc29.x86_64 kernel-devel-4.18.16-300.fc29.x86_64 elfutils-libelf-devel ca-certificates
+
+      - install_rust
+
+      - run:
+          name: Build
+          command: |
+            . /root/.cargo/env
+            export KERNEL_VERSION=4.18.16-300.fc29.x86_64
+            cargo test --release || exit 1
+            cargo build --release || exit 1
+
+  build_docker_image:
     environment:
       CONTAINER_NAME: "quay.io/redsift/ingraind"
 
@@ -36,9 +104,9 @@ jobs:
 
             echo "Total sizes"
             docker images $CONTAINER_NAME
-            docker push $CONTAINER_NAME 
+            docker push $CONTAINER_NAME
 
-  build:
+  build_docker_binary:
     working_directory: /build
     docker:
       - image: quay.io/redsift/ingraind-build:latest
@@ -69,14 +137,25 @@ jobs:
             - "target"
 
       - store_artifacts:
-          path: /build/target/x86_64-unknown-linux-musl/release/ingraind 
+          path: /build/target/x86_64-unknown-linux-musl/release/ingraind
           destination: ingraind
 
 workflows:
-  version: 2
-  build_pack:
+  build:
     jobs:
-      - build
-      - pack:
+      - ubuntu:
+          name: "ubuntu 18.04"
+          version: "18.04"
+      - ubuntu:
+          name: "ubuntu 16.04"
+          version: "16.04"
+      - fedora:
+          name: "fedora 29"
+      - build_docker_binary:
+          filters:
+            branches:
+              only:
+                - master
+      - build_docker_image:
           requires:
-            - build
+            - build_docker_binary
