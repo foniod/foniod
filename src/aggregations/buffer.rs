@@ -65,16 +65,12 @@ impl Handler<Flush> for Buffer {
     fn handle(&mut self, _: Flush, _ctx: &mut Context<Self>) -> Self::Result {
         let evs: Vec<Measurement> = {
             let mut buffer = self.0.lock().unwrap();
-            let evs = buffer.drain().map(|(_, v)| v).collect();
-
-            evs
+            buffer.drain().map(|(_, v)| v).collect()
         };
 
-        if evs.len() == 0 {
-            return;
+        if !evs.is_empty() {
+            ::actix::spawn(self.1.send(Message::List(evs)).map_err(|_| ()));
         }
-
-        ::actix::spawn(self.1.send(Message::List(evs)).map_err(|_| ()));
     }
 }
 

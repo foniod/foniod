@@ -102,5 +102,5 @@ impl Measurement {
 
 pub fn timestamp_now() -> u64 {
     let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    duration.as_secs() * (1e9 as u64) + duration.subsec_nanos() as u64
+    duration.as_secs() * (1e9 as u64) + u64::from(duration.subsec_nanos())
 }

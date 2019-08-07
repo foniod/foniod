@@ -22,7 +22,7 @@ pub use crate::metrics::kind::*;
 pub use crate::metrics::{Measurement, Tags, ToTags, Unit};
 pub use std::net::Ipv4Addr;
 
-use redbpf::{Map, Module, VoidPtr};
+use redbpf::{Map, Module};
 
 pub fn to_le(i: u16) -> u16 {
     (i >> 8) | (i << 8)

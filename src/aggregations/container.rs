@@ -57,7 +57,7 @@ impl Handler<Message> for Container {
 
 #[inline]
 fn get_docker_container_id(regex: &Regex, msg: &Measurement) -> Result<String, Error> {
-    let pid_tgid_str = msg.tags.get("task_id").ok_or(format_err!("No pid"))?;
+    let pid_tgid_str = msg.tags.get("task_id").ok_or_else(|| format_err!("No pid"))?;
     let pid_tgid = u64::from_str(&pid_tgid_str)?;
     let tgid = pid_tgid >> 32;
     let pid = pid_tgid as u32;
@@ -65,12 +65,12 @@ fn get_docker_container_id(regex: &Regex, msg: &Measurement) -> Result<String, E
     let cgroup = fs::read_to_string(format!("/proc/{}/task/{}/cgroup", tgid, pid))
         .or_else(|_| fs::read_to_string(format!("/proc/{}/cgroup", pid)))?;
 
-    container_id(regex, &cgroup).ok_or(format_err!("No container"))
+    container_id(regex, &cgroup).ok_or_else(|| format_err!("No container"))
 }
 
 #[inline]
 fn container_id(re: &Regex, cgroup: &str) -> Option<String> {
-    for container in re.captures_iter(cgroup) {
+    if let Some(container) = re.captures_iter(cgroup).next() {
         return container.get(1).map(|m| m.as_str().to_string());
     }
 

@@ -1,10 +1,7 @@
-#![allow(non_camel_case_types)]
-
-use std::ptr;
-include!(concat!(env!("OUT_DIR"), "/dns.rs"));
-
 use crate::grains::protocol::ip::to_ipv4;
 use crate::grains::*;
+
+include!(concat!(env!("OUT_DIR"), "/dns.rs"));
 
 pub struct DNS(pub DnsConfig);
 #[derive(Serialize, Deserialize, Debug)]

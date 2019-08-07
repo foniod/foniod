@@ -1,7 +1,4 @@
-#![allow(non_camel_case_types)]
-
 use std::net::Ipv4Addr;
-use std::ptr;
 
 use crate::grains::protocol::ip::to_ipv4;
 use crate::grains::*;
