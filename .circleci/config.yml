@@ -15,7 +15,7 @@ commands:
 jobs:
   ubuntu:
     parameters:
-      version:
+      tag:
         type: string
         default: "latest"
       kernel_version:
@@ -23,7 +23,7 @@ jobs:
         default: "$(uname -r)"
     working_directory: /build
     docker:
-      - image: ubuntu:<< parameters.version >>
+      - image: ubuntu:<< parameters.tag >>
     steps:
       - checkout
       - attach_workspace:
@@ -131,14 +131,15 @@ jobs:
           destination: ingraind
 
 workflows:
+  version: 2.1
   build:
     jobs:
       - ubuntu:
           name: "ubuntu 18.04"
-          version: "18.04"
+          tag: "18.04"
       - ubuntu:
           name: "ubuntu 16.04"
-          version: "16.04"
+          tag: "16.04"
       - fedora:
           name: "fedora 29"
       - build_docker_binary:
