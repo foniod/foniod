@@ -10,7 +10,7 @@ edition = "2018"
 
 [build-dependencies]
 failure = "0.1"
-redbpf = { version = "^0.2", features = ["build"] }
+redbpf = { version = "^0.3", features = ["build"] }
 
 [build-dependencies.capnpc]
 version = "^0.9.3"
@@ -26,7 +26,7 @@ lazy_static = "1.1.0"
 
 libc = "0.2"
 lazy-socket = "0.3"
-redbpf = "^0.2"
+redbpf = "^0.3"
 
 uuid = { version = "0.6", features = ["v4"] }
 serde = "^1.0"
