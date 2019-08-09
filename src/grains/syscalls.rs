@@ -1,5 +1,3 @@
-#![allow(non_camel_case_types)]
-
 use std::collections::HashMap;
 use std::fs;
 
@@ -78,7 +76,7 @@ fn parse_symbol_map(path: &str) -> Result<KSyms, Error> {
     let symmap = fs::read_to_string(path)?;
     Ok(symmap
         .lines()
-        .map(|l| l.splitn(4, " ").collect::<Vec<&str>>())
+        .map(|l| l.splitn(4, ' ').collect::<Vec<&str>>())
         .map(|tokens| (u64::from_str_radix(&tokens[0], 16).unwrap(), tokens[2].to_string()))
         .collect())
 }

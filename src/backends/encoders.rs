@@ -14,7 +14,7 @@ pub enum Encoding {
 pub type Encoder = Box<Fn(Message) -> Vec<u8>>;
 
 impl Encoding {
-    pub fn to_encoder(self) -> Encoder {
+    pub fn to_encoder(&self) -> Encoder {
         Box::new(match self {
             Encoding::JSON => to_json,
             #[cfg(feature = "capnp")]
@@ -35,7 +35,7 @@ pub fn to_capnp(msg: Message) -> Vec<u8> {
     };
 
     let mut message = ::capnp::message::Builder::new_default();
-    let mut payload = message.init_root::<ingrain_payload::Builder>();
+    let payload = message.init_root::<ingrain_payload::Builder>();
 
     let mut data = payload.init_data(src.len() as u32);
     for (i, mut source) in src.drain(..).enumerate() {
@@ -46,7 +46,7 @@ pub fn to_capnp(msg: Message) -> Vec<u8> {
         m.set_measurement(source.value.get() as f64);
 
         let mut tags = m.init_tags(source.tags.0.len() as u32);
-        for (i, mut source) in source.tags.0.drain(..).enumerate() {
+        for (i, source) in source.tags.0.drain(..).enumerate() {
             let mut tag = tags.reborrow().get(i as u32);
             tag.set_key(&source.0);
             tag.set_value(&source.1);
@@ -54,7 +54,7 @@ pub fn to_capnp(msg: Message) -> Vec<u8> {
     }
 
     let mut buffer = Cursor::new(Vec::new());
-    serialize::write_message(&mut buffer, &message);
+    serialize::write_message(&mut buffer, &message).unwrap();
     buffer.into_inner()
 }
 
@@ -71,9 +71,9 @@ pub fn to_json(mut msg: Message) -> Vec<u8> {
 }
 
 fn serialized_name(msg: &Measurement) -> String {
-    let (type_str, measurement) = match msg.value {
-        Unit::Byte(x) => ("byte", x),
-        Unit::Count(x) => ("count", x),
+    let type_str = match msg.value {
+        Unit::Byte(_) => "byte",
+        Unit::Count(_) => "count",
     };
 
     format!("{}_{}", &msg.name, type_str)

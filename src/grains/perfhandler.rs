@@ -33,9 +33,11 @@ impl EventHandler for PerfHandler {
                             sample.size as usize,
                         ))
                     };
-                    msg.and_then(|m| Some(send_to(&self.backends, m)));
+                    if let Some(msg) = msg {
+                        send_to(&self.backends, msg);
+                    }
                 }
-            }
+            };
         }
     }
 }

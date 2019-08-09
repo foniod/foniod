@@ -10,7 +10,7 @@ use rustls::internal::msgs::{
     handshake::HandshakePayload, handshake::HasServerExtensions, handshake::ServerHelloPayload,
     handshake::ServerNamePayload, message::Message as TLSMessage, message::MessagePayload,
 };
-use rustls::{CipherSuite, ProtocolVersion};
+use rustls::CipherSuite;
 
 use std::net::Ipv4Addr;
 
@@ -38,7 +38,6 @@ impl EBPFGrain<'static> for TLS {
 }
 
 fn tls_to_message(buf: &[u8]) -> Option<Message> {
-    let mut version = ProtocolVersion::Unknown(0x0000);
     let (handshake, version) = {
         let offset = tcp_payload_offset(buf);
         let mut packet = TLSMessage::read_bytes(&buf[offset..])?;
@@ -79,7 +78,7 @@ fn parse_clienthello(payload: ClientHelloPayload, mut tags: Tags) -> Option<Mess
             sni.iter()
                 .filter(|sni| sni.typ == ServerNameType::HostName)
                 .map(|sni| match &sni.payload {
-                    ServerNamePayload::HostName(dnsn) => format!("{}", AsRef::<str>::as_ref(&dnsn)),
+                    ServerNamePayload::HostName(dnsn) => AsRef::<str>::as_ref(dnsn).to_string(),
                     _ => unreachable!(),
                 })
                 .collect::<Vec<String>>()
@@ -144,8 +143,8 @@ fn parse_ips(buf: &[u8]) -> (String, String) {
 
 fn parse_tcp_ports(buf: &[u8]) -> (u16, u16) {
     let offs = ETH_HLEN + iph_len(buf);
-    let s: u16 = (buf[offs + 0] as u16) << 8 | buf[offs + 1] as u16;
-    let d: u16 = (buf[offs + 2] as u16) << 8 | buf[offs + 3] as u16;
+    let s: u16 = u16::from(buf[offs]) << 8 | u16::from(buf[offs + 1]);
+    let d: u16 = u16::from(buf[offs + 2]) << 8 | u16::from(buf[offs + 3]);
 
     (d, s)
 }

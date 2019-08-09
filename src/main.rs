@@ -1,4 +1,4 @@
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::all))]
+#![deny(clippy::all)]
 
 #[macro_use]
 extern crate actix;
@@ -23,6 +23,8 @@ use backends::Message;
 
 #[cfg(feature = "capnp-encoding")]
 mod ingraind_capnp {
+    #![allow(clippy::all)]
+    #![allow(dead_code)]
     include!(concat!(env!("OUT_DIR"), "/schema/ingraind_capnp.rs"));
 }
 
@@ -62,7 +64,7 @@ fn main() {
         .drain()
         .map(|(key, pipeline)| {
             let mut backend = pipeline.backend.into_recipient();
-            let mut steps = pipeline.steps.unwrap_or(vec![]);
+            let mut steps = pipeline.steps.unwrap_or_else(|| vec![]);
             steps.reverse();
 
             for step in steps.drain(..) {
@@ -85,7 +87,7 @@ fn main() {
                     .map(|p| {
                         backends
                             .get(p)
-                            .expect(&format!("Invalid configuration: pipeline {} not found!", p))
+                            .unwrap_or_else(|| panic!("Invalid configuration: pipeline {} not found!", p))
                             .clone()
                     })
                     .collect::<Vec<Recipient<Message>>>();
@@ -100,5 +102,5 @@ fn main() {
         });
     });
 
-    system.run();
+    system.run().unwrap();
 }

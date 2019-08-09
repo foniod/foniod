@@ -1,38 +1,28 @@
 use failure::Error;
 use std::env;
-use std::ffi::OsString;
 use std::fs::read_dir;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use redbpf::build::{build, cache::BuildCache, generate_bindings, headers::headers};
+use redbpf::build::{build, cache::BuildCache, generate_bindings, headers::kernel_headers};
 
 const CAPNP_SCHEMA: &'static str = "schema/ingraind.capnp";
 
 fn main() -> Result<(), Error> {
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
-    let headers = headers().unwrap();
-    let flags = {
-        let mut cflags: Vec<OsString> = redbpf::build::BUILD_FLAGS
-            .iter()
-            .map(OsString::from)
-            .collect();
-
-        cflags.append(&mut headers.clone());
-        cflags
-    };
-    let bindgen_flags: Vec<String> = flags
+    let kernel_headers = kernel_headers().expect("couldn't find kernel headers");
+    let mut bindgen_flags: Vec<String> = kernel_headers
         .iter()
-        .cloned()
-        .map(|f| f.into_string().unwrap())
+        .map(|dir| format!("-I{}", dir))
         .collect();
+    bindgen_flags.extend(redbpf::build::BUILD_FLAGS.iter().map(|f| f.to_string()));
 
     let mut cache = BuildCache::new(&out_dir);
 
     for file in source_files("./bpf", "c")? {
         if cache.file_changed(&file) {
-            build(&flags[..], &out_dir, &file).expect("Failed building BPF plugin!");
+            build(&bindgen_flags[..], &out_dir, &file).expect("Failed building BPF plugin!");
         }
     }
     for file in source_files("./bpf", "h")? {

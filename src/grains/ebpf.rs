@@ -110,7 +110,7 @@ where
     fn bind_perf(&mut self, backends: &[BackendHandler]) -> EventOutputs {
         let online_cpus = cpus::get_online().unwrap();
         let mut output: EventOutputs = vec![];
-        for ref mut m in self.module.maps.iter_mut().filter(|m| m.kind == 4) {
+        for m in self.module.maps.iter_mut().filter(|m| m.kind == 4) {
             for cpuid in online_cpus.iter() {
                 let pm = PerfMap::bind(m, -1, *cpuid, 16, -1, 0).unwrap();
                 output.push(Box::new(PerfHandler {

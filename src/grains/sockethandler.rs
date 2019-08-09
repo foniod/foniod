@@ -29,12 +29,9 @@ impl EventHandler for SocketHandler {
                 return;
             }
 
-            let msg = match read {
-                0 => None,
-                _ => (self.callback)(&buf[..plen]),
-            };
-
-            msg.and_then(|msg| Some(send_to(&self.backends, msg)));
+            if let Some(msg) = (self.callback)(&buf[..plen]) {
+                send_to(&self.backends, msg);
+            }
         }
     }
 }
