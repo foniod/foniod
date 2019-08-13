@@ -13,6 +13,24 @@ commands:
             rustup component add rustfmt
 
 jobs:
+  terraform:
+    parameters:
+      ami:
+        type: string
+        default: "latest"
+      ingrain_build:
+        type: string
+        default: "ubuntu"
+    working_directory: /build
+    docker:
+      - image: hashicorp/terraform:light
+    steps:
+      - checkout
+      - run:
+          name: Deploy
+          command: |
+            init
+
   ubuntu:
     parameters:
       tag:
@@ -134,14 +152,30 @@ workflows:
   version: 2.1
   build:
     jobs:
+      - terraform:
+         ami: 'asdf' 
+         ingrain_build: 'asdf'
+
       - ubuntu:
           name: "ubuntu 18.04"
           tag: "18.04"
+          filters:
+            branches:
+              only:
+                - master
       - ubuntu:
           name: "ubuntu 16.04"
           tag: "16.04"
+          filters:
+            branches:
+              only:
+                - master
       - fedora:
           name: "fedora 29"
+          filters:
+            branches:
+              only:
+                - master
       - build_docker_binary:
           filters:
             branches:
