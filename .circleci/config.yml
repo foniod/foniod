@@ -18,18 +18,19 @@ jobs:
       ami:
         type: string
         default: "latest"
-      ingrain_build:
-        type: string
-        default: "ubuntu"
     working_directory: /build
     docker:
       - image: hashicorp/terraform:light
     steps:
       - checkout
+      - attach_workspace:
+          # Must be absolute path or relative path from working_directory
+          at: /tmp/workspace
       - run:
           name: Deploy
           command: |
-            init
+            cd terraform
+            ./run-test.sh << parameters.ami >>
 
   ubuntu:
     parameters:
@@ -61,6 +62,16 @@ jobs:
             . /root/.cargo/env
             cargo test --target=x86_64-unknown-linux-musl --release || exit 1
             cargo build --target=x86_64-unknown-linux-musl --release || exit 1
+
+            mkdir -p /tmp/workspace/bin
+            cp target/x86_64-unknown-linux-musl/release/ingraind \
+               /tmp/workspace/bin/ingraind-ubuntu-$(echo "<< parameters.tag >>" | sed 's/\.//')
+
+      - persist_to_workspace:
+          root: /tmp/workspace
+          paths:
+            - bin
+
 
   fedora:
     working_directory: /build
@@ -153,16 +164,15 @@ workflows:
   build:
     jobs:
       - terraform:
-         ami: 'asdf' 
-         ingrain_build: 'asdf'
+         name: 'terraform - ubuntu 18.04'
+         ami: 'ubuntu-1804' 
+         requires:
+           - ubuntu 18.04
 
       - ubuntu:
           name: "ubuntu 18.04"
           tag: "18.04"
-          filters:
-            branches:
-              only:
-                - master
+
       - ubuntu:
           name: "ubuntu 16.04"
           tag: "16.04"
@@ -170,17 +180,20 @@ workflows:
             branches:
               only:
                 - master
+
       - fedora:
           name: "fedora 29"
           filters:
             branches:
               only:
                 - master
+
       - build_docker_binary:
           filters:
             branches:
               only:
                 - master
+
       - build_docker_image:
           requires:
             - build_docker_binary
