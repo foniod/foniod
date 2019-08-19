@@ -62,6 +62,7 @@ jobs:
             . /root/.cargo/env
             cargo test --target=x86_64-unknown-linux-musl --release || exit 1
             cargo build --target=x86_64-unknown-linux-musl --release || exit 1
+            cargo build --target=x86_64-unknown-linux-musl || exit 1
 
             mkdir -p /tmp/workspace/bin
             cp target/x86_64-unknown-linux-musl/release/ingraind \
@@ -75,6 +76,9 @@ jobs:
       - store_artifacts:
           path: /build/target/x86_64-unknown-linux-musl/release/ingraind
           destination: ingraind
+      - store_artifacts:
+          path: /build/target/x86_64-unknown-linux-musl/debug/ingraind
+          destination: ingraind-debug
 
   fedora:
     working_directory: /build
@@ -99,10 +103,15 @@ jobs:
             export KERNEL_VERSION=4.18.16-300.fc29.x86_64
             cargo test --release || exit 1
             cargo build --release || exit 1
+            cargo build || exit 1
 
       - store_artifacts:
           path: /build/target/release/ingraind
           destination: ingraind
+
+      - store_artifacts:
+          path: /build/target/debug/ingraind
+          destination: ingraind-debug
 
   build_docker_image:
     environment:
