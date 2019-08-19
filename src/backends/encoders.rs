@@ -11,7 +11,7 @@ pub enum Encoding {
     Capnp,
 }
 
-pub type Encoder = Box<Fn(Message) -> Vec<u8>>;
+pub type Encoder = Box<dyn Fn(Message) -> Vec<u8>>;
 
 impl Encoding {
     pub fn to_encoder(&self) -> Encoder {

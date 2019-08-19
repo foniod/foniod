@@ -12,8 +12,6 @@ mod encoders;
 
 use crate::metrics::{kind::Kind, Measurement, Unit};
 
-pub type BackendHandler = actix::Recipient<Message>;
-
 #[derive(Message)]
 pub struct Flush;
 

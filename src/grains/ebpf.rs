@@ -1,31 +1,27 @@
-use crate::grains::events::{EventCallback, EventHandler};
-use crate::grains::perfhandler::PerfHandler;
-use crate::grains::sockethandler::SocketHandler;
-use crate::grains::BackendHandler;
+use crate::backends::Message;
+use crate::grains::ebpf_io::{
+    MessageStream, MessageStreams, PerfMessageStream, SocketMessageStream,
+};
 
 use redbpf::cpus;
 use redbpf::{Module, PerfMap, Result};
 
+use actix::{Actor, AsyncContext, Context, Recipient, Running, StreamHandler};
 use lazy_socket::raw::Socket;
-
+use std::io;
 use std::os::unix::io::FromRawFd;
-
-pub type EventOutputs = Vec<Box<dyn EventHandler>>;
 
 pub struct Grain<T> {
     module: Module,
     pub native: T,
 }
 
-pub trait ToEpollHandler {
-    fn to_eventoutputs(&mut self, _backends: &[BackendHandler]) -> EventOutputs;
-}
+pub type EventCallback = Box<dyn Fn(&[u8]) -> Option<Message> + Send>;
 
 pub trait EBPFGrain<'code>: Sized {
     fn code() -> &'code [u8];
     fn get_handler(&self, id: &str) -> EventCallback;
     fn loaded(&mut self, _module: &mut Module) {}
-    fn attached(&mut self, _backends: &[BackendHandler]) {}
 
     fn load(mut self) -> Result<Grain<Self>>
     where
@@ -48,7 +44,7 @@ impl<'code, 'module, T> Grain<T>
 where
     T: EBPFGrain<'code>,
 {
-    pub fn attach_kprobes(&mut self, backends: &[BackendHandler]) -> EventOutputs {
+    pub fn attach_kprobes(&mut self) -> MessageStreams {
         use redbpf::ProgramKind::*;
         for prog in self
             .module
@@ -60,11 +56,10 @@ where
             prog.attach_probe().unwrap();
         }
 
-        self.native.attached(backends);
-        self.bind_perf(backends)
+        self.bind_perf()
     }
 
-    pub fn attach_kprobes_to_names(&mut self, name: impl AsRef<str>, backends: &[BackendHandler]) -> EventOutputs {
+    pub fn attach_kprobes_to_names(&mut self, name: impl AsRef<str>) -> MessageStreams {
         use redbpf::ProgramKind::*;
         for prog in self
             .module
@@ -76,60 +71,53 @@ where
             prog.attach_probe_to_name(name.as_ref()).unwrap();
         }
 
-        self.native.attached(backends);
-        self.bind_perf(backends)
+        self.bind_perf()
     }
 
-    pub fn attach_xdps(&mut self, iface: &str, backends: &[BackendHandler]) -> EventOutputs {
+    pub fn attach_xdps(&mut self, iface: &str) -> MessageStreams {
         use redbpf::ProgramKind::*;
         for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
             info!("Loaded: {}, {:?}", prog.name, prog.kind);
             prog.attach_xdp(iface).unwrap();
         }
 
-        self.native.attached(backends);
-        self.bind_perf(backends)
+        self.bind_perf()
     }
 
-    pub fn attach_tracepoints(
-        &mut self,
-        category: &str,
-        name: &str,
-        backends: &[BackendHandler],
-    ) -> Vec<Box<dyn EventHandler>> {
+    pub fn attach_tracepoints(&mut self, category: &str, name: &str) -> MessageStreams {
         use redbpf::ProgramKind::*;
-        for prog in self.module.programs.iter_mut().filter(|p| p.kind == Tracepoint) {
+        for prog in self
+            .module
+            .programs
+            .iter_mut()
+            .filter(|p| p.kind == Tracepoint)
+        {
             info!("Attached: {}, {:?}", prog.name, prog.kind);
             prog.attach_tracepoint(category, name).unwrap();
         }
 
-        self.native.attached(backends);
-        self.bind_perf(backends)
+        self.bind_perf()
     }
 
-    fn bind_perf(&mut self, backends: &[BackendHandler]) -> EventOutputs {
+    fn bind_perf(&mut self) -> MessageStreams {
         let online_cpus = cpus::get_online().unwrap();
-        let mut output: EventOutputs = vec![];
+        let mut streams: MessageStreams = vec![];
         for m in self.module.maps.iter_mut().filter(|m| m.kind == 4) {
             for cpuid in online_cpus.iter() {
-                let pm = PerfMap::bind(m, -1, *cpuid, 16, -1, 0).unwrap();
-                output.push(Box::new(PerfHandler {
-                    name: m.name.clone(),
-                    perfmap: pm,
-                    callback: self.native.get_handler(m.name.as_str()),
-                    backends: backends.to_vec(),
-                }));
+                let map = PerfMap::bind(m, -1, *cpuid, 16, -1, 0).unwrap();
+                let stream = Box::new(PerfMessageStream::new(
+                    m.name.clone(),
+                    map,
+                    self.native.get_handler(m.name.as_str()),
+                ));
+                streams.push(stream);
             }
         }
 
-        output
+        streams
     }
 
-    pub fn attach_socketfilters(
-        &mut self,
-        iface: &str,
-        backends: &[BackendHandler],
-    ) -> EventOutputs {
+    pub fn attach_socketfilters(&mut self, iface: &str) -> MessageStreams {
         use redbpf::ProgramKind::*;
         let socket_fds = self
             .module
@@ -139,28 +127,67 @@ where
             .map(|prog| {
                 info!("Attached: {}, {:?}", prog.name, prog.kind);
                 prog.attach_socketfilter(iface).unwrap()
-            }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
 
         // we need to get out of mutable borrow land to continue.
         // this is because we cannot simultaneously borrow the `native` as
         // immutable and `programs ` as mutable
         // Therefore it is needed to refilter, but after that ordering should be
         // the same
-        let handlers = self
-            .module
+        self.module
             .programs
             .iter()
             .filter(|p| p.kind == SocketFilter)
             .zip(&socket_fds)
             .map(|(prog, fd)| {
-                Box::new(SocketHandler {
-                    socket: unsafe { Socket::from_raw_fd(*fd) },
-                    backends: backends.to_vec(),
-                    callback: self.native.get_handler(prog.name.as_str()),
-                }) as Box<dyn EventHandler>
-            }).collect();
+                Box::new(SocketMessageStream::new(
+                    prog.name.clone(),
+                    unsafe { Socket::from_raw_fd(*fd) },
+                    self.native.get_handler(prog.name.as_str()),
+                )) as Box<MessageStream>
+            })
+            .collect()
+    }
+}
 
-        self.native.attached(backends);
-        handlers
+pub trait EBPFProbe {
+    fn attach(&mut self) -> MessageStreams;
+}
+
+pub struct EBPFActor {
+    probe: Box<dyn EBPFProbe>,
+    recipients: Vec<Recipient<Message>>,
+}
+
+impl EBPFActor {
+    pub fn new(probe: Box<dyn EBPFProbe>, recipients: Vec<Recipient<Message>>) -> Self {
+        EBPFActor { probe, recipients }
+    }
+}
+
+impl Actor for EBPFActor {
+    type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        let mut streams = self.probe.attach();
+        for stream in streams.drain(..) {
+            ctx.add_stream(stream);
+        }
+    }
+}
+
+impl StreamHandler<Vec<Message>, io::Error> for EBPFActor {
+    fn handle(&mut self, mut messages: Vec<Message>, _ctx: &mut Context<Self>) {
+        for message in messages.drain(..) {
+            for recipient in &self.recipients {
+                recipient.do_send(message.clone()).unwrap();
+            }
+        }
+    }
+
+    fn error(&mut self, err: io::Error, _ctx: &mut Self::Context) -> Running {
+        error!("probe error: {}", err);
+        Running::Continue
     }
 }

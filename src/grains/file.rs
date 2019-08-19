@@ -31,9 +31,9 @@ pub struct FileAccess {
     pub write: usize,
 }
 
-impl ToEpollHandler for Grain<Files> {
-    fn to_eventoutputs(&mut self, backends: &[BackendHandler]) -> EventOutputs {
-        self.attach_kprobes(backends)
+impl EBPFProbe for Grain<Files> {
+    fn attach(&mut self) -> MessageStreams {
+        self.attach_kprobes()
     }
 }
 

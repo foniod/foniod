@@ -17,13 +17,13 @@ pub struct SyscallConfig {
 }
 pub struct Syscall(pub SyscallConfig);
 
-impl ToEpollHandler for Grain<Syscall> {
-    fn to_eventoutputs(&mut self, backends: &[BackendHandler]) -> EventOutputs {
+impl EBPFProbe for Grain<Syscall> {
+    fn attach(&mut self) -> MessageStreams {
         let bind_to = self.native.0.monitor_syscalls.clone();
         bind_to
             .iter()
             .flat_map(|syscall| {
-                self.attach_kprobes_to_names(&format!("__x64_sys_{}", syscall), backends)
+                self.attach_kprobes_to_names(&format!("__x64_sys_{}", syscall))
             })
             .collect()
     }

@@ -10,7 +10,6 @@ extern crate log;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::thread;
 
 mod aggregations;
 mod backends;
@@ -18,7 +17,7 @@ mod config;
 mod grains;
 mod metrics;
 
-use actix::Recipient;
+use actix::{Actor, Recipient};
 use backends::Message;
 
 #[cfg(feature = "capnp-encoding")]
@@ -75,32 +74,27 @@ fn main() {
         })
         .collect::<HashMap<String, Recipient<Message>>>();
 
-    thread::spawn(move || {
-        let epollables = config
-            .probe
-            .drain(..)
-            .flat_map(|probe| {
-                let mut grain = probe.grain.into_grain();
-                let pipelines = probe
-                    .pipelines
-                    .iter()
-                    .map(|p| {
-                        backends
-                            .get(p)
-                            .unwrap_or_else(|| panic!("Invalid configuration: pipeline {} not found!", p))
-                            .clone()
-                    })
-                    .collect::<Vec<Recipient<Message>>>();
+    let probe_actors: Vec<_> = config
+        .probe
+        .drain(..)
+        .map(|probe| {
+            let recipients = probe
+                .pipelines
+                .iter()
+                .map(|p| {
+                    backends
+                        .get(p)
+                        .unwrap_or_else(|| panic!("Invalid configuration: pipeline {} not found!", p))
+                        .clone()
+                })
+                .collect::<Vec<Recipient<Message>>>();
+            probe.grain.into_probe_actor(recipients)
+        })
+        .collect();
 
-                grain.to_eventoutputs(pipelines.as_slice())
-            })
-            .collect();
-
-        let _ = grains::epoll_loop(epollables, 100).or_else::<(), _>(|err| {
-            error!("Epoll failed: {}", err);
-            std::process::exit(2);
-        });
-    });
+    for actor in probe_actors {
+        actor.start();
+    }
 
     system.run().unwrap();
 }

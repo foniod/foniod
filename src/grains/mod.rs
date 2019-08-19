@@ -1,9 +1,7 @@
 mod connection;
 mod ebpf;
-mod events;
-mod perfhandler;
+mod ebpf_io;
 mod protocol;
-mod sockethandler;
 
 pub mod dns;
 pub mod file;
@@ -13,11 +11,9 @@ pub mod udp;
 pub mod syscalls;
 
 pub use crate::grains::ebpf::*;
-pub use crate::grains::events::*;
-pub use crate::grains::perfhandler::PerfHandler;
-pub use crate::grains::sockethandler::SocketHandler;
+pub use crate::grains::ebpf_io::*;
 
-pub use crate::backends::{BackendHandler, Message};
+pub use crate::backends::Message;
 pub use crate::metrics::kind::*;
 pub use crate::metrics::{Measurement, Tags, ToTags, Unit};
 pub use std::net::Ipv4Addr;
@@ -32,12 +28,6 @@ pub fn to_string(x: &[u8]) -> String {
     match x.iter().position(|&r| r == 0) {
         Some(zero_pos) => String::from_utf8_lossy(&x[0..zero_pos]).to_string(),
         None => String::from_utf8_lossy(x).to_string(),
-    }
-}
-
-pub fn send_to(upstreams: &[BackendHandler], msg: Message) {
-    for upstream in upstreams.iter() {
-        upstream.do_send(msg.clone()).unwrap();
     }
 }
 
