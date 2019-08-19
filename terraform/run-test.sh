@@ -11,11 +11,12 @@ export TF_VAR_ec2_os_ami="$OS_AMI"
 terraform init -input=false
 terraform apply -input=false -auto-approve |tee test-output
 
-modules_loaded=$(grep "Loaded" test-output |cut -d: -f10- |sort)
+modules_loaded=$(<test-output awk -F': ' '/ingraind::grains::ebpf: Loaded/ { print $NF }' | sort)
 
 terraform destroy -input=false -auto-approve
 
-test "$modules_loaded" = "dns_queries, XDP
+
+exec test "$modules_loaded" = "dns_queries, XDP
 tcp_recvmsg, Kprobe
 tcp_recvmsg, Kretprobe
 tcp_sendmsg, Kprobe
@@ -27,4 +28,4 @@ udp_sendmsg, Kprobe
 vfs_read, Kprobe
 vfs_read, Kretprobe
 vfs_write, Kprobe
-vfs_write, Kretprobe" || exit 1
+vfs_write, Kretprobe"
