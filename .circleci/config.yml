@@ -72,6 +72,9 @@ jobs:
           paths:
             - bin
 
+      - store_artifacts:
+          path: /build/target/x86_64-unknown-linux-musl/release/ingraind
+          destination: ingraind
 
   fedora:
     working_directory: /build
@@ -96,6 +99,10 @@ jobs:
             export KERNEL_VERSION=4.18.16-300.fc29.x86_64
             cargo test --release || exit 1
             cargo build --release || exit 1
+
+      - store_artifacts:
+          path: /build/target/release/ingraind
+          destination: ingraind
 
   build_docker_image:
     environment:
