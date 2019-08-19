@@ -199,7 +199,8 @@ resource "null_resource" "provision" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/ingraind",
-      "/tmp/ingraind /tmp/config.toml",
+      "export RUST_BACKTRACE=1",
+      "sudo /tmp/ingraind /tmp/config.toml",
     ]
   }
 }
