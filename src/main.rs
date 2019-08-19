@@ -17,7 +17,7 @@ mod config;
 mod grains;
 mod metrics;
 
-use actix::{Actor, Recipient};
+use actix::Recipient;
 use backends::Message;
 
 #[cfg(feature = "capnp-encoding")]
