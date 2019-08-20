@@ -9,10 +9,10 @@ pub struct DnsConfig {
     interface: String,
 }
 
-impl ToEpollHandler for Grain<DNS> {
-    fn to_eventoutputs(&mut self, backends: &[BackendHandler]) -> EventOutputs {
+impl EBPFProbe for Grain<DNS> {
+    fn attach(&mut self) -> MessageStreams {
         let iface = self.native.0.interface.clone();
-        self.attach_xdps(iface.as_str(), backends)
+        self.attach_xdps(iface.as_str())
     }
 }
 

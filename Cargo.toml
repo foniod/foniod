@@ -20,6 +20,10 @@ optional = true
 actix = "^0.8"
 futures = "^0.1"
 tokio = "0.1"
+tokio-reactor = "0.1"
+tokio-udp = "0.1"
+bytes = "0.4"
+mio = "0.6"
 
 failure = "0.1"
 lazy_static = "1.1.0"

@@ -4,9 +4,10 @@ use crate::grains::connection::get_volume_callback;
 use crate::grains::*;
 
 pub struct UDP;
-impl ToEpollHandler for Grain<UDP> {
-    fn to_eventoutputs(&mut self, backends: &[BackendHandler]) -> EventOutputs {
-        self.attach_kprobes(backends)
+
+impl EBPFProbe for Grain<UDP> {
+    fn attach(&mut self) -> MessageStreams {
+        self.attach_kprobes()
     }
 }
 

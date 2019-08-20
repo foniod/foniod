@@ -6,7 +6,7 @@ use log::LevelFilter;
 use crate::aggregations::*;
 use crate::backends::*;
 use crate::grains::{dns, file, tcpv4, tls, udp, syscalls};
-use crate::grains::{EBPFGrain, ToEpollHandler};
+use crate::grains::{EBPFActor, EBPFGrain, EBPFProbe};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -101,15 +101,16 @@ impl Backend {
 }
 
 impl Grain {
-    pub fn into_grain(self) -> Box<dyn ToEpollHandler> {
-        match self {
+    pub fn into_probe_actor(self, recipients: Vec<Recipient<Message>>) -> EBPFActor {
+        let probe: Box<dyn EBPFProbe> = match self {
             Grain::TCP4 => Box::new(tcpv4::TCP4.load().unwrap()),
             Grain::UDP => Box::new(udp::UDP.load().unwrap()),
             Grain::Files(config) => Box::new(file::Files(config).load().unwrap()),
             Grain::DNS(config) => Box::new(dns::DNS(config).load().unwrap()),
             Grain::TLS(config) => Box::new(tls::TLS(config).load().unwrap()),
             Grain::Syscall(config) => Box::new(syscalls::Syscall(config).load().unwrap()),
-        }
+        };
+        EBPFActor::new(probe, recipients)
     }
 }
 

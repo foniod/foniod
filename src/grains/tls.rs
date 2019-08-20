@@ -1,6 +1,5 @@
 #![allow(non_camel_case_types)]
 
-use crate::grains::ebpf::{Grain, ToEpollHandler};
 use crate::grains::protocol::ETH_HLEN;
 use crate::grains::*;
 use crate::metrics::Tags;
@@ -20,10 +19,10 @@ pub struct TlsConfig {
     interface: String,
 }
 
-impl ToEpollHandler for Grain<TLS> {
-    fn to_eventoutputs(&mut self, backends: &[BackendHandler]) -> EventOutputs {
+impl EBPFProbe for Grain<TLS> {
+    fn attach(&mut self) -> MessageStreams {
         let iface = self.native.0.interface.clone();
-        self.attach_socketfilters(iface.as_str(), backends)
+        self.attach_socketfilters(iface.as_str())
     }
 }
 

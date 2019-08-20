@@ -5,9 +5,9 @@ use crate::grains::*;
 
 pub struct TCP4;
 
-impl ToEpollHandler for Grain<TCP4> {
-    fn to_eventoutputs(&mut self, backends: &[BackendHandler]) -> EventOutputs {
-        self.attach_kprobes(backends)
+impl EBPFProbe for Grain<TCP4> {
+    fn attach(&mut self) -> MessageStreams {
+        self.attach_kprobes()
     }
 }
 
