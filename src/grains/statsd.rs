@@ -22,6 +22,48 @@ struct Metric {
     key: String,
     value: MetricValue,
     sample_rate: Option<f64>,
+    tags: Tags,
+}
+
+impl Metric {
+    pub fn update(&mut self, other: Metric) -> Result<(), MetricError> {
+        use MetricValue::*;
+
+        let Metric {
+            key,
+            value,
+            sample_rate,
+            mut tags,
+        } = other;
+
+        if self.key != key {
+            return Err(MetricError::Error);
+        }
+
+        match (&mut self.value, value) {
+            (Counter(ref mut v), Counter(mut new_v)) => {
+                if let Some(s_rate) = sample_rate {
+                    new_v /= s_rate;
+                }
+                *v += new_v;
+            }
+            (Gauge(ref mut v, _), Gauge(new_v, reset)) => {
+                if reset {
+                    *v = new_v;
+                } else {
+                    *v += new_v;
+                }
+            }
+            (Timing(ref mut v), Timing(new_v)) => {
+                *v = new_v;
+            }
+            _ => return Err(MetricError::Error),
+        };
+
+        self.tags.append(&mut tags);
+
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -37,6 +79,7 @@ enum MetricError {
     ValueError,
     TypeError,
     SampleRateError,
+    TagError,
 }
 
 struct Decoder;
@@ -65,31 +108,29 @@ fn parse_metric(input: &str) -> Result<Metric, MetricError> {
     let mut parts = input.splitn(2, ':');
     let key = parts.next().ok_or(Error)?.to_string();
     let value = parts.next().ok_or(Error)?;
+    let mut sample_rate: Option<f64> = None;
+    let mut tags = Tags::new();
 
-    let (value, ty, sample_rate) = {
-        let mut parts = value.splitn(3, '|');
-        let value = parts.next().ok_or(ValueError).and_then(|v| {
-            if v.is_empty() {
-                Err(ValueError)
-            } else {
-                Ok(v)
-            }
-        })?;
-        let ty = parts.next().ok_or(TypeError).and_then(|ty| {
-            if ty.is_empty() {
-                Err(TypeError)
-            } else {
-                Ok(ty)
-            }
-        })?;
+    let (value, ty, rest) = {
+        let mut parts = value.split('|');
+        let value = parts.next().filter(|v| !v.is_empty()).ok_or(ValueError)?;
+        let ty = parts.next().filter(|v| !v.is_empty()).ok_or(TypeError)?;
 
-        let sample_rate: Option<f64> = match parts.next() {
-            Some(s) if s.is_empty() => return Err(SampleRateError),
-            Some(s) => Some(s[1..].parse().map_err(|_| SampleRateError)?),
-            None => None,
-        };
-        (value, ty, sample_rate)
+        (value, ty, parts)
     };
+
+    for part in rest {
+        match part.chars().next() {
+            Some('@') => sample_rate = Some(part[1..].parse().map_err(|_| SampleRateError)?),
+            Some('#') => {
+                let mut parts = part[1..].splitn(2, ":");
+                let key = parts.next().filter(|v| !v.is_empty()).ok_or(TagError)?;
+                let value = parts.next().filter(|v| !v.is_empty()).ok_or(TagError)?;
+                tags.insert(key, value);
+            }
+            _ => return Err(Error),
+        }
+    }
 
     let value = match ty {
         "c" => MetricValue::Counter(value.parse().map_err(|_| ValueError)?),
@@ -107,6 +148,7 @@ fn parse_metric(input: &str) -> Result<Metric, MetricError> {
         key,
         value,
         sample_rate,
+        tags,
     })
 }
 
@@ -122,9 +164,9 @@ fn parse_metrics(input: &str) -> Result<Vec<Metric>, MetricError> {
 
 #[derive(Debug)]
 struct Aggregator {
-    counters: HashMap<String, f64>,
-    gauges: HashMap<String, f64>,
-    timers: HashMap<String, Vec<f64>>,
+    counters: HashMap<String, Metric>,
+    gauges: HashMap<String, Metric>,
+    timers: HashMap<String, Vec<Metric>>,
 }
 
 impl Aggregator {
@@ -136,39 +178,27 @@ impl Aggregator {
         }
     }
 
-    pub fn record(&mut self, metric: Metric) -> Metric {
+    pub fn record(&mut self, metric: Metric) -> &Metric {
+        use std::collections::hash_map::Entry::*;
         use MetricValue::*;
 
-        let Metric {
-            key,
-            value,
-            sample_rate,
-        } = metric;
-
-        let k = key.clone();
-        let v = match value {
-            Counter(mut v) => {
-                if let Some(srate) = sample_rate {
-                    v /= srate;
+        let key = metric.key.clone();
+        match &metric.value {
+            Counter(_) | Gauge(_, _) => {
+                match self.counters.entry(key.clone()) {
+                    Vacant(e) => {
+                        e.insert(metric);
+                    }
+                    Occupied(mut e) => e.get_mut().update(metric).unwrap(),
                 }
-                Counter(*self.counters
-                    .entry(key)
-                    .and_modify(|c| *c += v)
-                    .or_insert(v))
+                self.counters.get(&key).unwrap()
             }
-            Gauge(v, reset) => {
-                Gauge(*self.gauges
-                    .entry(key)
-                    .and_modify(|g| if reset { *g = v } else { *g += v })
-                    .or_insert(v), reset)
+            Timing(_) => {
+                let timers = self.timers.entry(key).or_default();
+                timers.push(metric);
+                timers.last().unwrap()
             }
-            Timing(v) => {
-                self.timers.entry(key).or_default().push(v);
-                Timing(v)
-            }
-        };
-
-        Metric { key: k, value: v, sample_rate }
+        }
     }
 
     fn flush(&mut self) {
@@ -255,7 +285,7 @@ impl StreamHandler<(Vec<Metric>, SocketAddr), DecoderError> for Statsd {
     ) {
         let aggregated: Vec<Metric> = metrics
             .drain(..)
-            .map(|m| self.aggregator.record(m).into())
+            .map(|m| self.aggregator.record(m).clone().into())
             .collect();
         let measurements: Message = aggregated.into();
         for recipient in &self.recipients {
@@ -313,8 +343,7 @@ impl Into<Measurement> for Metric {
             _ => unimplemented!(),
         };
 
-        let tags = Tags::new();
-        Measurement::new(k, self.key, Unit::Count(v as u64), tags)
+        Measurement::new(k, self.key, Unit::Count(v as u64), self.tags)
     }
 }
 
@@ -329,7 +358,8 @@ mod tests {
             Ok(Metric {
                 key: "foo".to_string(),
                 value: MetricValue::Counter(1f64),
-                sample_rate: None
+                sample_rate: None,
+                tags: Tags::new()
             })
         );
         assert_eq!(
@@ -337,7 +367,8 @@ mod tests {
             Ok(Metric {
                 key: "foo".to_string(),
                 value: MetricValue::Counter(1f64),
-                sample_rate: Some(0.1)
+                sample_rate: Some(0.1),
+                tags: Tags::new()
             })
         );
     }
@@ -349,7 +380,8 @@ mod tests {
             Ok(Metric {
                 key: "foo".to_string(),
                 value: MetricValue::Timing(320f64),
-                sample_rate: None
+                sample_rate: None,
+                tags: Tags::new()
             })
         );
         assert_eq!(
@@ -357,7 +389,8 @@ mod tests {
             Ok(Metric {
                 key: "foo".to_string(),
                 value: MetricValue::Timing(320f64),
-                sample_rate: Some(0.1)
+                sample_rate: Some(0.1),
+                tags: Tags::new()
             })
         );
     }
@@ -369,7 +402,8 @@ mod tests {
             Ok(Metric {
                 key: "foo".to_string(),
                 value: MetricValue::Gauge(42f64, true),
-                sample_rate: None
+                sample_rate: None,
+                tags: Tags::new()
             })
         );
         assert_eq!(
@@ -377,7 +411,8 @@ mod tests {
             Ok(Metric {
                 key: "foo".to_string(),
                 value: MetricValue::Gauge(42f64, false),
-                sample_rate: None
+                sample_rate: None,
+                tags: Tags::new()
             })
         );
         assert_eq!(
@@ -385,7 +420,39 @@ mod tests {
             Ok(Metric {
                 key: "foo".to_string(),
                 value: MetricValue::Gauge(-42f64, false),
-                sample_rate: None
+                sample_rate: None,
+                tags: Tags::new()
+            })
+        );
+    }
+
+    #[test]
+    fn test_parse_tags_one() {
+        let mut tags = Tags::new();
+        tags.insert("bar", "baz");
+        assert_eq!(
+            parse_metric("foo:1|c|#bar:baz"),
+            Ok(Metric {
+                key: "foo".to_string(),
+                value: MetricValue::Counter(1f64),
+                sample_rate: None,
+                tags: tags
+            })
+        );
+    }
+
+    #[test]
+    fn test_parse_tags_many() {
+        let mut tags = Tags::new();
+        tags.insert("bar", "baz");
+        tags.insert("bao", "bab");
+        assert_eq!(
+            parse_metric("foo:1|c|#bar:baz|#bao:bab"),
+            Ok(Metric {
+                key: "foo".to_string(),
+                value: MetricValue::Counter(1f64),
+                sample_rate: None,
+                tags: tags
             })
         );
     }
@@ -400,22 +467,28 @@ mod tests {
         assert_eq!(parse_metric("foo:bar"), Err(TypeError));
         assert_eq!(parse_metric("foo:bar|"), Err(TypeError));
         assert_eq!(parse_metric("foo:bar|baz"), Err(TypeError));
-        assert_eq!(parse_metric("foo:1234|ms|"), Err(SampleRateError));
-        assert_eq!(parse_metric("foo:1234|ms|bar"), Err(SampleRateError));
+        assert_eq!(parse_metric("foo:1234|ms|"), Err(Error));
+        assert_eq!(parse_metric("foo:1234|ms|bar"), Err(Error));
         assert_eq!(parse_metric("foo:1|g|@bar"), Err(SampleRateError));
         assert_eq!(parse_metric("foo:bar|c"), Err(ValueError));
         assert_eq!(parse_metric("foo:*42|g"), Err(ValueError));
+        assert_eq!(parse_metric("foo:1|g|#"), Err(TagError));
+        assert_eq!(parse_metric("foo:1|g|#foo"), Err(TagError));
+        assert_eq!(parse_metric("foo:1|g|#foo:"), Err(TagError));
     }
 
     #[test]
     fn test_parse_metrics_one() {
-        let metrics = parse_metrics("foo:1|c").unwrap();
+        let mut tags = Tags::new();
+        tags.insert("bar", "baz");
+        let metrics = parse_metrics("foo:1|c|@0.5|#bar:baz").unwrap();
         assert_eq!(
             metrics,
             &[Metric {
                 key: "foo".to_string(),
                 value: MetricValue::Counter(1f64),
-                sample_rate: None
+                sample_rate: Some(0.5),
+                tags: tags
             }]
         );
         let metrics = parse_metrics("foo:1|c\n").unwrap();
@@ -424,7 +497,8 @@ mod tests {
             &[Metric {
                 key: "foo".to_string(),
                 value: MetricValue::Counter(1f64),
-                sample_rate: None
+                sample_rate: None,
+                tags: Tags::new()
             }]
         );
     }
@@ -438,12 +512,14 @@ mod tests {
                 Metric {
                     key: "foo".to_string(),
                     value: MetricValue::Counter(1f64),
-                    sample_rate: None
+                    sample_rate: None,
+                    tags: Tags::new()
                 },
                 Metric {
                     key: "bar".to_string(),
                     value: MetricValue::Timing(100f64),
-                    sample_rate: None
+                    sample_rate: None,
+                    tags: Tags::new()
                 }
             ]
         )
