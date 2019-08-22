@@ -1,5 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::From;
+use std::hash::{Hash, Hasher};
+use std::cmp::Eq;
 use std::io;
 use std::net::SocketAddr;
 use std::str;
@@ -47,8 +49,9 @@ impl Metric {
                 }
                 *v += new_v;
             }
-            (Gauge(ref mut v, _), Gauge(new_v, reset)) => {
-                if reset {
+            (Gauge(ref mut v, ref mut reset), Gauge(new_v, new_reset)) => {
+                *reset = new_reset;
+                if new_reset {
                     *v = new_v;
                 } else {
                     *v += new_v;
@@ -56,6 +59,9 @@ impl Metric {
             }
             (Timing(ref mut v), Timing(new_v)) => {
                 *v = new_v;
+            }
+            (Set(ref mut v), Set(ref new_v)) => {
+                *v = new_v.clone();
             }
             _ => return Err(MetricError::Error),
         };
@@ -71,6 +77,7 @@ enum MetricValue {
     Counter(f64),
     Timing(f64),
     Gauge(f64, bool),
+    Set(String)
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -141,6 +148,7 @@ fn parse_metric(input: &str) -> Result<Metric, MetricError> {
             MetricValue::Gauge(value, reset)
         }
         "ms" => MetricValue::Timing(value.parse().map_err(|_| ValueError)?),
+        "s" => MetricValue::Set(value.to_string()),
         _ => return Err(TypeError),
     };
 
@@ -162,11 +170,42 @@ fn parse_metrics(input: &str) -> Result<Vec<Metric>, MetricError> {
     Ok(metrics)
 }
 
+#[derive(Clone, Debug)]
+struct SetMetric(Metric);
+
+impl Hash for SetMetric {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        use MetricValue::*;
+        match &self.0.value {
+            Set(value) => {
+                self.0.key.hash(state);
+                value.hash(state);
+            }
+            _ => unreachable!()
+        }
+    }
+}
+
+impl PartialEq for SetMetric {
+    fn eq(&self, other: &Self) -> bool {
+        use MetricValue::*;
+        match (&self.0.value, &other.0.value) {
+            (Set(value), Set(other_value)) => {
+                self.0.key == other.0.key && value == other_value
+            }
+            _ => false
+        }
+    }
+}
+
+impl Eq for SetMetric {}
+
 #[derive(Debug)]
 struct Aggregator {
     counters: HashMap<String, Metric>,
     gauges: HashMap<String, Metric>,
     timers: HashMap<String, Vec<Metric>>,
+    sets: HashMap<String, HashSet<SetMetric>>
 }
 
 impl Aggregator {
@@ -175,10 +214,11 @@ impl Aggregator {
             counters: HashMap::new(),
             gauges: HashMap::new(),
             timers: HashMap::new(),
+            sets: HashMap::new()
         }
     }
 
-    pub fn record(&mut self, metric: Metric) -> &Metric {
+    pub fn record(&mut self, metric: Metric) -> Metric {
         use std::collections::hash_map::Entry::*;
         use MetricValue::*;
 
@@ -187,24 +227,38 @@ impl Aggregator {
             Counter(_) | Gauge(_, _) => {
                 match self.counters.entry(key.clone()) {
                     Vacant(e) => {
-                        e.insert(metric);
+                        e.insert(metric.clone());
+                        metric
                     }
-                    Occupied(mut e) => e.get_mut().update(metric).unwrap(),
+                    Occupied(mut e) => {
+                        e.get_mut().update(metric).unwrap();
+                        self.counters.get(&key).unwrap().clone()
+                    }
                 }
-                self.counters.get(&key).unwrap()
             }
             Timing(_) => {
                 let timers = self.timers.entry(key).or_default();
-                timers.push(metric);
-                timers.last().unwrap()
+                timers.push(metric.clone());
+                metric
+            }
+            Set(_) => {
+                let set = self.sets.entry(key).or_default();
+                set.insert(SetMetric(metric.clone()));
+                metric
+
             }
         }
+    }
+
+    pub fn uniques(&self, key: &str) -> Option<usize> {
+        self.sets.get(key).map(|s| s.len())
     }
 
     fn flush(&mut self) {
         self.counters.clear();
         self.gauges.clear();
         self.timers.clear();
+        self.sets.clear();
     }
 }
 
@@ -427,6 +481,19 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_set() {
+        assert_eq!(
+            parse_metric("foo:42|s"),
+            Ok(Metric {
+                key: "foo".to_string(),
+                value: MetricValue::Set("42".into()),
+                sample_rate: None,
+                tags: Tags::new()
+            })
+        );
+    }
+
+    #[test]
     fn test_parse_tags_one() {
         let mut tags = Tags::new();
         tags.insert("bar", "baz");
@@ -523,5 +590,47 @@ mod tests {
                 }
             ]
         )
+    }
+
+    #[test]
+    fn test_aggregate_counter() {
+        let mut aggregator = Aggregator::new();
+        let m1 = parse_metric("foo:1|c").unwrap();
+        let m2 = parse_metric("foo:2|c").unwrap();
+        let m3 = parse_metric("foo:3|c").unwrap();
+        assert_eq!(aggregator.record(m1.clone()), m1);
+        assert_eq!(aggregator.record(m2.clone()), m3);
+    }
+
+    #[test]
+    fn test_aggregate_gauge() {
+        let mut aggregator = Aggregator::new();
+        let m1 = parse_metric("foo:1|g").unwrap();
+        let m2 = parse_metric("foo:2|g").unwrap();
+        let m3 = parse_metric("foo:+3|g").unwrap();
+        let m4 = parse_metric("foo:+5|g").unwrap();
+        let m5 = parse_metric("foo:-6|g").unwrap();
+        let m6 = parse_metric("foo:-1|g").unwrap();
+        assert_eq!(aggregator.record(m1.clone()), m1);
+        assert_eq!(aggregator.record(m2.clone()), m2);
+        assert_eq!(aggregator.record(m3.clone()), m4);
+        assert_eq!(aggregator.record(m5), m6);
+    }
+
+    #[test]
+    fn test_aggregate_set() {
+        let mut aggregator = Aggregator::new();
+        let m1 = parse_metric("foo:bar|s").unwrap();
+        let m2 = parse_metric("foo:bad|s").unwrap();
+        let m3 = parse_metric("bar:foo|s").unwrap();
+        assert_eq!(aggregator.uniques("foo"), None);
+        aggregator.record(m1.clone());
+        assert_eq!(aggregator.uniques("foo"), Some(1));
+        aggregator.record(m1);
+        assert_eq!(aggregator.uniques("foo"), Some(1));
+        aggregator.record(m2);
+        assert_eq!(aggregator.uniques("foo"), Some(2));
+        aggregator.record(m3);
+        assert_eq!(aggregator.uniques("bar"), Some(1));
     }
 }
