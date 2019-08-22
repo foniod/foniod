@@ -83,7 +83,7 @@ jobs:
   fedora:
     working_directory: /build
     docker:
-      - image: fedora:30
+      - image: fedora:29
     steps:
       - checkout
       - attach_workspace:
