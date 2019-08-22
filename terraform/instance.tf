@@ -66,16 +66,16 @@ locals {
     "ubuntu-1804", "${data.aws_ami.ubuntu-1804.id}",
     "ubuntu-1604", "${data.aws_ami.ubuntu-1604.id}",
     "debian-9", "${data.aws_ami.debian-9.id}",
-    "centos-7", "${data.aws_ami.centos-7.id}"
-    "fedora-29", "${data.aws_ami.fedora-29.id}"
+    "centos-7", "${data.aws_ami.centos-7.id}",
+    "fedora-29", "${data.aws_ami.fedora-29.id}",
   )}"
 
   ec2_user_map = "${map(
     "ubuntu-1804", "ubuntu",
     "ubuntu-1904", "ubuntu",
     "debian-9", "admin",
-    "centos-7", "ec2-user"
-    "fedora-29", "ec2-user"
+    "centos-7", "ec2-user",
+    "fedora-29", "ec2-user",
   )}"
 }
 
