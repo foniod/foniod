@@ -83,6 +83,17 @@ pipelines = ["console"]
 type = "Syscall"
 monitor_syscalls = ["exit", "execve"]
 
+# The StatsD grain allows receiving metrics from statsd clients.
+#
+# The bind address and flushing interval can be configured via the `bind_address` and `flush_interval` keys.
+#
+[[probe]]
+pipelines = ["console"]
+[probe.config]
+type = "StatsD"
+bind_address = "127.0.0.1:8125"
+flush_interval = "10000"
+
 ##########################
 ##### Pipeline defintions
 ##########################

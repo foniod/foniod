@@ -2,7 +2,7 @@ use std::ops::RangeBounds;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec::Drain;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Tags(pub Vec<(String, String)>);
 
 impl Tags {
@@ -12,6 +12,10 @@ impl Tags {
 
     pub fn insert(&mut self, k: impl Into<String>, v: impl Into<String>) {
         self.0.push((k.into(), v.into()));
+    }
+
+    pub fn append(&mut self, other: &mut Tags) {
+        self.0.append(&mut other.0);
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &(String, String)> {
