@@ -83,7 +83,7 @@ jobs:
   fedora:
     working_directory: /build
     docker:
-      - image: fedora:29
+      - image: fedora:30
     steps:
       - checkout
       - attach_workspace:
@@ -185,6 +185,18 @@ workflows:
          requires:
            - ubuntu 18.04
 
+      - terraform:
+         name: 'terraform - ubuntu 16.04'
+         ami: 'ubuntu-1604' 
+         requires:
+           - ubuntu 16.04
+
+      - terraform:
+         name: 'terraform - fedora 29'
+         ami: 'fedora-29' 
+         requires:
+           - fedora 29
+
       - ubuntu:
           name: "ubuntu 18.04"
           tag: "18.04"
@@ -192,17 +204,9 @@ workflows:
       - ubuntu:
           name: "ubuntu 16.04"
           tag: "16.04"
-          filters:
-            branches:
-              only:
-                - master
 
       - fedora:
           name: "fedora 29"
-          filters:
-            branches:
-              only:
-                - master
 
       - build_docker_binary:
           filters:

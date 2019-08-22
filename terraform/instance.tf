@@ -67,6 +67,7 @@ locals {
     "ubuntu-1604", "${data.aws_ami.ubuntu-1604.id}",
     "debian-9", "${data.aws_ami.debian-9.id}",
     "centos-7", "${data.aws_ami.centos-7.id}"
+    "fedora-29", "${data.aws_ami.fedora-29.id}"
   )}"
 
   ec2_user_map = "${map(
@@ -74,6 +75,7 @@ locals {
     "ubuntu-1904", "ubuntu",
     "debian-9", "admin",
     "centos-7", "ec2-user"
+    "fedora-29", "ec2-user"
   )}"
 }
 
@@ -90,12 +92,12 @@ variable "ec2_os_ami" {
   default = "ubuntu-1804"
 }
 
-data "aws_ami" "fedora-30" {
+data "aws_ami" "fedora-29" {
   most_recent = true
 
   filter {
     name   = "name"
-    values = ["Fedora-Cloud-Base-30-*"]
+    values = ["Fedora-Cloud-Base-29-*"]
   }
 
   filter {
