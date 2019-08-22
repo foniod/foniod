@@ -1,0 +1,41 @@
+[log]
+type = "EnvLogger"
+log_level = "INFO"
+
+[[probe]]
+pipelines = ["test"]
+[probe.config]
+type = "Files"
+monitor_dirs = ["/"]
+
+# The TCP4 grain will track outbound TCP/IPv4 connections, as well as
+# send/receive metrics about established connections
+[[probe]]
+pipelines = ["test"]
+[probe.config]
+type = "TCP4"
+
+# The UDP grain will track send/receive metrics about UDP/IPv4 connections.
+[[probe]]
+pipelines = ["test"]
+[probe.config]
+type = "UDP"
+
+[[probe]]
+pipelines = ["test"]
+[probe.config]
+type = "DNS"
+interface = "eth0"
+
+[[probe]]
+pipelines = ["test"]
+[probe.config]
+type = "TLS"
+interface = "eth0"
+
+[pipeline.test.config]
+backend = "Console"
+
+[[pipeline.test.steps]]
+type = "Whitelist"
+allow = []

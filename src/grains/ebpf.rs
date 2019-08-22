@@ -52,8 +52,9 @@ where
             .iter_mut()
             .filter(|p| p.kind == Kprobe || p.kind == Kretprobe)
         {
+            prog.attach_probe()
+                .expect(&format!("Failed to attach kprobe {}", prog.name));
             info!("Loaded: {}, {:?}", prog.name, prog.kind);
-            prog.attach_probe().unwrap();
         }
 
         self.bind_perf()

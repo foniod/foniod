@@ -13,6 +13,25 @@ commands:
             rustup component add rustfmt
 
 jobs:
+  terraform:
+    parameters:
+      ami:
+        type: string
+        default: "latest"
+    working_directory: /build
+    docker:
+      - image: hashicorp/terraform:light
+    steps:
+      - checkout
+      - attach_workspace:
+          # Must be absolute path or relative path from working_directory
+          at: /tmp/workspace
+      - run:
+          name: Deploy
+          command: |
+            cd terraform
+            ./run-test.sh << parameters.ami >>
+
   ubuntu:
     parameters:
       tag:
@@ -43,11 +62,28 @@ jobs:
             . /root/.cargo/env
             cargo test --target=x86_64-unknown-linux-musl --release || exit 1
             cargo build --target=x86_64-unknown-linux-musl --release || exit 1
+            cargo build --target=x86_64-unknown-linux-musl || exit 1
+
+            mkdir -p /tmp/workspace/bin
+            cp target/x86_64-unknown-linux-musl/release/ingraind \
+               /tmp/workspace/bin/ingraind-ubuntu-$(echo "<< parameters.tag >>" | sed 's/\.//')
+
+      - persist_to_workspace:
+          root: /tmp/workspace
+          paths:
+            - bin
+
+      - store_artifacts:
+          path: /build/target/x86_64-unknown-linux-musl/release/ingraind
+          destination: ingraind
+      - store_artifacts:
+          path: /build/target/x86_64-unknown-linux-musl/debug/ingraind
+          destination: ingraind-debug
 
   fedora:
     working_directory: /build
     docker:
-      - image: fedora:29
+      - image: fedora:30
     steps:
       - checkout
       - attach_workspace:
@@ -67,6 +103,15 @@ jobs:
             export KERNEL_VERSION=4.18.16-300.fc29.x86_64
             cargo test --release || exit 1
             cargo build --release || exit 1
+            cargo build || exit 1
+
+      - store_artifacts:
+          path: /build/target/release/ingraind
+          destination: ingraind
+
+      - store_artifacts:
+          path: /build/target/debug/ingraind
+          destination: ingraind-debug
 
   build_docker_image:
     environment:
@@ -134,19 +179,41 @@ workflows:
   version: 2.1
   build:
     jobs:
+      - terraform:
+         name: 'terraform - ubuntu 18.04'
+         ami: 'ubuntu-1804' 
+         requires:
+           - ubuntu 18.04
+
+      - terraform:
+         name: 'terraform - ubuntu 16.04'
+         ami: 'ubuntu-1604' 
+         requires:
+           - ubuntu 16.04
+
+      - terraform:
+         name: 'terraform - fedora 29'
+         ami: 'fedora-29' 
+         requires:
+           - fedora 29
+
       - ubuntu:
           name: "ubuntu 18.04"
           tag: "18.04"
+
       - ubuntu:
           name: "ubuntu 16.04"
           tag: "16.04"
+
       - fedora:
           name: "fedora 29"
+
       - build_docker_binary:
           filters:
             branches:
               only:
                 - master
+
       - build_docker_image:
           requires:
             - build_docker_binary
