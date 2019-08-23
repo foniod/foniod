@@ -72,7 +72,7 @@ locals {
 
   ec2_user_map = "${map(
     "ubuntu-1804", "ubuntu",
-    "ubuntu-1904", "ubuntu",
+    "ubuntu-1604", "ubuntu",
     "debian-9", "admin",
     "centos-7", "ec2-user",
     "fedora-29", "ec2-user",
@@ -104,6 +104,12 @@ data "aws_ami" "fedora-29" {
     name   = "virtualization-type"
     values = ["hvm"]
   }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
 
   owners = ["125523088429"] # Fedora Cloud
 }
