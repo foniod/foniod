@@ -77,7 +77,8 @@ enum MetricValue {
     Counter(f64),
     Timing(f64),
     Gauge(f64, bool),
-    Set(String)
+    Set(String),
+    Histogram(u64),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -149,6 +150,7 @@ fn parse_metric(input: &str) -> Result<Metric, MetricError> {
         }
         "ms" => MetricValue::Timing(value.parse().map_err(|_| ValueError)?),
         "s" => MetricValue::Set(value.to_string()),
+        "h" => MetricValue::Histogram(value.parse().map_err(|_| ValueError)?),
         _ => return Err(TypeError),
     };
 
