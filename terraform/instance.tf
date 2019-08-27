@@ -75,7 +75,7 @@ locals {
     "ubuntu-1604", "ubuntu",
     "debian-9", "admin",
     "centos-7", "ec2-user",
-    "fedora-29", "ec2-user",
+    "fedora-29", "fedora",
   )}"
 }
 
