@@ -101,6 +101,8 @@ pub struct Measurement {
     pub kind: Kind,
     pub name: String,
     pub value: Unit,
+    pub sample_rate: Option<f64>,
+    pub reset: bool,
     pub tags: Tags,
 }
 
@@ -111,6 +113,8 @@ impl Measurement {
             kind,
             name,
             value,
+            sample_rate: Some(1.0),
+            reset: true,
             tags,
         }
     }

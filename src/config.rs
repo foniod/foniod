@@ -68,6 +68,7 @@ pub enum Backend {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum Aggregator {
+    Aggregator(AggregatorConfig),
     AddSystemDetails,
     Buffer(BufferConfig),
     Regex(RegexConfig),
@@ -78,6 +79,7 @@ pub enum Aggregator {
 impl Aggregator {
     pub fn into_recipient(self, upstream: Recipient<Message>) -> Recipient<Message> {
         match self {
+            Aggregator::Aggregator(config) => AggregatorActor::launch(config, upstream),
             Aggregator::AddSystemDetails => AddSystemDetails::launch(upstream),
             Aggregator::Buffer(config) => Buffer::launch(config, upstream),
             Aggregator::Regex(config) => Regex::launch(config, upstream),
