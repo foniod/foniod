@@ -41,6 +41,7 @@ impl Buffer {
                 e.value = match e.value {
                     Unit::Byte(x) => Unit::Byte(x + msg.value.get()),
                     Unit::Count(x) => Unit::Count(x + msg.value.get()),
+                    ref x => x.clone()
                 }
             }).or_insert(msg);
     }

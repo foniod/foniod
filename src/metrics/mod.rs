@@ -61,6 +61,10 @@ pub mod kind {
     pub const GAUGE: Kind = 2;
     pub const METER: Kind = 4;
     pub const HISTOGRAM: Kind = 8;
+    pub const TIMER: Kind = 16;
+    pub const SET: Kind = 32;
+    pub const SET_UNIQUES: Kind = 64;
+    pub const PERCENTILE: Kind = 128;
 }
 
 use self::kind::Kind;
@@ -71,6 +75,10 @@ pub enum Unit {
     Byte(u64),
     #[serde(rename = "count")]
     Count(u64),
+    #[serde(rename = "percentile")]
+    Percentile(u64, u64),
+    #[serde(rename = "string")]
+    Str(String)
 }
 
 impl Unit {
@@ -79,6 +87,10 @@ impl Unit {
 
         match *self {
             Byte(x) | Count(x) => x,
+            Str(_) =>  {
+                debug!("get() called on string metric");
+                0
+            }
         }
     }
 }
