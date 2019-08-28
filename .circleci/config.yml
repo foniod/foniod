@@ -105,6 +105,10 @@ jobs:
             cargo build --release || exit 1
             cargo build || exit 1
 
+            mkdir -p /tmp/workspace/bin
+            cp target/release/ingraind \
+               /tmp/workspace/bin/ingraind-fedora-29
+
       - store_artifacts:
           path: /build/target/release/ingraind
           destination: ingraind
@@ -112,6 +116,11 @@ jobs:
       - store_artifacts:
           path: /build/target/debug/ingraind
           destination: ingraind-debug
+
+      - persist_to_workspace:
+          root: /tmp/workspace
+          paths:
+            - bin
 
   build_docker_image:
     environment:
@@ -186,12 +195,6 @@ workflows:
            - ubuntu 18.04
 
       - terraform:
-         name: 'terraform - ubuntu 16.04'
-         ami: 'ubuntu-1604' 
-         requires:
-           - ubuntu 16.04
-
-      - terraform:
          name: 'terraform - fedora 29'
          ami: 'fedora-29' 
          requires:
@@ -200,10 +203,6 @@ workflows:
       - ubuntu:
           name: "ubuntu 18.04"
           tag: "18.04"
-
-      - ubuntu:
-          name: "ubuntu 16.04"
-          tag: "16.04"
 
       - fedora:
           name: "fedora 29"
