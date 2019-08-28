@@ -219,8 +219,13 @@ impl Actor for AggregatorActor {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
+        let ms = self
+            .config
+            .interval_s
+            .map(|s| s * 1000)
+            .unwrap_or(self.config.interval_ms);
         IntervalFunc::new(
-            Duration::from_millis(self.config.flush_interval),
+            Duration::from_millis(ms),
             Self::flush,
         )
         .finish()
@@ -243,14 +248,15 @@ impl Handler<Message> for AggregatorActor {
     }
 }
 
-fn default_flush_interval() -> u64 {
+fn default_interval_ms() -> u64 {
     10000
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AggregatorConfig {
-    #[serde(default = "default_flush_interval")]
-    pub flush_interval: u64,
+    #[serde(default = "default_interval_ms")]
+    pub interval_ms: u64,
+    pub interval_s: Option<u64>
 }
 
 fn join<T: Into<String>, I: Iterator<Item=T>>(mut iter: I, sep: &str) -> Option<String> {
