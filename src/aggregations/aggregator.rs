@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::convert::Into;
 use std::time::Duration;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 use actix::utils::IntervalFunc;
 use actix::{Actor, ActorStream, Context, ContextFutureSpawner, Handler, Recipient};
@@ -11,6 +13,12 @@ use crate::metrics::{kind, Measurement, Tags, Unit};
 
 const PERCENTILES: [f64; 6] = [25f64, 50f64, 75f64, 90f64, 95f64, 99f64];
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct MeasurementKey {
+    name: String,
+    tags_hash: u64
+}
+
 #[derive(Debug, Clone, PartialEq)]
 struct AggregatedMetric<T: PartialEq> {
     value: T,
@@ -19,11 +27,11 @@ struct AggregatedMetric<T: PartialEq> {
 
 #[derive(Debug)]
 struct Aggregator {
-    counters: HashMap<String, AggregatedMetric<f64>>,
-    gauges: HashMap<String, AggregatedMetric<f64>>,
-    timers: HashMap<String, AggregatedMetric<Vec<f64>>>,
-    sets: HashMap<String, AggregatedMetric<HashSet<String>>>,
-    histograms: HashMap<String, AggregatedMetric<Histogram<u64>>>,
+    counters: HashMap<MeasurementKey, AggregatedMetric<f64>>,
+    gauges: HashMap<MeasurementKey, AggregatedMetric<f64>>,
+    timers: HashMap<MeasurementKey, AggregatedMetric<Vec<f64>>>,
+    sets: HashMap<MeasurementKey, AggregatedMetric<HashSet<String>>>,
+    histograms: HashMap<MeasurementKey, AggregatedMetric<Histogram<u64>>>,
 }
 
 impl Aggregator {
@@ -40,22 +48,22 @@ impl Aggregator {
     pub fn record<T: Into<Measurement>>(&mut self, measurement: T) {
         use kind::*;
 
+        let measurement = measurement.into();
+        let key = measurement_key(&measurement);
         let Measurement {
             kind,
-            name,
             value,
             sample_rate,
             reset,
-            mut tags,
+            tags,
             ..
-        } = measurement.into();
+        } = measurement;
 
         let v = match kind {
             COUNTER | GAUGE | TIMER => value.get() as f64,
             _ => 0f64,
         };
 
-        let key = name;
         match kind {
             kind::COUNTER => {
                 let am = self
@@ -63,40 +71,36 @@ impl Aggregator {
                     .entry(key)
                     .or_insert_with(|| AggregatedMetric {
                         value: 0f64,
-                        tags: Tags::new(),
+                        tags
                     });
                 am.value += v / sample_rate.unwrap_or(1.0);
-                am.tags.append(&mut tags);
             }
             kind::GAUGE => {
                 let am = self.gauges.entry(key).or_insert_with(|| AggregatedMetric {
                     value: 0f64,
-                    tags: Tags::new(),
+                    tags
                 });
                 if reset {
                     am.value = v;
                 } else {
                     am.value += v;
                 }
-                am.tags.append(&mut tags);
             }
             kind::TIMER => {
                 let am = self.timers.entry(key).or_insert_with(|| AggregatedMetric {
                     value: Vec::new(),
-                    tags: Tags::new(),
+                    tags: tags,
                 });
                 am.value.push(v);
-                am.tags.append(&mut tags);
             }
             kind::SET => {
                 let am = self.sets.entry(key).or_insert_with(|| AggregatedMetric {
                     value: HashSet::new(),
-                    tags: Tags::new(),
+                    tags
                 });
                 if let Unit::Str(v) = value {
                     am.value.insert(v);
                 }
-                am.tags.append(&mut tags);
             }
             kind::HISTOGRAM => {
                 let am = self
@@ -104,64 +108,63 @@ impl Aggregator {
                     .entry(key)
                     .or_insert_with(|| AggregatedMetric {
                         value: Histogram::new(3).unwrap(),
-                        tags: Tags::new(),
+                        tags,
                     });
                 am.value.saturating_record(value.get());
-                am.tags.append(&mut tags);
             }
             _ => unreachable!(),
         }
     }
 
-    pub fn counter(&self, key: &str) -> Option<&AggregatedMetric<f64>> {
+    pub fn counter(&self, key: &MeasurementKey) -> Option<&AggregatedMetric<f64>> {
         self.counters.get(key)
     }
 
-    pub fn gauge(&self, key: &str) -> Option<&AggregatedMetric<f64>> {
+    pub fn gauge(&self, key: &MeasurementKey) -> Option<&AggregatedMetric<f64>> {
         self.gauges.get(key)
     }
 
-    pub fn uniques(&self, key: &str) -> Option<usize> {
+    pub fn uniques(&self, key: &MeasurementKey) -> Option<usize> {
         self.sets.get(key).map(|am| am.value.len())
     }
 
     pub fn flush(&mut self) -> Vec<Measurement> {
         let mut metrics = Vec::new();
-        metrics.extend(self.counters.drain().map(|(name, v)| {
-            Measurement::new(kind::COUNTER, name, Unit::Count(v.value as u64), v.tags)
+        metrics.extend(self.counters.drain().map(|(k, v)| {
+            Measurement::new(kind::COUNTER, k.name, Unit::Count(v.value as u64), v.tags)
         }));
-        metrics.extend(self.gauges.drain().map(|(name, v)| {
-            Measurement::new(kind::GAUGE, name, Unit::Count(v.value as u64), v.tags)
+        metrics.extend(self.gauges.drain().map(|(k, v)| {
+            Measurement::new(kind::GAUGE, k.name, Unit::Count(v.value as u64), v.tags)
         }));
-        for (name, mut v) in self.timers.drain() {
+        for (k, mut v) in self.timers.drain() {
             let tags = v.tags;
             metrics.extend(v.value.drain(..).map(|t| {
                 Measurement::new(
                     kind::TIMER,
-                    name.clone(),
+                    k.name.clone(),
                     Unit::Count(t as u64),
                     tags.clone(),
                 )
             }));
         }
-        for (name, v) in self.sets.drain() {
+        for (k, v) in self.sets.drain() {
             let mut tags = v.tags;
             if let Some(elements) = join(v.value.iter(), ",") {
                 tags.insert("set_elements", elements);
             }
             metrics.push(Measurement::new(
                 kind::SET,
-                name,
+                k.name,
                 Unit::Count(v.value.len() as u64),
                 tags,
             ));
 
         }
-        for (name, v) in self.histograms.drain() {
+        for (k, v) in self.histograms.drain() {
             metrics.extend(PERCENTILES.iter().cloned().map(|p| {
                 Measurement::new(
                     kind::PERCENTILE,
-                    format!("{}_{}", name, p),
+                    format!("{}_{}", k.name, p),
                     Unit::Count(v.value.value_at_percentile(p)),
                     v.tags.clone(),
                 )
@@ -171,6 +174,20 @@ impl Aggregator {
         metrics
     }
 }
+
+fn hash_tags(tags: &Tags) -> u64 {
+    let mut hasher = DefaultHasher::default();
+    tags.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn measurement_key(metric: &Measurement) -> MeasurementKey {
+    MeasurementKey {
+        name: metric.name.clone(),
+        tags_hash: hash_tags(&metric.tags)
+    }
+}
+
 
 pub struct AggregatorActor {
     aggregator: Aggregator,
@@ -254,6 +271,14 @@ mod tests {
     use super::*;
     use crate::grains::statsd::{parse_metric, Metric};
 
+    fn key(name: &str) -> MeasurementKey {
+        let tags = Tags::new();
+        MeasurementKey {
+            name: name.to_string(),
+            tags_hash: hash_tags(&tags)
+        }
+    }
+
     fn metric(s: &str) -> Metric {
         parse_metric(s).unwrap()
     }
@@ -261,23 +286,25 @@ mod tests {
     #[test]
     fn test_aggregate_counter() {
         let mut a = Aggregator::new();
-        assert_eq!(a.counter("foo"), None);
+        let k = key("foo");
+        assert_eq!(a.counter(&k), None);
         a.record(metric("foo:1|c"));
-        assert_eq!(a.counter("foo").unwrap().value, 1f64);
+        assert_eq!(a.counter(&k).unwrap().value, 1f64);
         a.record(metric("foo:2|c"));
-        assert_eq!(a.counter("foo").unwrap().value, 3f64);
+        assert_eq!(a.counter(&k).unwrap().value, 3f64);
     }
 
     #[test]
     fn test_aggregate_gauge() {
         let mut a = Aggregator::new();
-        assert_eq!(a.gauge("foo"), None);
+        let foo = key("foo");
+        assert_eq!(a.gauge(&foo), None);
         a.record(metric("foo:1|g"));
-        assert_eq!(a.gauge("foo").unwrap().value, 1f64);
+        assert_eq!(a.gauge(&foo).unwrap().value, 1f64);
         a.record(metric("foo:2|g"));
-        assert_eq!(a.gauge("foo").unwrap().value, 2f64);
+        assert_eq!(a.gauge(&foo).unwrap().value, 2f64);
         a.record(metric("foo:+3|g"));
-        assert_eq!(a.gauge("foo").unwrap().value, 5f64);
+        assert_eq!(a.gauge(&foo).unwrap().value, 5f64);
         /*
         FIXME: re-enable after switching everything to f64
         a.record(metric("foo:-5|g"));
@@ -288,14 +315,16 @@ mod tests {
     #[test]
     fn test_aggregate_set() {
         let mut a = Aggregator::new();
-        assert_eq!(a.uniques("foo"), None);
+        let foo = key("foo");
+        let bar = key("bar");
+        assert_eq!(a.uniques(&foo), None);
         a.record(metric("foo:bar|s"));
-        assert_eq!(a.uniques("foo"), Some(1));
+        assert_eq!(a.uniques(&foo), Some(1));
         a.record(metric("foo:bar|s"));
-        assert_eq!(a.uniques("foo"), Some(1));
+        assert_eq!(a.uniques(&foo), Some(1));
         a.record(metric("foo:bad|s"));
-        assert_eq!(a.uniques("foo"), Some(2));
+        assert_eq!(a.uniques(&foo), Some(2));
         a.record(metric("bar:baz|s"));
-        assert_eq!(a.uniques("bar"), Some(1));
+        assert_eq!(a.uniques(&bar), Some(1));
     }
 }

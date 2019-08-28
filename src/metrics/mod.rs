@@ -1,8 +1,9 @@
 use std::ops::RangeBounds;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec::Drain;
+use std::hash::Hash;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Tags(pub Vec<(String, String)>);
 
 impl Tags {
