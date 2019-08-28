@@ -161,8 +161,8 @@ impl Aggregator {
             metrics.extend(PERCENTILES.iter().cloned().map(|p| {
                 Measurement::new(
                     kind::PERCENTILE,
-                    name.clone(),
-                    Unit::Percentile(p as u64, v.value.value_at_percentile(p)),
+                    format!("{}_{}", name, p),
+                    Unit::Count(v.value.value_at_percentile(p)),
                     v.tags.clone(),
                 )
             }));

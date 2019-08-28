@@ -75,8 +75,6 @@ pub enum Unit {
     Byte(u64),
     #[serde(rename = "count")]
     Count(u64),
-    #[serde(rename = "percentile")]
-    Percentile(u64, u64),
     #[serde(rename = "string")]
     Str(String)
 }
