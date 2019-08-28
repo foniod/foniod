@@ -144,14 +144,19 @@ impl Aggregator {
                 )
             }));
         }
-        metrics.extend(self.sets.drain().map(|(name, v)| {
-            Measurement::new(
-                kind::SET_UNIQUES,
+        for (name, v) in self.sets.drain() {
+            let mut tags = v.tags;
+            if let Some(elements) = join(v.value.iter(), ",") {
+                tags.insert("set_elements", elements);
+            }
+            metrics.push(Measurement::new(
+                kind::SET,
                 name,
                 Unit::Count(v.value.len() as u64),
-                v.tags,
-            )
-        }));
+                tags,
+            ));
+
+        }
         for (name, v) in self.histograms.drain() {
             metrics.extend(PERCENTILES.iter().cloned().map(|p| {
                 Measurement::new(
@@ -229,6 +234,19 @@ fn default_flush_interval() -> u64 {
 pub struct AggregatorConfig {
     #[serde(default = "default_flush_interval")]
     pub flush_interval: u64,
+}
+
+fn join<T: Into<String>, I: Iterator<Item=T>>(mut iter: I, sep: &str) -> Option<String> {
+    if let Some(item) = iter.next() {
+        let mut ret = item.into();
+        for item in iter {
+            ret.push_str(sep);
+            ret.push_str(&item.into());
+        }
+        return Some(ret);
+    }
+
+    None
 }
 
 #[cfg(test)]
