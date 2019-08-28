@@ -12,9 +12,6 @@ mod encoders;
 
 use crate::metrics::{kind::Kind, Measurement, Unit};
 
-#[derive(Message)]
-pub struct Flush;
-
 impl actix::Message for Measurement {
     type Result = ();
 }
