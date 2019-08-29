@@ -9,6 +9,7 @@ commands:
             chmod 755 rustup.sh
             ./rustup.sh -y
             . /root/.cargo/env
+            cat /root/.cargo/env >> $BASH_ENV
             rustup target add x86_64-unknown-linux-musl
             rustup component add rustfmt
 
@@ -59,7 +60,6 @@ jobs:
       - run:
           name: Build static binary
           command: |
-            . /root/.cargo/env
             cargo test --target=x86_64-unknown-linux-musl --release || exit 1
             cargo build --target=x86_64-unknown-linux-musl --release || exit 1
             cargo build --target=x86_64-unknown-linux-musl || exit 1
@@ -99,7 +99,6 @@ jobs:
       - run:
           name: Build
           command: |
-            . /root/.cargo/env
             export KERNEL_VERSION=4.18.16-300.fc29.x86_64
             cargo test --release || exit 1
             cargo build --release || exit 1
