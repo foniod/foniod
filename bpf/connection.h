@@ -55,7 +55,7 @@ struct _data_connect get_connection_details(struct sock **skpp, u64 pid) {
   struct _data_connect data = {};
   struct inet_sock *skp = inet_sk(*skpp);
 
-  data.id = pid;
+  data.id = pid >> 32;
   data.ts = bpf_ktime_get_ns();
 
   bpf_get_current_comm(&data.comm, sizeof(data.comm));

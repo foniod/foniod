@@ -98,7 +98,7 @@ int track_file_access(struct pt_regs *ctx,  u8 is_read)
   };
 
   struct _data_file *info = &vol.file;
-  info->id = tid;
+  info->id = tid >> 32;
   info->ts = bpf_ktime_get_ns();
 
   struct qstr d_name;
