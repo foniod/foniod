@@ -9,8 +9,37 @@ commands:
             chmod 755 rustup.sh
             ./rustup.sh -y
             . /root/.cargo/env
+            cat /root/.cargo/env >> $BASH_ENV
             rustup target add x86_64-unknown-linux-musl
             rustup component add rustfmt
+  cargo_build:
+    parameters:
+      flags:
+        type: string
+        default: ""
+      debug_binary:
+        type: string
+        default: "target/debug/ingraind"
+      release_binary:
+        type: string
+        default: "target/release/ingraind"
+    steps:
+      - run:
+          name: Build
+          command: |
+              mkdir /build/binaries
+              cargo build << parameters.flags >> || exit 1
+              cp << parameters.debug_binary >> /build/binaries/ingraind-debug
+              if [ ${CIRCLE_BRANCH} = "master" ]; then
+                cargo test << parameters.flags >> --release || exit 1
+                cargo build << parameters.flags >> --release || exit 1
+                cp << parameters.release_binary >> /build/binaries/ingraind
+              else
+                cargo test << parameters.flags >> || exit 1
+              fi
+      - store_artifacts:
+          path: /build/binaries
+          destination: ingraind-binaries
 
 jobs:
   terraform:
@@ -56,29 +85,24 @@ jobs:
 
       - install_rust
 
-      - run:
-          name: Build static binary
-          command: |
-            . /root/.cargo/env
-            cargo test --target=x86_64-unknown-linux-musl --release || exit 1
-            cargo build --target=x86_64-unknown-linux-musl --release || exit 1
-            cargo build --target=x86_64-unknown-linux-musl || exit 1
+      - cargo_build:
+          flags: --target=x86_64-unknown-linux-musl
+          debug_binary: target/x86_64-unknown-linux-musl/debug/ingraind
+          release_binary: target/x86_64-unknown-linux-musl/release/ingraind
 
+      - run:
+          name: Persist binaries
+          command: |
             mkdir -p /tmp/workspace/bin
-            cp target/x86_64-unknown-linux-musl/release/ingraind \
-               /tmp/workspace/bin/ingraind-ubuntu-$(echo "<< parameters.tag >>" | sed 's/\.//')
+            if [ ${CIRCLE_BRANCH} = "master" ]; then
+              cp target/x86_64-unknown-linux-musl/release/ingraind \
+                /tmp/workspace/bin/ingraind-ubuntu-$(echo "<< parameters.tag >>" | sed 's/\.//')
+            fi
 
       - persist_to_workspace:
           root: /tmp/workspace
           paths:
             - bin
-
-      - store_artifacts:
-          path: /build/target/x86_64-unknown-linux-musl/release/ingraind
-          destination: ingraind
-      - store_artifacts:
-          path: /build/target/x86_64-unknown-linux-musl/debug/ingraind
-          destination: ingraind-debug
 
   fedora:
     working_directory: /build
@@ -97,25 +121,20 @@ jobs:
       - install_rust
 
       - run:
-          name: Build
+          name: Configure kernel version
           command: |
-            . /root/.cargo/env
-            export KERNEL_VERSION=4.18.16-300.fc29.x86_64
-            cargo test --release || exit 1
-            cargo build --release || exit 1
-            cargo build || exit 1
+            echo export KERNEL_VERSION=4.18.16-300.fc29.x86_64 >> $BASH_ENV
 
+      - cargo_build
+
+      - run:
+          name: Persist binaries
+          command: |
             mkdir -p /tmp/workspace/bin
-            cp target/release/ingraind \
-               /tmp/workspace/bin/ingraind-fedora-29
-
-      - store_artifacts:
-          path: /build/target/release/ingraind
-          destination: ingraind
-
-      - store_artifacts:
-          path: /build/target/debug/ingraind
-          destination: ingraind-debug
+            if [ ${CIRCLE_BRANCH} = "master" ]; then
+              cp target/release/ingraind \
+                /tmp/workspace/bin/ingraind-fedora-29
+            fi
 
       - persist_to_workspace:
           root: /tmp/workspace
@@ -189,16 +208,24 @@ workflows:
   build:
     jobs:
       - terraform:
-         name: 'terraform - ubuntu 18.04'
-         ami: 'ubuntu-1804' 
-         requires:
-           - ubuntu 18.04
+          name: 'terraform - ubuntu 18.04'
+          ami: 'ubuntu-1804'
+          requires:
+            - ubuntu 18.04
+          filters:
+            branches:
+              only:
+                - master
 
       - terraform:
-         name: 'terraform - fedora 29'
-         ami: 'fedora-29' 
-         requires:
-           - fedora 29
+          name: 'terraform - fedora 29'
+          ami: 'fedora-29'
+          requires:
+            - fedora 29
+          filters:
+            branches:
+              only:
+                - master
 
       - ubuntu:
           name: "ubuntu 18.04"
