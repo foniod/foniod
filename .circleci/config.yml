@@ -189,16 +189,24 @@ workflows:
   build:
     jobs:
       - terraform:
-         name: 'terraform - ubuntu 18.04'
-         ami: 'ubuntu-1804' 
-         requires:
-           - ubuntu 18.04
+          name: 'terraform - ubuntu 18.04'
+          ami: 'ubuntu-1804'
+          requires:
+            - ubuntu 18.04
+          filters:
+            branches:
+              only:
+                - master
 
       - terraform:
-         name: 'terraform - fedora 29'
-         ami: 'fedora-29' 
-         requires:
-           - fedora 29
+          name: 'terraform - fedora 29'
+          ami: 'fedora-29'
+          requires:
+            - fedora 29
+          filters:
+            branches:
+              only:
+                - master
 
       - ubuntu:
           name: "ubuntu 18.04"
