@@ -53,7 +53,7 @@ fn tls_to_message(buf: &[u8]) -> Option<Message> {
     };
 
     let mut tags = tag_ip_and_ports(buf);
-    tags.insert("version", format!("{:?}", &version));
+    tags.insert("tls_version", format!("{:?}", &version));
 
     use self::HandshakePayload::*;
     match handshake.payload {

@@ -55,10 +55,10 @@ impl EBPFGrain<'static> for Syscall {
             let mut tags = Tags::new();
 
             let syscall_name = ksyms[&data.syscall_nr].clone();
-            tags.insert("syscall", syscall_name);
+            tags.insert("syscall_str", syscall_name);
 
-            tags.insert("task_id", data.id.to_string());
-            tags.insert("process", crate::grains::to_string(
+            tags.insert("process_id", data.id.to_string());
+            tags.insert("process_str", crate::grains::to_string(
                 unsafe { &*(&data.comm as *const [i8] as *const [u8]) }
             ));
 
