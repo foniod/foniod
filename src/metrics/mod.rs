@@ -1,8 +1,9 @@
 use std::ops::RangeBounds;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec::Drain;
+use std::hash::Hash;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Tags(pub Vec<(String, String)>);
 
 impl Tags {
@@ -61,6 +62,10 @@ pub mod kind {
     pub const GAUGE: Kind = 2;
     pub const METER: Kind = 4;
     pub const HISTOGRAM: Kind = 8;
+    pub const TIMER: Kind = 16;
+    pub const SET: Kind = 32;
+    pub const SET_UNIQUES: Kind = 64;
+    pub const PERCENTILE: Kind = 128;
 }
 
 use self::kind::Kind;
@@ -71,6 +76,8 @@ pub enum Unit {
     Byte(u64),
     #[serde(rename = "count")]
     Count(u64),
+    #[serde(rename = "string")]
+    Str(String)
 }
 
 impl Unit {
@@ -79,6 +86,10 @@ impl Unit {
 
         match *self {
             Byte(x) | Count(x) => x,
+            Str(_) =>  {
+                debug!("get() called on string metric");
+                0
+            }
         }
     }
 }
@@ -89,6 +100,8 @@ pub struct Measurement {
     pub kind: Kind,
     pub name: String,
     pub value: Unit,
+    pub sample_rate: Option<f64>,
+    pub reset: bool,
     pub tags: Tags,
 }
 
@@ -99,6 +112,8 @@ impl Measurement {
             kind,
             name,
             value,
+            sample_rate: Some(1.0),
+            reset: true,
             tags,
         }
     }

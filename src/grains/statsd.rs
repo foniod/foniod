@@ -1,15 +1,9 @@
-use std::collections::HashMap;
 use std::convert::From;
 use std::io;
 use std::net::SocketAddr;
 use std::str;
-use std::time::Duration;
 
-use actix::utils::IntervalFunc;
-use actix::{
-    Actor, ActorStream, AsyncContext, Context, ContextFutureSpawner, Recipient, Running,
-    StreamHandler,
-};
+use actix::{Actor, AsyncContext, Context, Recipient, Running, StreamHandler};
 use bytes::BytesMut;
 use tokio::codec;
 use tokio_udp::{UdpFramed, UdpSocket};
@@ -18,63 +12,24 @@ use crate::backends::Message;
 use crate::metrics::{kind, Measurement, Tags, Unit};
 
 #[derive(Clone, Debug, PartialEq)]
-struct Metric {
+pub struct Metric {
     key: String,
     value: MetricValue,
     sample_rate: Option<f64>,
     tags: Tags,
 }
 
-impl Metric {
-    pub fn update(&mut self, other: Metric) -> Result<(), MetricError> {
-        use MetricValue::*;
-
-        let Metric {
-            key,
-            value,
-            sample_rate,
-            mut tags,
-        } = other;
-
-        if self.key != key {
-            return Err(MetricError::Error);
-        }
-
-        match (&mut self.value, value) {
-            (Counter(ref mut v), Counter(mut new_v)) => {
-                if let Some(s_rate) = sample_rate {
-                    new_v /= s_rate;
-                }
-                *v += new_v;
-            }
-            (Gauge(ref mut v, _), Gauge(new_v, reset)) => {
-                if reset {
-                    *v = new_v;
-                } else {
-                    *v += new_v;
-                }
-            }
-            (Timing(ref mut v), Timing(new_v)) => {
-                *v = new_v;
-            }
-            _ => return Err(MetricError::Error),
-        };
-
-        self.tags.append(&mut tags);
-
-        Ok(())
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
-enum MetricValue {
+pub enum MetricValue {
     Counter(f64),
     Timing(f64),
     Gauge(f64, bool),
+    Set(String),
+    Histogram(u64),
 }
 
 #[derive(Debug, Eq, PartialEq)]
-enum MetricError {
+pub enum MetricError {
     Error,
     ValueError,
     TypeError,
@@ -102,7 +57,7 @@ impl From<io::Error> for DecoderError {
     }
 }
 
-fn parse_metric(input: &str) -> Result<Metric, MetricError> {
+pub fn parse_metric(input: &str) -> Result<Metric, MetricError> {
     use MetricError::*;
 
     let mut parts = input.splitn(2, ':');
@@ -141,6 +96,8 @@ fn parse_metric(input: &str) -> Result<Metric, MetricError> {
             MetricValue::Gauge(value, reset)
         }
         "ms" => MetricValue::Timing(value.parse().map_err(|_| ValueError)?),
+        "s" => MetricValue::Set(value.to_string()),
+        "h" => MetricValue::Histogram(value.parse().map_err(|_| ValueError)?),
         _ => return Err(TypeError),
     };
 
@@ -162,52 +119,6 @@ fn parse_metrics(input: &str) -> Result<Vec<Metric>, MetricError> {
     Ok(metrics)
 }
 
-#[derive(Debug)]
-struct Aggregator {
-    counters: HashMap<String, Metric>,
-    gauges: HashMap<String, Metric>,
-    timers: HashMap<String, Vec<Metric>>,
-}
-
-impl Aggregator {
-    pub fn new() -> Self {
-        Aggregator {
-            counters: HashMap::new(),
-            gauges: HashMap::new(),
-            timers: HashMap::new(),
-        }
-    }
-
-    pub fn record(&mut self, metric: Metric) -> &Metric {
-        use std::collections::hash_map::Entry::*;
-        use MetricValue::*;
-
-        let key = metric.key.clone();
-        match &metric.value {
-            Counter(_) | Gauge(_, _) => {
-                match self.counters.entry(key.clone()) {
-                    Vacant(e) => {
-                        e.insert(metric);
-                    }
-                    Occupied(mut e) => e.get_mut().update(metric).unwrap(),
-                }
-                self.counters.get(&key).unwrap()
-            }
-            Timing(_) => {
-                let timers = self.timers.entry(key).or_default();
-                timers.push(metric);
-                timers.last().unwrap()
-            }
-        }
-    }
-
-    fn flush(&mut self) {
-        self.counters.clear();
-        self.gauges.clear();
-        self.timers.clear();
-    }
-}
-
 impl codec::Decoder for Decoder {
     type Item = Vec<Metric>;
     type Error = DecoderError;
@@ -226,21 +137,13 @@ impl codec::Decoder for Decoder {
 
 pub struct Statsd {
     bind_address: SocketAddr,
-    flush_interval: Duration,
-    aggregator: Aggregator,
     recipients: Vec<Recipient<Message>>,
 }
 
 impl Statsd {
-    pub fn new(
-        bind_address: SocketAddr,
-        flush_interval: Duration,
-        recipients: Vec<Recipient<Message>>,
-    ) -> Self {
+    pub fn new(bind_address: SocketAddr, recipients: Vec<Recipient<Message>>) -> Self {
         Statsd {
             bind_address,
-            flush_interval,
-            aggregator: Aggregator::new(),
             recipients,
         }
     }
@@ -248,14 +151,8 @@ impl Statsd {
     pub fn with_config(config: StatsdConfig, recipients: Vec<Recipient<Message>>) -> Self {
         Self::new(
             config.bind_address.parse().unwrap(), // FIXME: don't unwrap
-            Duration::from_millis(config.flush_interval.parse().unwrap()),
             recipients,
         )
-    }
-
-    fn flush(&mut self, _ctx: &mut Context<Self>) {
-        info!("flushing");
-        self.aggregator.flush();
     }
 }
 
@@ -266,9 +163,6 @@ impl Actor for Statsd {
         info!("statsd daemon started {}", self.bind_address);
         let socket = UdpSocket::bind(&self.bind_address).unwrap();
         let metrics = UdpFramed::new(socket, Decoder);
-        IntervalFunc::new(self.flush_interval, Self::flush)
-            .finish()
-            .spawn(ctx);
         ctx.add_stream(metrics);
     }
 
@@ -280,16 +174,12 @@ impl Actor for Statsd {
 impl StreamHandler<(Vec<Metric>, SocketAddr), DecoderError> for Statsd {
     fn handle(
         &mut self,
-        (mut metrics, _src_addr): (Vec<Metric>, SocketAddr),
+        (metrics, _src_addr): (Vec<Metric>, SocketAddr),
         _ctx: &mut Context<Statsd>,
     ) {
-        let aggregated: Vec<Metric> = metrics
-            .drain(..)
-            .map(|m| self.aggregator.record(m).clone().into())
-            .collect();
-        let measurements: Message = aggregated.into();
+        let message: Message = metrics.into();
         for recipient in &self.recipients {
-            recipient.do_send(measurements.clone()).unwrap();
+            recipient.do_send(message.clone()).unwrap();
         }
     }
 
@@ -303,16 +193,10 @@ fn default_bind_address() -> String {
     "127.0.0.1:8125".to_string()
 }
 
-fn default_flush_interval() -> String {
-    "10000".to_string()
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StatsdConfig {
     #[serde(default = "default_bind_address")]
     pub bind_address: String,
-    #[serde(default = "default_flush_interval")]
-    pub flush_interval: String,
 }
 
 impl Into<Message> for Metric {
@@ -336,14 +220,25 @@ impl Into<Message> for Vec<Metric> {
 impl Into<Measurement> for Metric {
     fn into(self) -> Measurement {
         use MetricValue::*;
+        use kind::*;
+        use Unit::*;
 
+        let mut reset = false;
         let (k, v) = match self.value {
-            Counter(v) => (kind::COUNTER, v),
-            Gauge(v, _reset) => (kind::GAUGE, v),
-            _ => unimplemented!(),
+            Counter(v) => (COUNTER, Count(v as u64)),
+            Gauge(v, rst) => {
+                reset = rst;
+                (GAUGE, Count(v as u64))
+            }
+            Timing(t) => (TIMER, Count(t as u64)),
+            Set(v) => (SET, Str(v)),
+            Histogram(v) => (HISTOGRAM, Count(v))
         };
 
-        Measurement::new(k, self.key, Unit::Count(v as u64), self.tags)
+        let mut m = Measurement::new(k, self.key, v, self.tags);
+        m.reset = reset;
+        m.sample_rate = self.sample_rate;
+        m
     }
 }
 
@@ -420,6 +315,19 @@ mod tests {
             Ok(Metric {
                 key: "foo".to_string(),
                 value: MetricValue::Gauge(-42f64, false),
+                sample_rate: None,
+                tags: Tags::new()
+            })
+        );
+    }
+
+    #[test]
+    fn test_parse_set() {
+        assert_eq!(
+            parse_metric("foo:42|s"),
+            Ok(Metric {
+                key: "foo".to_string(),
+                value: MetricValue::Set("42".into()),
                 sample_rate: None,
                 tags: Tags::new()
             })

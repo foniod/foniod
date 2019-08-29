@@ -74,6 +74,7 @@ fn serialized_name(msg: &Measurement) -> String {
     let type_str = match msg.value {
         Unit::Byte(_) => "byte",
         Unit::Count(_) => "count",
+        Unit::Str(_) => "string"
     };
 
     format!("{}_{}", &msg.name, type_str)
