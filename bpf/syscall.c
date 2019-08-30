@@ -58,7 +58,7 @@ int syscall_tp_handler(struct pt_regs *ctx) {
   
   struct _data_syscall_tracepoint data = {};
   data.syscall_nr = PT_REGS_RC(ctx);
-  data.id = pid_tgid;
+  data.id = pid_tgid >> 32;
   bpf_get_current_comm(&data.comm, sizeof(data.comm));
 
   u32 cpu = bpf_get_smp_processor_id();

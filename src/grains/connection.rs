@@ -59,8 +59,8 @@ impl ToTags for Connection {
     fn to_tags(self) -> Tags {
         let mut tags = Tags::new();
 
-        tags.insert("process", self.name.as_str());
-        tags.insert("task_id", self.task_id.to_string());
+        tags.insert("process_str", self.name.as_str());
+        tags.insert("process_id", self.task_id.to_string());
 
         tags.insert("d_ip", self.destination_ip.to_string());
         tags.insert("d_port", self.destination_port.to_string());

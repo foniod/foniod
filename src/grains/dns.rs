@@ -69,10 +69,11 @@ impl ToTags for DNSQuery {
     fn to_tags(self) -> Tags {
         let mut tags = Tags::new();
 
-        tags.insert("q_dnstype", self.qclass.to_string());
+        tags.insert("q_dnstype", self.qtype.to_string());
         tags.insert("q_dnsclass", self.qclass.to_string());
-        tags.insert("q_dnsaddr", self.address.to_string());
         tags.insert("q_dnsid", self.id.to_string());
+
+        tags.insert("q_domain_str", self.address.to_string());
 
         tags.insert("d_ip", self.destination_ip.to_string());
         tags.insert("d_port", self.destination_port.to_string());

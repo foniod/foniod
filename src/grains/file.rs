@@ -110,10 +110,10 @@ impl ToTags for FileAccess {
     fn to_tags(self) -> Tags {
         let mut tags = Tags::new();
 
-        tags.insert("task_id", self.id.to_string());
-        tags.insert("process", self.process);
-        tags.insert("path", self.path);
-        tags.insert("ino", self.ino.to_string());
+        tags.insert("process_id", self.id.to_string());
+        tags.insert("process_str", self.process);
+        tags.insert("path_str", self.path);
+        tags.insert("ino_id", self.ino.to_string());
 
         tags
     }
