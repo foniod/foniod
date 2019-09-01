@@ -5,7 +5,7 @@ use log::LevelFilter;
 
 use crate::aggregations::*;
 use crate::backends::*;
-use crate::grains::{self, dns, file, syscalls, tcpv4, tls, udp};
+use crate::grains::{self, dns, file, syscalls, tcpv4, tls, udp, osquery};
 use crate::grains::{EBPFActor, EBPFGrain, EBPFProbe};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -50,7 +50,8 @@ pub enum Grain {
     DNS(dns::DnsConfig),
     TLS(tls::TlsConfig),
     Syscall(syscalls::SyscallConfig),
-    StatsD(grains::statsd::StatsdConfig)
+    StatsD(grains::statsd::StatsdConfig),
+    Osquery(osquery::OsqueryConfig)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -103,7 +104,8 @@ impl Backend {
 
 pub enum ProbeActor {
     EBPF(EBPFActor),
-    StatsD(grains::statsd::Statsd)
+    StatsD(grains::statsd::Statsd),
+    Osquery(osquery::Osquery)
 }
 
 impl ProbeActor {
@@ -111,6 +113,7 @@ impl ProbeActor {
         match self {
             ProbeActor::EBPF(a) => { a.start(); },
             ProbeActor::StatsD(a) => { a.start(); }
+            ProbeActor::Osquery(a) => { a.start(); }
         };
     }
 }
@@ -119,6 +122,7 @@ impl Grain {
     pub fn into_probe_actor(self, recipients: Vec<Recipient<Message>>) -> ProbeActor {
         match self {
             Grain::StatsD(config) => ProbeActor::StatsD(grains::statsd::Statsd::with_config(config, recipients)),
+            Grain::Osquery(config) => ProbeActor::Osquery(osquery::Osquery::with_config(config, recipients)),
             _ => {
                     let probe: Box<dyn EBPFProbe> = match self {
                         Grain::TCP4 => Box::new(tcpv4::TCP4.load().unwrap()),
