@@ -17,6 +17,7 @@
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-label"
+#pragma clang diagnostic ignored "-Waddress-of-packed-member"
 #include <linux/bpf.h>
 #pragma clang diagnostic pop
 
