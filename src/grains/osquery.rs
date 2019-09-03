@@ -1,5 +1,5 @@
 use serde_json::Value;
-use std::io;
+use std::io::{self, BufRead, BufReader};
 use std::process::Command;
 use std::time::Duration;
 
@@ -35,12 +35,13 @@ pub struct OsqueryConfig {
     #[serde(default = "default_interval_ms")]
     interval_ms: u64,
     #[serde(default = "default_run_at_start")]
-    run_at_start: bool
+    run_at_start: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct QueryConfig {
-    query: String,
+    query: Option<String>,
+    pack: Option<String>,
     measurement: String,
     measurement_type: String,
     iterations: Option<u64>,
@@ -121,6 +122,7 @@ impl Osquery {
             .command(&self.conf.osqueryi)
             .args(&self.conf.osqueryi_args)
             .config_path(self.conf.config_path.clone())
+            .pack(&query.conf.pack)
             .query(&query.conf.query)
             .run()
             .map_err(|e| OsqueryError::IOError(e))?;
@@ -142,8 +144,27 @@ impl Osquery {
         let ty = &query.conf.measurement_type;
         let k = kind::try_from_str(ty)
             .map_err(|_| OsqueryError::Error(format!("invalid measurement type: {}", ty)))?;
-        let rows = serde_json::from_slice(data).map_err(|e| OsqueryError::JSONError(e))?;
-        measurements_from_rows(&rows, name, k)
+        let mut reader = BufReader::new(data);
+        let mut accum = String::new();
+        let mut ret: Vec<Measurement> = Vec::new();
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => break,
+                Ok(_) => {
+                    accum.push_str(&line);
+                    if line.trim() == "]" {
+                        let rows = serde_json::from_slice(accum.as_bytes())
+                            .map_err(|e| OsqueryError::JSONError(e))?;
+                        ret.extend(measurements_from_rows(&rows, name, k)?);
+                        accum.clear();
+                    }
+                }
+                Err(e) => return Err(OsqueryError::IOError(e)),
+            }
+        }
+
+        Ok(ret)
     }
 }
 
@@ -224,6 +245,7 @@ struct Osqueryi {
     args: Vec<String>,
     config_path: Option<String>,
     query: Option<String>,
+    pack: Option<String>,
 }
 
 impl Osqueryi {
@@ -233,6 +255,7 @@ impl Osqueryi {
             args: Vec::new(),
             config_path: None,
             query: None,
+            pack: None,
         }
     }
 
@@ -250,9 +273,13 @@ impl Osqueryi {
         self.config_path = path;
         self
     }
+    fn pack(&mut self, pack: &Option<String>) -> &mut Self {
+        self.pack = pack.clone();
+        self
+    }
 
-    fn query(&mut self, query: &str) -> &mut Self {
-        self.query = Some(query.to_string());
+    fn query(&mut self, query: &Option<String>) -> &mut Self {
+        self.query = query.clone();
         self
     }
 
@@ -277,11 +304,19 @@ impl Osqueryi {
             args.push("--config_path".to_string());
             args.push(config.clone());
         }
-        let query = self
-            .query
-            .clone()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "query string not provided"))?;
-        args.push(query);
+        match (&self.query, &self.pack) {
+            (Some(q), None) => args.push(q.clone()),
+            (None, Some(p)) => {
+                args.push("--pack".into());
+                args.push(p.clone());
+            }
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "you must specify exactly one of query or pack",
+                ))
+            }
+        }
         Ok(args)
     }
 }
