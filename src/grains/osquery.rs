@@ -261,6 +261,12 @@ impl Osqueryi {
         command.args(self.to_args()?);
         debug!("running {:?}", command);
         let output = command.output()?;
+        if !output.status.success() {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!("osqueryi returned code: {}", output.status.code().unwrap()),
+            ));
+        }
         Ok(output.stdout)
     }
 
