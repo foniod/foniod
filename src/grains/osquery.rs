@@ -12,27 +12,35 @@ fn default_interval_ms() -> u64 {
     10000
 }
 
+fn default_run_at_start() -> bool {
+    false
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OsqueryConfig {
     config_path: Option<String>,
     queries: Vec<QueryConfig>,
     #[serde(default = "default_interval_ms")]
     interval_ms: u64,
+    #[serde(default = "default_run_at_start")]
+    run_at_start: bool
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct QueryConfig {
-    iterations: Option<u64>,
-    interval_ms: Option<u64>,
     query: String,
     measurement: String,
     measurement_type: String,
+    iterations: Option<u64>,
+    interval_ms: Option<u64>,
+    run_at_start: Option<bool>,
 }
 
 impl QueryConfig {
     fn propagate_defaults(&self, parent: &OsqueryConfig) -> Self {
         let mut conf = self.clone();
         conf.interval_ms.get_or_insert(parent.interval_ms);
+        conf.run_at_start.get_or_insert(parent.run_at_start);
         conf
     }
 }
@@ -58,14 +66,24 @@ impl Osquery {
     fn schedule_queries(&mut self, ctx: &mut <Self as Actor>::Context) -> Result<(), OsqueryError> {
         for conf in &self.conf.queries {
             let query = Query::with_config(conf.propagate_defaults(&self.conf))?;
-            self.schedule_query(query, ctx);
+            self.schedule_query(query, true, ctx);
         }
 
         Ok(())
     }
 
-    fn schedule_query(&self, mut query: Query, ctx: &mut <Self as Actor>::Context) {
-        let interval = Duration::from_millis(query.conf.interval_ms.unwrap());
+    fn schedule_query(
+        &self,
+        mut query: Query,
+        is_startup: bool,
+        ctx: &mut <Self as Actor>::Context,
+    ) {
+        let interval_ms = if is_startup && query.conf.run_at_start.unwrap_or(false) {
+            0
+        } else {
+            query.conf.interval_ms.unwrap()
+        };
+        let interval = Duration::from_millis(interval_ms);
         ctx.run_later(interval, move |sself, ctx| {
             let qs = query.conf.query.clone();
             if let Err(e) = sself.run_query(&query, ctx) {
@@ -75,7 +93,7 @@ impl Osquery {
             if let Some(i) = query.iterations_left.as_mut() {
                 *i -= 1;
                 if *i > 0 {
-                    sself.schedule_query(query, ctx);
+                    sself.schedule_query(query, false, ctx);
                 }
             }
         });
