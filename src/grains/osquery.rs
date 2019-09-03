@@ -8,6 +8,10 @@ use actix::{Actor, AsyncContext, Context, Recipient};
 use crate::backends::Message;
 use crate::metrics::{kind, Measurement, Tags, Unit};
 
+fn default_osqueryi() -> String {
+    String::from("osqueryi")
+}
+
 fn default_interval_ms() -> u64 {
     10000
 }
@@ -18,6 +22,8 @@ fn default_run_at_start() -> bool {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OsqueryConfig {
+    #[serde(default = "default_osqueryi")]
+    osqueryi: String,
     config_path: Option<String>,
     queries: Vec<QueryConfig>,
     #[serde(default = "default_interval_ms")]
@@ -105,6 +111,7 @@ impl Osquery {
         _ctx: &mut <Self as Actor>::Context,
     ) -> Result<(), OsqueryError> {
         let output = Osqueryi::new()
+            .command(&self.conf.osqueryi)
             .config_path(self.conf.config_path.clone())
             .query(&query.conf.query)
             .run()
@@ -210,6 +217,7 @@ impl Query {
 }
 
 struct Osqueryi {
+    command: String,
     config_path: Option<String>,
     query: Option<String>,
 }
@@ -217,9 +225,15 @@ struct Osqueryi {
 impl Osqueryi {
     fn new() -> Self {
         Osqueryi {
+            command: String::from("osqueryi"),
             config_path: None,
             query: None,
         }
+    }
+
+    fn command(&mut self, cmd: &str) -> &mut Self {
+        self.command = cmd.to_string();
+        self
     }
 
     fn config_path(&mut self, path: Option<String>) -> &mut Self {
@@ -233,8 +247,10 @@ impl Osqueryi {
     }
 
     fn run(&mut self) -> io::Result<Vec<u8>> {
-        let args = self.to_args()?;
-        let output = Command::new("osqueryi").args(args).output()?;
+        let mut command = Command::new(self.command.clone());
+        command.args(self.to_args()?);
+        debug!("running {:?}", command);
+        let output = command.output()?;
         Ok(output.stdout)
     }
 
