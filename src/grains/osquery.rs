@@ -20,10 +20,16 @@ fn default_run_at_start() -> bool {
     false
 }
 
+fn default_osqueryi_args() -> Vec<String> {
+    Vec::new()
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OsqueryConfig {
     #[serde(default = "default_osqueryi")]
     osqueryi: String,
+    #[serde(default = "default_osqueryi_args")]
+    osqueryi_args: Vec<String>,
     config_path: Option<String>,
     queries: Vec<QueryConfig>,
     #[serde(default = "default_interval_ms")]
@@ -113,6 +119,7 @@ impl Osquery {
     ) -> Result<(), OsqueryError> {
         let output = Osqueryi::new()
             .command(&self.conf.osqueryi)
+            .args(&self.conf.osqueryi_args)
             .config_path(self.conf.config_path.clone())
             .query(&query.conf.query)
             .run()
@@ -214,6 +221,7 @@ impl Query {
 
 struct Osqueryi {
     command: String,
+    args: Vec<String>,
     config_path: Option<String>,
     query: Option<String>,
 }
@@ -222,6 +230,7 @@ impl Osqueryi {
     fn new() -> Self {
         Osqueryi {
             command: String::from("osqueryi"),
+            args: Vec::new(),
             config_path: None,
             query: None,
         }
@@ -229,6 +238,11 @@ impl Osqueryi {
 
     fn command(&mut self, cmd: &str) -> &mut Self {
         self.command = cmd.to_string();
+        self
+    }
+
+    fn args(&mut self, args: &[String]) -> &mut Self {
+        self.args = args.to_vec();
         self
     }
 
@@ -251,7 +265,8 @@ impl Osqueryi {
     }
 
     fn to_args(&self) -> io::Result<Vec<String>> {
-        let mut args = vec!["--json".to_string()];
+        let mut args = self.args.clone();
+        args.push("--json".to_string());
         if let Some(config) = &self.config_path {
             args.push("--config_path".to_string());
             args.push(config.clone());
