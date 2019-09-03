@@ -11,6 +11,10 @@ impl Tags {
         Tags(Vec::with_capacity(16))
     }
 
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     pub fn insert(&mut self, k: impl Into<String>, v: impl Into<String>) {
         self.0.push((k.into(), v.into()));
     }
@@ -66,6 +70,22 @@ pub mod kind {
     pub const SET: Kind = 32;
     pub const SET_UNIQUES: Kind = 64;
     pub const PERCENTILE: Kind = 128;
+
+    pub fn try_from_str(s: &str) -> Result<Kind, ()> {
+        let k = match s.to_uppercase().as_str() {
+            "COUNTER" => COUNTER,
+            "GAUGE" => GAUGE,
+            "METER" => METER,
+            "HISTOGRAM" => HISTOGRAM,
+            "TIMER" => TIMER,
+            "SET" => SET,
+            "SET_UNIQUES" => SET_UNIQUES,
+            "PERCENTILE" => PERCENTILE,
+            _ => return Err(())
+        };
+
+        Ok(k)
+    }
 }
 
 use self::kind::Kind;

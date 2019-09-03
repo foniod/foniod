@@ -5,11 +5,12 @@ mod protocol;
 
 pub mod dns;
 pub mod file;
+pub mod osquery;
+pub mod statsd;
+pub mod syscalls;
 pub mod tcpv4;
 pub mod tls;
 pub mod udp;
-pub mod syscalls;
-pub mod statsd;
 
 pub use crate::grains::ebpf::*;
 pub use crate::grains::ebpf_io::*;
