@@ -19,9 +19,6 @@
 #include "syscall.h"
 
 #include <linux/skbuff.h>
-#include <linux/version.h>
-#include <linux/bpf.h>
-#include "include/bpf_helpers.h"
 
 struct bpf_map_def SEC("maps/syscall_tp_trigger") syscall_event = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,

@@ -24,10 +24,6 @@
 #include <linux/stat.h>
 #pragma clang diagnostic pop
 
-#include <linux/version.h>
-#include <linux/bpf.h>
-#include "include/bpf_helpers.h"
-
 struct bpf_map_def SEC("maps/actionlist") actionlist = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(u64),
