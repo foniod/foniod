@@ -84,6 +84,12 @@ impl Osquery {
         is_startup: bool,
         ctx: &mut <Self as Actor>::Context,
     ) {
+        if let Some(i) = query.iterations_left.as_mut() {
+            if *i == 0 {
+                return;
+            }
+            *i -= 1;
+        }
         let interval_ms = if is_startup && query.conf.run_at_start.unwrap_or(false) {
             0
         } else {
@@ -96,12 +102,7 @@ impl Osquery {
                 error!("error running query: {:?} {:?}", qs, e);
             }
 
-            if let Some(i) = query.iterations_left.as_mut() {
-                *i -= 1;
-                if *i > 0 {
-                    sself.schedule_query(query, false, ctx);
-                }
-            }
+            sself.schedule_query(query, false, ctx);
         });
     }
 
@@ -200,11 +201,6 @@ impl Query {
         use OsqueryError::ConfigError;
 
         let iterations_left = conf.iterations.clone();
-        if let Some(i) = &iterations_left {
-            if *i == 0 {
-                return Err(ConfigError("iterations can't be set to 0".into()));
-            }
-        }
         if conf.interval_ms.unwrap() == 0 {
             return Err(ConfigError("interval_ms can't be 0".into()));
         }
