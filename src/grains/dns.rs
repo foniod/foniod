@@ -1,3 +1,5 @@
+use std::os::raw::c_char;
+
 use crate::grains::protocol::ip::to_ipv4;
 use crate::grains::*;
 
@@ -57,7 +59,7 @@ impl From<_data_dns_query> for DNSQuery {
             destination_port: to_le(data.dport),
             source_port: to_le(data.sport),
             address: from_dns_prefix_labels(unsafe {
-                &*(&data.address as *const [i8] as *const [u8])
+                &*(&data.address as *const [c_char] as *const [u8])
             }),
             qtype: to_le(data.qtype),
             qclass: to_le(data.qclass),

@@ -17,6 +17,7 @@
  */
 
 #include "connection.h"
+#include "include/bpf_helpers.h"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
@@ -24,10 +25,6 @@
 #include <net/sock.h>
 #include <net/inet_sock.h>
 #pragma clang diagnostic pop
-
-#include <linux/version.h>
-#include <linux/bpf.h>
-#include "include/bpf_helpers.h"
 
 struct bpf_map_def SEC("maps/currsock") currsock = {
     .type = BPF_MAP_TYPE_HASH,

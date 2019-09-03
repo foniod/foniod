@@ -19,8 +19,7 @@
 #ifndef __FILE_H
 #define __FILE_H
 
-#include <linux/kconfig.h>
-#include <linux/types.h>
+#include "include/bpf_helpers.h"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"

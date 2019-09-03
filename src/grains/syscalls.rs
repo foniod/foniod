@@ -1,3 +1,4 @@
+use std::os::raw::c_char;
 use std::collections::HashMap;
 use std::fs;
 
@@ -59,7 +60,7 @@ impl EBPFGrain<'static> for Syscall {
 
             tags.insert("process_id", data.id.to_string());
             tags.insert("process_str", crate::grains::to_string(
-                unsafe { &*(&data.comm as *const [i8] as *const [u8]) }
+                unsafe { &*(&data.comm as *const [c_char] as *const [u8]) }
             ));
 
             Some(Message::Single(Measurement::new(

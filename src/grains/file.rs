@@ -3,6 +3,7 @@
 use std::cmp::min;
 use std::fs::metadata;
 use std::os::unix::fs::MetadataExt;
+use std::os::raw::c_char;
 
 use redbpf::{Module, VoidPtr};
 
@@ -86,7 +87,7 @@ impl From<_data_volume> for FileAccess {
         let path = path_segments
             .iter()
             .map(|s| {
-                let namebuf = unsafe { &*(&s.name as *const [i8] as *const [u8]) };
+                let namebuf = unsafe { &*(&s.name as *const [c_char] as *const [u8]) };
                 let len = min(s.name.len(), s.nlen as usize) as usize;
                 to_string(&namebuf[0..len as usize])
             })
@@ -97,7 +98,7 @@ impl From<_data_volume> for FileAccess {
 
         FileAccess {
             id: data.file.id,
-            process: to_string(unsafe { &*(&data.file.comm as *const [i8] as *const [u8]) }),
+            process: to_string(unsafe { &*(&data.file.comm as *const [c_char] as *const [u8]) }),
             path,
             ino,
             read: data.read,

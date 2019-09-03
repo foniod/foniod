@@ -17,6 +17,7 @@
  */
 
 #include "dns.h"
+#include "include/bpf_helpers.h"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
@@ -31,9 +32,6 @@
 #include <linux/udp.h>
 
 #include <linux/skbuff.h>
-#include <linux/version.h>
-#include <linux/bpf.h>
-#include "include/bpf_helpers.h"
 
 struct bpf_map_def SEC("maps/dns_queries") dns_queries = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,

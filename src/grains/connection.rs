@@ -1,4 +1,5 @@
 use std::net::Ipv4Addr;
+use std::os::raw::c_char;
 
 use crate::grains::protocol::ip::to_ipv4;
 use crate::grains::*;
@@ -78,7 +79,7 @@ impl From<_data_connect> for Connection {
     fn from(data: _data_connect) -> Connection {
         Connection {
             task_id: data.id,
-            name: to_string(unsafe { &*(&data.comm as *const [i8] as *const [u8]) }),
+            name: to_string(unsafe { &*(&data.comm as *const [c_char] as *const [u8]) }),
             source_ip: to_ipv4(data.saddr),
             destination_ip: to_ipv4(data.daddr),
             destination_port: to_le(data.dport),

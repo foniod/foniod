@@ -17,6 +17,7 @@
  */
 
 #include "connection.h"
+#include "include/bpf_helpers.h"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
@@ -26,9 +27,6 @@
 #pragma clang diagnostic pop
 
 #include <linux/skbuff.h>
-#include <linux/version.h>
-#include <linux/bpf.h>
-#include "include/bpf_helpers.h"
 
 struct bpf_map_def SEC("maps/udp_volume") udp_volume = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,

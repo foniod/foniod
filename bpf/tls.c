@@ -16,12 +16,12 @@
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/kconfig.h>
-#include <linux/types.h>
+#include "include/bpf_helpers.h"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
 #pragma clang diagnostic ignored "-Waddress-of-packed-member"
+#pragma clang diagnostic ignored "-Warray-bounds"
 #include <net/sock.h>
 #include <net/inet_sock.h>
 #pragma clang diagnostic pop
@@ -32,9 +32,6 @@
 #include <uapi/linux/tcp.h>
 
 #include <linux/skbuff.h>
-#include <linux/version.h>
-#include <linux/bpf.h>
-#include "include/bpf_helpers.h"
 
 #define ETH_HLEN 14
 

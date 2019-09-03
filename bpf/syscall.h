@@ -19,18 +19,13 @@
 #ifndef __SYSCALL_H
 #define __SYSCALL_H
 
-#include <linux/kconfig.h>
-#include <linux/types.h>
+#include "include/bpf_helpers.h"
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
 #pragma clang diagnostic ignored "-Waddress-of-packed-member"
 #include <linux/ptrace.h>
 #pragma clang diagnostic pop
-
-#include <linux/version.h>
-#include <linux/bpf.h>
-#include "include/bpf_helpers.h"
 
 struct _data_syscall_tracepoint {
   u64 id;

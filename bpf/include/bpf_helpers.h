@@ -6,7 +6,19 @@
 #ifndef __BPF_HELPERS_H
 #define __BPF_HELPERS_H
 
+#include <linux/kconfig.h>
+#include <linux/types.h>
+#include <linux/version.h>
+
+#ifdef asm_volatile_goto
+#undef asm_volatile_goto
+#define asm_volatile_goto(x...) asm volatile("invalid use of asm_volatile_goto")
+#endif
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-label"
 #include <linux/bpf.h>
+#pragma clang diagnostic pop
 
 /* helper macro to place programs, maps, license in
  * different sections in elf_bpf file. Section names
