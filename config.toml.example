@@ -94,6 +94,23 @@ type = "StatsD"
 bind_address = "127.0.0.1:8125"
 flush_interval = "10000"
 
+
+# The osquery grain allows importing metrics from osquery.
+#
+# Osquery must be installed and osqueryi must be in the PATH for the grain to work.
+#
+[[probe]]
+pipelines = ["console"]
+[probe.config]
+type = "Osquery"
+interval_ms = 10000
+[[probe.config.queries]]
+query = "SELECT user_time, system_time, name from processes LIMIT 5"
+measurement = "processes"
+measurement_type = "counter"
+iterations = 1
+run_at_start = true
+
 ##########################
 ##### Pipeline defintions
 ##########################
