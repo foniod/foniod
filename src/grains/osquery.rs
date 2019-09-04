@@ -38,7 +38,7 @@ pub struct OsqueryConfig {
     run_at_start: bool,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct QueryConfig {
     query: Option<String>,
     pack: Option<String>,
@@ -353,43 +353,65 @@ impl Osqueryi {
 mod tests {
     use super::*;
 
+    fn config(aggregation_type: Option<&str>) -> QueryConfig {
+        QueryConfig {
+            name: "foo".to_string(),
+            measurement: "system_time".to_string(),
+            measurement_type: "count".to_string(),
+            aggregation_type: aggregation_type.or(Some("counter")).map(String::from),
+            ..QueryConfig::default()
+        }
+    }
+
     #[test]
     fn test_measurement_from_row() {
+        let mut config = config(None);
+
         let json = r#"{"name":"systemd","system_time":"23470","user_time":"17220"}"#;
         let row = serde_json::from_slice(json.as_bytes()).unwrap();
-        let m = measurement_from_row(&row, "foo", kind::COUNTER).unwrap();
-        assert_eq!(m.name, "foo");
+        let m = measurement_from_row(&row, &config).unwrap();
+
+        assert_eq!(m.name, "osquery.foo");
+        assert_eq!(m.value, Unit::Count(23470));
         assert_eq!(m.kind, kind::COUNTER);
-        assert_eq!(m.tags.len(), 3);
+        assert_eq!(m.tags.len(), 2);
         assert_eq!(m.tags.get("name").unwrap(), "systemd");
-        assert_eq!(m.tags.get("system_time").unwrap(), "23470");
         assert_eq!(m.tags.get("user_time").unwrap(), "17220");
     }
 
     #[test]
     fn test_measurements_from_rows() {
+        let mut config = config(Some("gauge"));
+
         let json = r#"[{"name":"systemd","system_time":"23470","user_time":"17220"}]"#;
         let rows = serde_json::from_slice(json.as_bytes()).unwrap();
-        let ret = measurements_from_rows(&rows, "foo", kind::GAUGE).unwrap();
+        let ret = measurements_from_rows(&rows, &config).unwrap();
+
         assert_eq!(ret.len(), 1);
         let m = &ret[0];
-        assert_eq!(m.name, "foo");
+        assert_eq!(m.name, "osquery.foo");
         assert_eq!(m.kind, kind::GAUGE);
-        assert_eq!(m.tags.len(), 3);
+        assert_eq!(m.tags.len(), 2);
     }
     #[test]
     fn test_measurements_from_rows_empty() {
+        let mut config = config(Some("gauge"));
+
         let json = "[]";
         let rows = serde_json::from_slice(json.as_bytes()).unwrap();
-        let ret = measurements_from_rows(&rows, "foo", kind::GAUGE).unwrap();
+        let ret = measurements_from_rows(&rows, &config).unwrap();
+
         assert!(ret.is_empty());
     }
 
     #[test]
     fn test_measurements_from_rows_error_no_outer_array() {
+        let mut config = config(Some("gauge"));
+
         let json = r#"{"foo": "bar"}"#;
         let rows = serde_json::from_slice(json.as_bytes()).unwrap();
-        let ret = measurements_from_rows(&rows, "foo", kind::GAUGE);
+        let ret = measurements_from_rows(&rows, &config);
+
         match ret {
             Err(OsqueryError::Error(_)) => (),
             _ => panic!("should not get here"),
@@ -398,9 +420,12 @@ mod tests {
 
     #[test]
     fn test_measurements_from_rows_error_no_inner_object() {
+        let mut config = config(Some("gauge"));
+
         let json = r#"[1, 2]"#;
         let rows = serde_json::from_slice(json.as_bytes()).unwrap();
-        let ret = measurements_from_rows(&rows, "foo", kind::GAUGE);
+        let ret = measurements_from_rows(&rows, &config);
+
         match ret {
             Err(OsqueryError::Error(_)) => (),
             _ => panic!("should not get here"),

@@ -90,7 +90,7 @@ pub mod kind {
 
 use self::kind::Kind;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Unit {
     #[serde(rename = "byte")]
     Byte(u64),
