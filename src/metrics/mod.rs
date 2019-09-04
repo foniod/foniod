@@ -112,6 +112,18 @@ impl Unit {
             }
         }
     }
+
+    pub fn try_from_str(s: &str, val: u64) -> Result<Unit, ()> {
+        use Unit::*;
+
+        let u = match s.to_uppercase().as_str() {
+            "BYTE" => Byte(val),
+            "COUNT" => Count(val),
+            _ => return Err(())
+        };
+
+        Ok(u)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

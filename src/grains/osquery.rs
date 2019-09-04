@@ -42,8 +42,10 @@ pub struct OsqueryConfig {
 pub struct QueryConfig {
     query: Option<String>,
     pack: Option<String>,
+    name: String,
     measurement: String,
     measurement_type: String,
+    aggregation_type: Option<String>,
     iterations: Option<u64>,
     interval_ms: Option<u64>,
     run_at_start: Option<bool>,
@@ -72,7 +74,24 @@ pub struct Osquery {
 }
 
 impl Osquery {
-    pub fn with_config(conf: OsqueryConfig, recipients: Vec<Recipient<Message>>) -> Self {
+    pub fn with_config(mut conf: OsqueryConfig, recipients: Vec<Recipient<Message>>) -> Self {
+        // validate freeform input
+        for q in conf.queries.iter_mut() {
+            if let None = q.aggregation_type {
+                q.aggregation_type = Some("counter".to_string());
+            }
+
+            let aty = q.aggregation_type.as_ref().unwrap();
+            kind::try_from_str(aty)
+                .map_err(|_| OsqueryError::Error(format!("invalid aggregation type: {}", aty)))
+                .unwrap();
+
+            let ty = &q.measurement_type;
+            Unit::try_from_str(&q.measurement_type, 0)
+                .map_err(|_| OsqueryError::Error(format!("invalid measurement type: {}", ty)))
+                .unwrap();
+        }
+
         Osquery { conf, recipients }
     }
 
@@ -140,10 +159,7 @@ impl Osquery {
         query: &Query,
         data: &[u8],
     ) -> Result<Vec<Measurement>, OsqueryError> {
-        let name = &query.conf.measurement;
-        let ty = &query.conf.measurement_type;
-        let k = kind::try_from_str(ty)
-            .map_err(|_| OsqueryError::Error(format!("invalid measurement type: {}", ty)))?;
+        // Validate if freeform types are reasonable
         let mut reader = BufReader::new(data);
         let mut accum = String::new();
         let mut ret: Vec<Measurement> = Vec::new();
@@ -156,7 +172,7 @@ impl Osquery {
                     if line.trim() == "]" {
                         let rows = serde_json::from_slice(accum.as_bytes())
                             .map_err(|e| OsqueryError::JSONError(e))?;
-                        ret.extend(measurements_from_rows(&rows, name, k)?);
+                        ret.extend(measurements_from_rows(&rows, &query.conf)?);
                         accum.clear();
                     }
                 }
@@ -170,8 +186,7 @@ impl Osquery {
 
 fn measurements_from_rows(
     rows: &Value,
-    name: &str,
-    k: kind::Kind,
+    config: &QueryConfig,
 ) -> Result<Vec<Measurement>, OsqueryError> {
     let rows = rows
         .as_array()
@@ -179,21 +194,26 @@ fn measurements_from_rows(
 
     let ret: Result<Vec<Measurement>, _> = rows
         .iter()
-        .map(|row| measurement_from_row(row, name, k))
+        .map(|row| measurement_from_row(row, config))
         .collect();
     ret
 }
 
-fn measurement_from_row(
-    row: &Value,
-    name: &str,
-    k: kind::Kind,
-) -> Result<Measurement, OsqueryError> {
+fn measurement_from_row(row: &Value, config: &QueryConfig) -> Result<Measurement, OsqueryError> {
     let obj = row
         .as_object()
         .ok_or_else(|| OsqueryError::Error("result row is not an object".to_string()))?;
     let mut tags = Tags::new();
+    let mut measurement: u64 = 0;
+
     for (k, v) in obj {
+        if k == &config.measurement {
+            if let Value::String(v) = v {
+                measurement = v.parse().unwrap_or_default();
+                continue;
+            }
+        }
+
         let v = match v {
             Value::Bool(v) => v.to_string(),
             Value::Number(v) => v.to_string(),
@@ -202,7 +222,15 @@ fn measurement_from_row(
         };
         tags.insert(k, v);
     }
-    Ok(Measurement::new(k, name.to_string(), Unit::Count(0), tags))
+
+    // Unwraps are safe here, because it's guaranteed at
+    // initialization that these are meaningful values
+    Ok(Measurement::new(
+        kind::try_from_str(&config.aggregation_type.as_ref().unwrap()).unwrap(),
+        format!("osquery.{}", config.name),
+        Unit::try_from_str(&config.measurement_type, measurement).unwrap(),
+        tags,
+    ))
 }
 
 impl Actor for Osquery {
