@@ -13,7 +13,7 @@ RUN apt-get update \
        curl \
        git \
        clang \
-       musl musl-tools musl-dev 
+       musl musl-tools musl-dev capnproto
 
 RUN curl https://sh.rustup.rs -sSf > rustup.sh \
     && sh rustup.sh -y \
