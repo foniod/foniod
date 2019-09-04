@@ -4,7 +4,9 @@ ARG KERNEL_SOURCE=/build/kernel/
 ADD . /build/
 RUN cargo build --target=x86_64-unknown-linux-musl --release
 
-FROM scratch
+FROM jess/osquery
+
+USER root
 
 COPY --from=build /build/target/x86_64-unknown-linux-musl/release/ingraind /ingraind
-CMD ["/ingraind", "/config/ingraind.toml"]
+ENTRYPOINT ["/ingraind", "/config/ingraind.toml"]
