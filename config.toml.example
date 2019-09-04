@@ -105,11 +105,12 @@ pipelines = ["console"]
 type = "Osquery"
 interval_ms = 10000
 [[probe.config.queries]]
-query = "SELECT user_time, system_time, name from processes LIMIT 5"
-measurement = "processes"
-measurement_type = "counter"
-iterations = 1
+query = "SELECT user_time, system_time, name from processes ORDER BY user_time DESC LIMIT 5"
+name = "process_user_time"
+measurement = "user_time"
+measurement_type = "count"
 run_at_start = true
+
 
 ##########################
 ##### Pipeline defintions
