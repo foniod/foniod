@@ -1,14 +1,16 @@
-use failure::Error;
+use failure::{bail, Error};
 use std::env;
 use std::fs::read_dir;
 use std::io;
 use std::path::{Path, PathBuf};
 
 use redbpf::build::{build, cache::BuildCache, generate_bindings, headers::kernel_headers};
+use cargo_bpf;
 
 const CAPNP_SCHEMA: &'static str = "schema/ingraind.capnp";
 
 fn main() -> Result<(), Error> {
+    let cargo = PathBuf::from(env::var("CARGO")?);
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
 
     let kernel_headers = kernel_headers().expect("couldn't find kernel headers");
@@ -32,6 +34,11 @@ fn main() -> Result<(), Error> {
         }
     }
 
+    let probes = Path::new("ingraind-probes");
+    if let Err(e) = cargo_bpf::build(&cargo, &probes, &probes.join("target/release/bpf-programs"), Vec::new()) {
+        bail!("couldn't compile ingraind-probes: {}", e);
+    }
+
     build_capnp(&mut cache);
 
     cache.save();
@@ -53,8 +60,8 @@ fn build_capnp(cache: &mut BuildCache) {
 #[cfg(not(feature = "capnp-encoding"))]
 fn build_capnp(_: &mut BuildCache) {}
 
-fn source_files(
-    dir: &'static str,
+fn source_files<P: AsRef<Path>>(
+    dir: P,
     only_extension: &'static str,
 ) -> io::Result<impl Iterator<Item = PathBuf>> {
     Ok(read_dir(dir)?

@@ -10,7 +10,8 @@ edition = "2018"
 
 [build-dependencies]
 failure = "0.1"
-redbpf = { version = "^0.3.3", features = ["build"] }
+redbpf = { version = "^0.3.3", features = ["build"], git = "https://github.com/alessandrod/redbpf" }
+cargo-bpf = { git = "https://github.com/alessandrod/redbpf" }
 
 [build-dependencies.capnpc]
 version = "^0.9.3"
@@ -30,7 +31,7 @@ lazy_static = "1.1.0"
 
 libc = "0.2"
 lazy-socket = "0.3"
-redbpf = "^0.3.3"
+redbpf = { version = "^0.3.3", git = "https://github.com/alessandrod/redbpf" }
 
 uuid = { version = "0.6", features = ["v4"] }
 serde = "^1.0"
@@ -48,6 +49,7 @@ env_logger = "^0.5.13"
 syslog = "^4.0"
 
 hdrhistogram = { version = "6.3", default-features = false }
+ingraind-probes = { path = "ingraind-probes" }
 
 [dependencies.hyper]
 version = "0.12"

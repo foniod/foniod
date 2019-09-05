@@ -1,0 +1,30 @@
+[package]
+name = "ingraind-probes"
+version = "0.1.0"
+edition = '2018'
+
+[dependencies]
+cty = "0.2"
+redbpf-macros = { git = "https://github.com/alessandrod/redbpf" }
+redbpf-probes = { git = "https://github.com/alessandrod/redbpf" }
+
+[build-dependencies]
+bindgen = "0.51.1"
+redbpf = { version = "0.3.3", features = ["build"], git = "https://github.com/alessandrod/redbpf" }
+
+[features]
+default = []
+probes = []
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "syscalls"
+path = "src/syscalls/main.rs"
+required-features = ["probes"]
+
+[[bin]]
+name = "dns"
+path = "src/dns/main.rs"
+required-features = ["probes"]

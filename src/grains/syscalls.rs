@@ -7,7 +7,7 @@ use crate::grains::*;
 use failure::Error;
 use redbpf::{Module, VoidPtr};
 
-include!(concat!(env!("OUT_DIR"), "/syscall.rs"));
+use ingraind_probes::syscalls::SyscallTracepoint;
 
 type KSyms = HashMap<u64, String>;
 #[derive(Serialize, Deserialize, Debug)]
@@ -38,7 +38,7 @@ impl EBPFProbe for Grain<Syscall> {
 
 impl EBPFGrain<'static> for Syscall {
     fn code() -> &'static [u8] {
-        include_bytes!(concat!(env!("OUT_DIR"), "/syscall.elf"))
+        include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/ingraind-probes/target/release/bpf-programs/syscalls/syscalls.elf"))
     }
 
     fn loaded(&mut self, module: &mut Module) {
@@ -58,7 +58,7 @@ impl EBPFGrain<'static> for Syscall {
     fn get_handler(&self, _id: &str) -> EventCallback {
         let ksyms = self.0.ksyms.clone().unwrap();
         Box::new(move |raw| {
-            let data = _data_syscall_tracepoint::from(raw);
+            let data = unsafe { std::ptr::read(raw.as_ptr() as *const SyscallTracepoint) };
             let mut tags = Tags::new();
 
             let syscall_name = ksyms[&data.syscall_nr].clone();
