@@ -1,8 +1,8 @@
+use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::convert::Into;
-use std::time::Duration;
-use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::time::Duration;
 
 use actix::utils::IntervalFunc;
 use actix::{Actor, ActorStream, Context, ContextFutureSpawner, Handler, Recipient};
@@ -16,7 +16,7 @@ const PERCENTILES: [f64; 6] = [25f64, 50f64, 75f64, 90f64, 95f64, 99f64];
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct MeasurementKey {
     name: String,
-    tags_hash: u64
+    tags_hash: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -64,55 +64,61 @@ impl Aggregator {
             _ => 0f64,
         };
 
-        match kind {
-            kind::COUNTER => {
-                let am = self
-                    .counters
-                    .entry(key)
-                    .or_insert_with(|| AggregatedMetric {
-                        value: 0f64,
-                        tags
-                    });
-                am.value += v / sample_rate.unwrap_or(1.0);
-            }
-            kind::GAUGE => {
-                let am = self.gauges.entry(key).or_insert_with(|| AggregatedMetric {
+        if kind & kind::COUNTER != 0 {
+            let am = self
+                .counters
+                .entry(key.clone())
+                .or_insert_with(|| AggregatedMetric {
                     value: 0f64,
-                    tags
+                    tags: tags.clone(),
                 });
-                if reset {
-                    am.value = v;
-                } else {
-                    am.value += v;
-                }
+            am.value += v / sample_rate.unwrap_or(1.0);
+        }
+        if kind & kind::GAUGE != 0 {
+            let am = self
+                .gauges
+                .entry(key.clone())
+                .or_insert_with(|| AggregatedMetric {
+                    value: 0f64,
+                    tags: tags.clone(),
+                });
+            if reset {
+                am.value = v;
+            } else {
+                am.value += v;
             }
-            kind::TIMER => {
-                let am = self.timers.entry(key).or_insert_with(|| AggregatedMetric {
+        }
+        if kind & kind::TIMER != 0 {
+            let am = self
+                .timers
+                .entry(key.clone())
+                .or_insert_with(|| AggregatedMetric {
                     value: Vec::new(),
-                    tags: tags,
+                    tags: tags.clone(),
                 });
-                am.value.push(v);
-            }
-            kind::SET => {
-                let am = self.sets.entry(key).or_insert_with(|| AggregatedMetric {
+            am.value.push(v);
+        }
+        if kind & kind::SET != 0 {
+            let am = self
+                .sets
+                .entry(key.clone())
+                .or_insert_with(|| AggregatedMetric {
                     value: HashSet::new(),
-                    tags
+                    tags: tags.clone(),
                 });
-                if let Unit::Str(v) = value {
-                    am.value.insert(v);
-                }
+            if let Unit::Str(v) = &value {
+                am.value.insert(v.to_string());
             }
-            kind::HISTOGRAM => {
-                let am = self
-                    .histograms
-                    .entry(key)
-                    .or_insert_with(|| AggregatedMetric {
-                        value: Histogram::new(3).unwrap(),
-                        tags,
-                    });
-                am.value.saturating_record(value.get());
-            }
-            _ => unreachable!(),
+        }
+        if kind & kind::HISTOGRAM != 0 {
+            let am = self
+                .histograms
+                .entry(key)
+                .or_insert_with(|| AggregatedMetric {
+                    value: Histogram::new(3).unwrap(),
+                    tags,
+                });
+            am.value.saturating_record(value.get());
         }
     }
 
@@ -158,7 +164,6 @@ impl Aggregator {
                 Unit::Count(v.value.len() as u64),
                 tags,
             ));
-
         }
         for (k, v) in self.histograms.drain() {
             metrics.extend(PERCENTILES.iter().cloned().map(|p| {
@@ -184,10 +189,9 @@ fn hash_tags(tags: &Tags) -> u64 {
 fn measurement_key(metric: &Measurement) -> MeasurementKey {
     MeasurementKey {
         name: metric.name.clone(),
-        tags_hash: hash_tags(&metric.tags)
+        tags_hash: hash_tags(&metric.tags),
     }
 }
-
 
 pub struct Buffer {
     aggregator: Aggregator,
@@ -224,12 +228,9 @@ impl Actor for Buffer {
             .interval_s
             .map(|s| s * 1000)
             .unwrap_or(self.config.interval_ms);
-        IntervalFunc::new(
-            Duration::from_millis(ms),
-            Self::flush,
-        )
-        .finish()
-        .spawn(ctx);
+        IntervalFunc::new(Duration::from_millis(ms), Self::flush)
+            .finish()
+            .spawn(ctx);
     }
 }
 
@@ -256,10 +257,10 @@ fn default_interval_ms() -> u64 {
 pub struct BufferConfig {
     #[serde(default = "default_interval_ms")]
     pub interval_ms: u64,
-    pub interval_s: Option<u64>
+    pub interval_s: Option<u64>,
 }
 
-fn join<T: Into<String>, I: Iterator<Item=T>>(mut iter: I, sep: &str) -> Option<String> {
+fn join<T: Into<String>, I: Iterator<Item = T>>(mut iter: I, sep: &str) -> Option<String> {
     if let Some(item) = iter.next() {
         let mut ret = item.into();
         for item in iter {
@@ -281,7 +282,7 @@ mod tests {
         let tags = Tags::new();
         MeasurementKey {
             name: name.to_string(),
-            tags_hash: hash_tags(&tags)
+            tags_hash: hash_tags(&tags),
         }
     }
 
