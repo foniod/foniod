@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn test_aggregate_counter() {
-        let mut a = Aggregator::new();
+        let mut a = Aggregator::new(false);
         let k = key("foo");
         assert_eq!(a.counter(&k), None);
         a.record(metric("foo:1|c"));
@@ -313,7 +313,7 @@ mod tests {
 
     #[test]
     fn test_aggregate_gauge() {
-        let mut a = Aggregator::new();
+        let mut a = Aggregator::new(false);
         let foo = key("foo");
         assert_eq!(a.gauge(&foo), None);
         a.record(metric("foo:1|g"));
@@ -331,7 +331,7 @@ mod tests {
 
     #[test]
     fn test_aggregate_set() {
-        let mut a = Aggregator::new();
+        let mut a = Aggregator::new(false);
         let foo = key("foo");
         let bar = key("bar");
         assert_eq!(a.uniques(&foo), None);
