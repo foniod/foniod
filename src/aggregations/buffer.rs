@@ -32,16 +32,20 @@ struct Aggregator {
     timers: HashMap<MeasurementKey, AggregatedMetric<Vec<f64>>>,
     sets: HashMap<MeasurementKey, AggregatedMetric<HashSet<String>>>,
     histograms: HashMap<MeasurementKey, AggregatedMetric<Histogram<u64>>>,
+
+    enable_histograms: bool
 }
 
 impl Aggregator {
-    pub fn new() -> Self {
+    pub fn new(enable_histograms: bool) -> Self {
         Aggregator {
             counters: HashMap::new(),
             gauges: HashMap::new(),
             timers: HashMap::new(),
             sets: HashMap::new(),
             histograms: HashMap::new(),
+
+            enable_histograms
         }
     }
 
@@ -110,7 +114,7 @@ impl Aggregator {
                 am.value.insert(v.to_string());
             }
         }
-        if kind & kind::HISTOGRAM != 0 {
+        if self.enable_histograms && kind & kind::HISTOGRAM != 0 {
             let am = self
                 .histograms
                 .entry(key)
@@ -202,7 +206,7 @@ pub struct Buffer {
 impl Buffer {
     pub fn launch(config: BufferConfig, upstream: Recipient<Message>) -> Recipient<Message> {
         let actor = Buffer {
-            aggregator: Aggregator::new(),
+            aggregator: Aggregator::new(config.enable_histograms),
             config,
             upstream,
         };
@@ -253,11 +257,17 @@ fn default_interval_ms() -> u64 {
     10000
 }
 
+fn default_enable_histograms() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BufferConfig {
     #[serde(default = "default_interval_ms")]
     pub interval_ms: u64,
     pub interval_s: Option<u64>,
+    #[serde(default = "default_enable_histograms")]
+    pub enable_histograms: bool
 }
 
 fn join<T: Into<String>, I: Iterator<Item = T>>(mut iter: I, sep: &str) -> Option<String> {
