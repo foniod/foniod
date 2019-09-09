@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use actix::{Actor, Recipient};
+use actix::{Actor, Arbiter, Recipient};
 use log::LevelFilter;
 
 use crate::aggregations::*;
@@ -109,10 +109,10 @@ pub enum ProbeActor {
 }
 
 impl ProbeActor {
-    pub fn start(self) {
+    pub fn start(self, io: &Arbiter) {
         match self {
-            ProbeActor::EBPF(a) => { a.start(); },
-            ProbeActor::StatsD(a) => { a.start(); }
+            ProbeActor::EBPF(a) => { Actor::start_in_arbiter(io, |_| a); },
+            ProbeActor::StatsD(a) => { Actor::start_in_arbiter(io, |_| a); }
             ProbeActor::Osquery(a) => { a.start(); }
         };
     }

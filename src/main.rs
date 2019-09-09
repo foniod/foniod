@@ -50,6 +50,7 @@ fn main() {
     }));
 
     let system = actix::System::new("userspace");
+    let io = actix::Arbiter::new();
 
     let mut config: config::Config = {
         let file = env::args().nth(1).expect("Usage: ingraind <config file>");
@@ -93,7 +94,7 @@ fn main() {
         .collect();
 
     for actor in probe_actors {
-        actor.start();
+        actor.start(&io);
     }
 
     system.run().unwrap();

@@ -152,7 +152,7 @@ where
     }
 }
 
-pub trait EBPFProbe {
+pub trait EBPFProbe: Send {
     fn attach(&mut self) -> MessageStreams;
 }
 
