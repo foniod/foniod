@@ -84,3 +84,8 @@ s3-backend = []
 statsd-backend = ["cadence"]
 http-backend = ["hyper", "hyper-rustls"]
 capnp-encoding = ["capnp", "capnpc"]
+
+[profile.release]
+lto = "thin"
+opt-level = 3
+debug = true
