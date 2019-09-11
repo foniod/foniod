@@ -65,7 +65,9 @@ impl Aggregator {
         } = measurement;
 
         let v = match kind {
-            COUNTER | GAUGE | TIMER => value.get() as f64,
+            x if (x & kind::COUNTER > 0) | (x & kind::GAUGE > 0) | (x & kind::TIMER > 0) => {
+                value.get() as f64
+            }
             _ => 0f64,
         };
 
