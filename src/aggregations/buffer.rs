@@ -34,7 +34,7 @@ struct Aggregator {
     sets: HashMap<MeasurementKey, AggregatedMetric<HashSet<String>>>,
     histograms: HashMap<MeasurementKey, AggregatedMetric<Histogram<u64>>>,
 
-    enable_histograms: bool
+    enable_histograms: bool,
 }
 
 impl Aggregator {
@@ -46,7 +46,7 @@ impl Aggregator {
             sets: HashMap::new(),
             histograms: HashMap::new(),
 
-            enable_histograms
+            enable_histograms,
         }
     }
 
@@ -149,7 +149,12 @@ impl Aggregator {
     pub fn flush(&mut self) -> Vec<Measurement> {
         let mut metrics = Vec::new();
         metrics.extend(self.counters.drain().map(|(k, v)| {
-            Measurement::new(kind::COUNTER, k.name, v.unit.to_unit(v.value as u64), v.tags)
+            Measurement::new(
+                kind::COUNTER,
+                k.name,
+                v.unit.to_unit(v.value as u64),
+                v.tags,
+            )
         }));
         metrics.extend(self.gauges.drain().map(|(k, v)| {
             Measurement::new(kind::GAUGE, k.name, v.unit.to_unit(v.value as u64), v.tags)
@@ -275,7 +280,7 @@ pub struct BufferConfig {
     pub interval_ms: u64,
     pub interval_s: Option<u64>,
     #[serde(default = "default_enable_histograms")]
-    pub enable_histograms: bool
+    pub enable_histograms: bool,
 }
 
 fn join<T: Into<String>, I: Iterator<Item = T>>(mut iter: I, sep: &str) -> Option<String> {
