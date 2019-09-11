@@ -9,7 +9,7 @@ use actix::{Actor, ActorStream, Context, ContextFutureSpawner, Handler, Recipien
 use hdrhistogram::Histogram;
 
 use crate::backends::Message;
-use crate::metrics::{kind, Measurement, Tags, Unit};
+use crate::metrics::{kind, Measurement, Tags, Unit, UnitType};
 
 const PERCENTILES: [f64; 6] = [25f64, 50f64, 75f64, 90f64, 95f64, 99f64];
 
@@ -22,6 +22,7 @@ struct MeasurementKey {
 #[derive(Debug, Clone, PartialEq)]
 struct AggregatedMetric<T: PartialEq> {
     value: T,
+    unit: UnitType,
     tags: Tags,
 }
 
@@ -73,6 +74,7 @@ impl Aggregator {
                 .counters
                 .entry(key.clone())
                 .or_insert_with(|| AggregatedMetric {
+                    unit: value.get_type(),
                     value: 0f64,
                     tags: tags.clone(),
                 });
@@ -83,6 +85,7 @@ impl Aggregator {
                 .gauges
                 .entry(key.clone())
                 .or_insert_with(|| AggregatedMetric {
+                    unit: value.get_type(),
                     value: 0f64,
                     tags: tags.clone(),
                 });
@@ -97,6 +100,7 @@ impl Aggregator {
                 .timers
                 .entry(key.clone())
                 .or_insert_with(|| AggregatedMetric {
+                    unit: value.get_type(),
                     value: Vec::new(),
                     tags: tags.clone(),
                 });
@@ -107,6 +111,7 @@ impl Aggregator {
                 .sets
                 .entry(key.clone())
                 .or_insert_with(|| AggregatedMetric {
+                    unit: value.get_type(),
                     value: HashSet::new(),
                     tags: tags.clone(),
                 });
@@ -119,6 +124,7 @@ impl Aggregator {
                 .histograms
                 .entry(key)
                 .or_insert_with(|| AggregatedMetric {
+                    unit: value.get_type(),
                     value: Histogram::new(3).unwrap(),
                     tags,
                 });
@@ -141,10 +147,10 @@ impl Aggregator {
     pub fn flush(&mut self) -> Vec<Measurement> {
         let mut metrics = Vec::new();
         metrics.extend(self.counters.drain().map(|(k, v)| {
-            Measurement::new(kind::COUNTER, k.name, Unit::Count(v.value as u64), v.tags)
+            Measurement::new(kind::COUNTER, k.name, v.unit.to_unit(v.value as u64), v.tags)
         }));
         metrics.extend(self.gauges.drain().map(|(k, v)| {
-            Measurement::new(kind::GAUGE, k.name, Unit::Count(v.value as u64), v.tags)
+            Measurement::new(kind::GAUGE, k.name, v.unit.to_unit(v.value as u64), v.tags)
         }));
         for (k, mut v) in self.timers.drain() {
             let tags = v.tags;

@@ -100,6 +100,29 @@ pub enum Unit {
     Str(String)
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum UnitType {
+    Byte,
+    Count,
+    Str
+}
+
+impl UnitType {
+    pub fn to_unit(self, val: u64) -> Unit {
+        use UnitType::*;
+
+        match self {
+            Byte => Unit::Byte(val),
+            Count => Unit::Count(val),
+            _ => panic!("Invalid conversion")
+        }
+    }
+
+    pub fn to_unit_str(self, val: String) -> Unit {
+        Unit::Str(val)
+    }
+}
+
 impl Unit {
     pub fn get(&self) -> u64 {
         use self::Unit::*;
@@ -110,6 +133,16 @@ impl Unit {
                 debug!("get() called on string metric");
                 0
             }
+        }
+    }
+
+    pub fn get_type(&self) -> UnitType {
+        use Unit::*;
+
+        match *self {
+            Byte(_) => UnitType::Byte,
+            Count(_) => UnitType::Count,
+            Str(_) => UnitType::Str,
         }
     }
 
