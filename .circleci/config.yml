@@ -79,10 +79,22 @@ jobs:
           at: /build
 
       - run:
-          name: Install deps
+          name: Install some deps
           command: |
             apt-get update
-            apt-get install -y curl clang llvm musl-tools capnproto libelf-dev linux-headers-<< parameters.kernel_version >> ca-certificates{,-java}
+            apt-get install -y curl wget gnupg2 software-properties-common lsb-release
+      
+      - run:
+          name: Configure llvm 9 repo
+          command: |
+            curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+            add-apt-repository 'deb http://apt.llvm.org/bionic/   llvm-toolchain-bionic-9  main'
+
+      - run:
+          name: Install more deps
+          command: |
+            apt-get update
+            apt-get install -y clang llvm-9 musl-tools capnproto libelf-dev linux-headers-<< parameters.kernel_version >> ca-certificates{,-java}
 
       - install_rust
 
