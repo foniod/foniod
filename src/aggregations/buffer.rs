@@ -156,9 +156,13 @@ impl Aggregator {
                 v.tags,
             )
         }));
+        self.counters.shrink_to_fit();
+        
         metrics.extend(self.gauges.drain().map(|(k, v)| {
             Measurement::new(kind::GAUGE, k.name, v.unit.to_unit(v.value as u64), v.tags)
         }));
+        self.gauges.shrink_to_fit();
+        
         for (k, mut v) in self.timers.drain() {
             let tags = v.tags;
             metrics.extend(v.value.drain(..).map(|t| {
@@ -170,6 +174,8 @@ impl Aggregator {
                 )
             }));
         }
+        self.timers.shrink_to_fit();
+        
         for (k, v) in self.sets.drain() {
             let mut tags = v.tags;
             if let Some(elements) = join(v.value.iter(), ",") {
@@ -182,6 +188,8 @@ impl Aggregator {
                 tags,
             ));
         }
+        self.sets.shrink_to_fit();
+        
         for (k, v) in self.histograms.drain() {
             metrics.extend(PERCENTILES.iter().cloned().map(|p| {
                 Measurement::new(
@@ -192,6 +200,7 @@ impl Aggregator {
                 )
             }));
         }
+        self.histograms.shrink_to_fit();
 
         metrics
     }
