@@ -5,7 +5,7 @@ use log::LevelFilter;
 
 use crate::aggregations::*;
 use crate::backends::*;
-use crate::grains::{self, dns, file, syscalls, tcpv4, tls, udp, osquery};
+use crate::grains::{self, dns, file, syscalls, tcpv4, tls, udp, osquery, traffic};
 use crate::grains::{EBPFActor, EBPFGrain, EBPFProbe};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -51,7 +51,8 @@ pub enum Grain {
     TLS(tls::TlsConfig),
     Syscall(syscalls::SyscallConfig),
     StatsD(grains::statsd::StatsdConfig),
-    Osquery(osquery::OsqueryConfig)
+    Osquery(osquery::OsqueryConfig),
+    TrafficCounter(traffic::TrafficCounterConfig)
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -131,6 +132,7 @@ impl Grain {
                         Grain::DNS(config) => Box::new(dns::DNS(config).load().unwrap()),
                         Grain::TLS(config) => Box::new(tls::TLS(config).load().unwrap()),
                         Grain::Syscall(config) => Box::new(syscalls::Syscall(config).load().unwrap()),
+                        Grain::TrafficCounter(config) => Box::new(traffic::TrafficCounter(config).load().unwrap()),
                         _ => unreachable!()
                 };
                 ProbeActor::EBPF(EBPFActor::new(probe, recipients))
