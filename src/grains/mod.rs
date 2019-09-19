@@ -11,6 +11,7 @@ pub mod syscalls;
 pub mod tcpv4;
 pub mod tls;
 pub mod udp;
+pub mod traffic;
 
 pub use crate::grains::ebpf::*;
 pub use crate::grains::ebpf_io::*;
