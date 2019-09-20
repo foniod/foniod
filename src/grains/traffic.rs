@@ -55,8 +55,8 @@ impl From<_data_exchange> for Traffic {
         Traffic {
             destination_ip: to_ipv4(data.daddr),
             source_ip: to_ipv4(data.saddr),
-            destination_port: to_le(data.dport),
-            source_port: to_le(data.sport),
+            destination_port: data.dport,
+            source_port: data.sport,
             size: data.size as u16,
             protocol: data.proto
         }

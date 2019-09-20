@@ -52,42 +52,48 @@ s8 packet(struct xdp_md *ctx, void *buffer, void *data_end, struct _data_exchang
   struct iphdr *ip;
   struct udphdr *udp;
   struct tcphdr *tcp;
-
-  if (eth->h_proto == bpf_htons(ETH_P_IP)) {
-    return -6;
-  }
+  void *next;
 
   ip = (struct iphdr *) (buffer + sizeof(struct ethhdr));
 
   if (ip + 1 > data_end) {
-    return -7;
+    return 1;
   }
 
-  data->size = data_end - buffer;
+  next = ip + 1;
+  if (next + 1 > data_end) {
+    return 1;
+  }
+
+  if (eth->h_proto != bpf_htons(ETH_P_IP)) {
+    return 1;
+  }
+
+  data->size = ip->tot_len;
   data->saddr = ip->saddr;
   data->daddr = ip->daddr;
   data->proto = ip->protocol;
 
-  if (ip->protocol == IPPROTO_UDP) {
-    udp = (struct udphdr *) (ip + 1);
+  if (data->proto == IPPROTO_UDP) {
+    udp = (struct udphdr *) (next);
 
-    if (udp + 1 > data_end) {
-      return -7;
+    if (udp + sizeof(struct udphdr) + 1 > data_end) {
+      return 1;
     }
 
-    data->sport = udp->source;
-    data->dport = udp->dest;
+    data->sport = bpf_ntohs(udp->source);
+    data->dport = bpf_ntohs(udp->dest);
   }
 
-  if (ip->protocol == IPPROTO_TCP) {
-    tcp = (struct tcphdr *) (ip + 1);
+  if (data->proto == IPPROTO_TCP) {
+    tcp = (struct tcphdr *) (next);
 
-    if (tcp + 1 > data_end) {
-      return -7;
+    if (tcp + sizeof(struct tcphdr) + 1 > data_end) {
+      return 1;
     }
 
-    data->sport = tcp->source;
-    data->dport = tcp->dest;
+    data->sport = bpf_ntohs(tcp->source);
+    data->dport = bpf_ntohs(tcp->dest);
   }
 
   return 0;
