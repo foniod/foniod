@@ -235,7 +235,7 @@ workflows:
           name: "fedora 29"
 
       - build_docker_binary:
-          name: "build_docker_binary" 
+          name: "build_docker_binary"
 
       - build_docker_image:
           requires:
