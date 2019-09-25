@@ -50,6 +50,10 @@ impl Aggregator {
         }
     }
 
+    pub fn max_len(&self) -> usize {
+        *[self.counters.len(), self.gauges.len(), self.timers.len(), self.sets.len(), self.histograms.len()].iter().max().unwrap()
+    }
+
     pub fn record<T: Into<Measurement>>(&mut self, measurement: T) {
         use kind::*;
 
@@ -264,6 +268,12 @@ impl Handler<Message> for Buffer {
     type Result = ();
 
     fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
+        if let Some(max_elems) = self.config.max_records {
+            if max_elems > self.aggregator.max_len() as u64 {
+                self.aggregator.flush();
+            }
+        }
+
         match msg {
             Message::List(mut ms) => {
                 for m in ms.drain(..) {
@@ -288,6 +298,7 @@ pub struct BufferConfig {
     #[serde(default = "default_interval_ms")]
     pub interval_ms: u64,
     pub interval_s: Option<u64>,
+    pub max_records: Option<u64>,
     #[serde(default = "default_enable_histograms")]
     pub enable_histograms: bool,
 }
