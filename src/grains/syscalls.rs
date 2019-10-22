@@ -19,10 +19,10 @@ pub struct SyscallConfig {
 pub struct Syscall(pub SyscallConfig);
 
 #[cfg(target_arch = "x86_64")]
-const SYSCALL_PREFIX: &'static str = "__x64_sys_";
+const SYSCALL_PREFIX: &str = "__x64_sys_";
 
 #[cfg(target_arch = "aarch64")]
-const SYSCALL_PREFIX: &'static str = "__arm64_sys_";
+const SYSCALL_PREFIX: &str = "__arm64_sys_";
 
 impl EBPFProbe for Grain<Syscall> {
     fn attach(&mut self) -> MessageStreams {
