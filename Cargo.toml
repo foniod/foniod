@@ -8,11 +8,6 @@ repository = "https://github.com/redsift/ingraind"
 build = "build.rs"
 edition = "2018"
 
-[profile.release]
-debug = true
-lto   = true
-panic = 'abort'
-
 [build-dependencies]
 failure = "0.1"
 redbpf = { version = "^0.3.3", features = ["build"] }
