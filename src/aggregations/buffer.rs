@@ -3,7 +3,6 @@ use std::collections::{HashMap, HashSet};
 use std::convert::Into;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
-use std::sync::Arc;
 
 use actix::utils::IntervalFunc;
 use actix::{Actor, ActorStream, Context, ContextFutureSpawner, Handler, Recipient};
@@ -232,7 +231,7 @@ pub struct Buffer {
 
 impl Buffer {
     pub fn launch(config: BufferConfig, upstream: Recipient<Message>) -> Recipient<Message> {
-	Actor::start_in_arbiter(&Arc::new(actix::Arbiter::new()), |_| Buffer {
+	Actor::start_in_arbiter(&actix::Arbiter::new(), |_| Buffer {
             aggregator: Aggregator::new(config.enable_histograms),
             config,
             upstream,

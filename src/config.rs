@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::collections::HashMap;
 
 use actix::{Actor, Arbiter, Recipient};
@@ -93,11 +92,11 @@ impl Backend {
     pub fn into_recipient(self) -> Recipient<Message> {
         match self {
             #[cfg(feature = "s3-backend")]
-            Backend::S3 => Actor::start_in_arbiter(&Arc::new(actix::Arbiter::new()), |_| s3::S3::new()).recipient(),
+            Backend::S3 => Actor::start_in_arbiter(&actix::Arbiter::new(), |_| s3::S3::new()).recipient(),
             #[cfg(feature = "statsd-backend")]
-            Backend::StatsD(config) => Actor::start_in_arbiter(&Arc::new(actix::Arbiter::new()), |_| statsd::Statsd::new(config)).recipient(),
+            Backend::StatsD(config) => Actor::start_in_arbiter(&actix::Arbiter::new(), |_| statsd::Statsd::new(config)).recipient(),
             #[cfg(feature = "http-backend")]
-            Backend::HTTP(config) => Actor::start_in_arbiter(&Arc::new(actix::Arbiter::new()), |_| http::HTTP::new(config)).recipient(),
+            Backend::HTTP(config) => Actor::start_in_arbiter(&actix::Arbiter::new(), |_| http::HTTP::new(config)).recipient(),
             Backend::Console => console::Console.start().recipient(),
         }
     }
