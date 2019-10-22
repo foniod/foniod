@@ -231,11 +231,12 @@ pub struct Buffer {
 
 impl Buffer {
     pub fn launch(config: BufferConfig, upstream: Recipient<Message>) -> Recipient<Message> {
-	Actor::start_in_arbiter(&actix::Arbiter::new(), |_| Buffer {
+        Actor::start_in_arbiter(&actix::Arbiter::new(), |_| Buffer {
             aggregator: Aggregator::new(config.enable_histograms),
             config,
             upstream,
-        }).recipient()
+        })
+        .recipient()
     }
 
     fn flush(&mut self, _ctx: &mut Context<Self>) {
