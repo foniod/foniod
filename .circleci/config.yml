@@ -94,7 +94,7 @@ jobs:
           name: Install more deps
           command: |
             apt-get update
-            apt-get install -y clang llvm-9 musl-tools capnproto libelf-dev linux-headers-<< parameters.kernel_version >> ca-certificates{,-java}
+            apt-get install -y clang llvm llvm-9 musl-tools capnproto libelf-dev linux-headers-<< parameters.kernel_version >> ca-certificates{,-java}
 
       - install_rust
 
@@ -120,7 +120,7 @@ jobs:
   fedora:
     working_directory: /build
     docker:
-      - image: fedora:29
+      - image: fedora:31
     steps:
       - checkout
       - attach_workspace:
@@ -129,14 +129,15 @@ jobs:
       - run:
           name: Install deps
           command: |
-            yum install -y clang llvm capnproto kernel-4.18.16-300.fc29.x86_64 kernel-devel-4.18.16-300.fc29.x86_64 elfutils-libelf-devel ca-certificates
+            yum install -y clang-9.0.0-1.fc31 llvm-9.0.0-1.fc31 capnproto kernel-5.3.6-300.fc31.x86_64 kernel-devel-5.3.6-300.fc31.x86_64 elfutils-libelf-devel ca-certificates
 
       - install_rust
 
       - run:
-          name: Configure kernel version
+          name: Configure env vars
           command: |
-            echo export KERNEL_VERSION=4.18.16-300.fc29.x86_64 >> $BASH_ENV
+            echo export KERNEL_VERSION=5.3.6-300.fc31.x86_64 >> $BASH_ENV
+            echo export LLC=llc >> $BASH_ENV
 
       - cargo_build
 
@@ -146,7 +147,7 @@ jobs:
             mkdir -p /tmp/workspace/bin
             if [ ${CIRCLE_BRANCH} = "master" ]; then
               cp target/release/ingraind \
-                /tmp/workspace/bin/ingraind-fedora-29
+                /tmp/workspace/bin/ingraind-fedora-31
             fi
 
       - persist_to_workspace:
@@ -230,10 +231,10 @@ workflows:
                 - master
 
       - terraform:
-          name: 'terraform - fedora 29'
-          ami: 'fedora-29'
+          name: 'terraform - fedora 31'
+          ami: 'fedora-31'
           requires:
-            - fedora 29
+            - fedora 31
           filters:
             branches:
               only:
@@ -244,7 +245,7 @@ workflows:
           tag: "18.04"
 
       - fedora:
-          name: "fedora 29"
+          name: "fedora 31"
 
       - build_docker_binary:
           filters:
