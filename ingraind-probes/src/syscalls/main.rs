@@ -26,11 +26,15 @@ pub extern "C" fn syscall_enter(ctx: *mut c_void) -> i32 {
       return 0;
     }
   }
+  #[cfg(target_arch = "x86_64")]
+  let syscall_nr = unsafe { (*(ctx as *const pt_regs)).ax };
+  #[cfg(target_arch = "aarch64")]
+  let syscall_nr = unsafe { (*(ctx as *const user_pt_regs)).regs[1] };
 
   let data = SyscallTracepoint {
     id: pid_tgid >> 32,
-    syscall_nr: unsafe { (*(ctx as *mut pt_regs)).ax },
-    comm: bpf_get_current_comm()
+    syscall_nr,
+    comm: bpf_get_current_comm(),
   };
   unsafe { syscall_event.insert(ctx, data) };
 
