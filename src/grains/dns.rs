@@ -1,9 +1,10 @@
 use std::os::raw::c_char;
+use std::convert::TryInto;
 
 use crate::grains::protocol::ip::to_ipv4;
 use crate::grains::*;
 
-include!(concat!(env!("OUT_DIR"), "/dns.rs"));
+use ingraind_probes::dns::Event;
 
 pub struct DNS(pub DnsConfig);
 #[derive(Serialize, Deserialize, Debug)]
@@ -20,12 +21,13 @@ impl EBPFProbe for Grain<DNS> {
 
 impl EBPFGrain<'static> for DNS {
     fn code() -> &'static [u8] {
-        include_bytes!(concat!(env!("OUT_DIR"), "/dns.elf"))
+        include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/ingraind-probes/target/release/bpf-programs/dns/dns.elf"))
     }
 
     fn get_handler(&self, _id: &str) -> EventCallback {
         Box::new(|raw| {
-            let query = DNSQuery::from(_data_dns_query::from(raw));
+            let event = unsafe { &*(raw.as_ptr() as *const Event) };
+            let query = DNSQuery::from(event);
             let tags = query.to_tags();
 
             Some(Message::Single(Measurement::new(
@@ -50,19 +52,19 @@ struct DNSQuery {
     pub qclass: u16,
 }
 
-impl From<_data_dns_query> for DNSQuery {
-    fn from(data: _data_dns_query) -> DNSQuery {
+impl From<&Event> for DNSQuery {
+    fn from(event: &Event) -> DNSQuery {
+        let query = parse_query(event.data()).unwrap();
+        let question = &query.questions[0];
         DNSQuery {
-            id: to_le(data.id),
-            destination_ip: to_ipv4(data.daddr),
-            source_ip: to_ipv4(data.saddr),
-            destination_port: to_le(data.dport),
-            source_port: to_le(data.sport),
-            address: from_dns_prefix_labels(unsafe {
-                &*(&data.address as *const [c_char] as *const [u8])
-            }),
-            qtype: to_le(data.qtype),
-            qclass: to_le(data.qclass),
+            id: query.header.id,
+            destination_ip: to_ipv4(event.daddr),
+            source_ip: to_ipv4(event.saddr),
+            destination_port: event.dport,
+            source_port: event.sport,
+            address: join(question.names.iter(), ".").unwrap(),
+            qtype: question.query_type,
+            qclass: question.query_class
         }
     }
 }
@@ -87,41 +89,142 @@ impl ToTags for DNSQuery {
     }
 }
 
-pub fn from_dns_prefix_labels(address: &[u8]) -> String {
-    let mut ret = String::new();
-    let mut i = 0usize;
-
-    while i < address.len() {
-        let label_len = address[i] as usize;
-        if label_len == 0 {
-            break;
-        }
-        i += 1;
-
-        let label = String::from_utf8_lossy(&address[i..(i + label_len)]);
-        ret.push_str(&label);
-        ret.push('.');
-        i += label_len;
-    }
-
-    ret
+#[derive(Debug)]
+enum Error {
+    NeedMore,
+    InvalidName
 }
 
-mod test {
-    #[test]
-    fn parse_dns_labels() {
-        use crate::grains::dns::from_dns_prefix_labels;
-        assert_eq!(
-            from_dns_prefix_labels(b"\x04asdf\x03com\x00"),
-            String::from("asdf.com.")
-        );
-        assert_eq!(
-            from_dns_prefix_labels(b"\x051e100\x03com\x00"),
-            String::from("1e100.com.")
-        );
-        assert_eq!(
-            from_dns_prefix_labels(b"\x05\x01e100\x03com\x00"),
-            String::from("\x01e100.com.")
-        );
+#[derive(Debug)]
+struct Header {
+    id: u16,
+    flags: u16,
+    qd_count: u16,
+    an_count: u16,
+    ns_count: u16,
+    ar_count: u16
+}
+
+enum PacketType {
+    Query,
+    Answer
+}
+
+#[derive(Debug)]
+struct Query {
+    header: Header,
+    questions: Vec<Question>
+}
+
+#[derive(Debug)]
+struct Question {
+    names: Vec<String>,
+    query_type: u16,
+    query_class: u16
+}
+
+impl Header {
+    fn packet_type(&self) -> PacketType {
+        use PacketType::*;
+
+        if self.flags & 1 << 15 == 0 {
+            Query
+        } else {
+            Answer
+        }
     }
+}
+
+fn parse_header(data: &[u8]) -> Result<Header, Error> {
+    use Error::*;
+
+    if data.len() < 12 {
+        return Err(NeedMore)
+    }
+
+    let id = u16::from_be_bytes(data[..2].try_into().unwrap());
+    let flags = u16::from_be_bytes(data[2..4].try_into().unwrap());
+    let qd_count = u16::from_be_bytes(data[4..6].try_into().unwrap());
+    let an_count = u16::from_be_bytes(data[6..8].try_into().unwrap());
+    let ns_count = u16::from_be_bytes(data[8..10].try_into().unwrap());
+    let ar_count = u16::from_be_bytes(data[10..12].try_into().unwrap());
+
+    Ok(Header {
+        id,
+        flags,
+        qd_count,
+        an_count,
+        ns_count,
+        ar_count
+    })
+}
+
+fn len_value(data: &[u8]) -> Option<(usize, &[u8])> {
+    if !data.is_empty() {
+        let len = data[0] as usize;
+        if data.len() >= 1 + len {
+            return Some((len, &data[1..1 + len]))
+        }
+    }
+
+    None
+}
+
+fn parse_query(data: &[u8]) -> Result<Query, Error> {
+    use Error::*;
+
+    let header = parse_header(&data)?;
+    let mut data = &data[12..];
+    let mut questions = Vec::new();
+    while questions.len() < header.qd_count as usize {
+        if data.is_empty() {
+            return Err(NeedMore)
+        }
+
+        let mut names = Vec::new();
+        while data[0] != 0 {
+            let (len, name) = len_value(data)
+                .ok_or(NeedMore)
+                .and_then(|(l, n)| {
+                    Ok((
+                        l,
+                        String::from_utf8(n.to_vec()).map_err(|_| InvalidName)?
+                    ))
+                })?;
+            names.push(name);
+            data = &data[1 + len..];
+            if data.is_empty() {
+                return Err(NeedMore)
+            }
+        }
+        if data.len() < 4 {
+            return Err(NeedMore)
+        }
+        let query_type = u16::from_be_bytes(data[0..2].try_into().unwrap());
+        let query_class = u16::from_be_bytes(data[2..4].try_into().unwrap());
+
+        questions.push(Question {
+            names,
+            query_type,
+            query_class
+        });
+    }
+
+    Ok(Query {
+        header,
+        questions
+    })
+}
+
+fn join<T: Into<String>, I: Iterator<Item = T>>(mut iter: I, sep: &str) -> Option<String> {
+    if let Some(item) = iter.next() {
+        let mut ret = item.into();
+        for item in iter {
+            ret.push_str(sep);
+            ret.push_str(&item.into());
+        }
+        return Some(ret);
+    }
+
+    None
 }

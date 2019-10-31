@@ -1,11 +1,13 @@
-#![feature(const_fn, const_transmute, lang_items, start)]
+#![feature(const_fn, const_transmute, lang_items, start, ptr_offset_from)]
 #![no_std]
 #![no_main]
 use cty::*;
+use core::slice;
+use core::mem;
 
 use redbpf_probes::bindings::*;
 use redbpf_probes::maps::*;
-use redbpf_probes::xdp::{xdp_md, XdpAction};
+use redbpf_probes::xdp::{xdp_md, XdpAction, XdpContext};
 use redbpf_macros::{map, probe, xdp};
 
 use ingraind_probes::dns::Event;
@@ -17,28 +19,39 @@ static mut events: PerfMap<Event> = PerfMap::new();
 
 #[xdp("dns_queries")]
 pub extern "C" fn probe(ctxp: *mut xdp_md) -> XdpAction {
-    let ctx = unsafe { *ctxp };
+    let ctx = XdpContext { ctx: ctxp };
     let (ip, transport) = match (ctx.ip(), ctx.transport()) {
         (Some(i), Some(t)) => (unsafe { *i }, t),
         _ => return XdpAction::Pass
     };
-    let sport = transport.source();
-    let dport = transport.dest();
-    if sport != 53 && dport != 53 {
-        return XdpAction::Pass;
-    }
-    let mut out: [u8; 100] = [0; 100];
     let data = match ctx.data() {
         Some(data) => data,
         None => return XdpAction::Pass
     };
 
+    let header = match data.slice(12) {
+        Some(s) => s,
+        None => return XdpAction::Pass
+    };
+
+    if header[2] >> 3 & 0xF != 0u8 {
+        return XdpAction::Pass
+    }
+
+    let offset = data.offset() as u32;
+    let size = data.len() as u32;
+
     let event = Event {
         saddr: ip.saddr,
         daddr: ip.daddr,
         sport: transport.source(),
-        dport: transport.dest()
+        dport: transport.dest(),
+        offset,
+        size,
+        data: []
     };
+
+    unsafe { events.insert_xdp(ctxp, event, (offset + size) as usize) }
 
     XdpAction::Pass
 }
