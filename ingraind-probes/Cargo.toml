@@ -28,3 +28,10 @@ required-features = ["probes"]
 name = "dns"
 path = "src/dns/main.rs"
 required-features = ["probes"]
+
+[patch.crates-io]
+bpf-sys = { path = "../../redbpf/bpf-sys" }
+redbpf = { path = "../../redbpf/redbpf" }
+redbpf-macros = { path = "../../redbpf/redbpf-macros" }
+redbpf-probes = { path = "../../redbpf/redbpf-probes" }
+cargo-bpf  = { path = "../../redbpf/cargo-bpf" }

@@ -36,7 +36,7 @@ pub extern "C" fn syscall_enter(ctx: *mut c_void) -> i32 {
     syscall_nr,
     comm: bpf_get_current_comm(),
   };
-  unsafe { syscall_event.insert(ctx, data) };
+  unsafe { syscall_event.insert(ctx, data, PerfMapFlags::default()) };
 
   return 0;
 }

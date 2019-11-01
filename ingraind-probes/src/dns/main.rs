@@ -18,8 +18,7 @@ probe!(0xFFFFFFFE, "GPL");
 static mut events: PerfMap<Event> = PerfMap::new();
 
 #[xdp("dns_queries")]
-pub extern "C" fn probe(ctxp: *mut xdp_md) -> XdpAction {
-    let ctx = XdpContext { ctx: ctxp };
+pub extern "C" fn probe(ctx: XdpContext) -> XdpAction {
     let (ip, transport) = match (ctx.ip(), ctx.transport()) {
         (Some(i), Some(t)) => (unsafe { *i }, t),
         _ => return XdpAction::Pass
@@ -51,7 +50,7 @@ pub extern "C" fn probe(ctxp: *mut xdp_md) -> XdpAction {
         data: []
     };
 
-    unsafe { events.insert_xdp(ctxp, event, (offset + size) as usize) }
+    unsafe { events.insert(ctx.inner(), event, PerfMapFlags::with_xdp_size(ctx.len())) }
 
     XdpAction::Pass
 }
