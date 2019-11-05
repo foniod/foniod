@@ -10,8 +10,8 @@ edition = "2018"
 
 [build-dependencies]
 failure = "0.1"
-redbpf = { version = "0.9.0", features = ["build"] }
-cargo-bpf = "0.9.0"
+redbpf = { version = "^0.9.0", features = ["build"] }
+cargo-bpf = "^0.9.0"
 
 [build-dependencies.capnpc]
 version = "^0.9.3"
