@@ -5,18 +5,18 @@ use cty::*;
 
 use redbpf_probes::bindings::*;
 use redbpf_probes::maps::*;
-use redbpf_macros::{map, probe, kprobe};
+use redbpf_macros::{map, program, kprobe};
 use ingraind_probes::syscalls::SyscallTracepoint;
 
-probe!(0xFFFFFFFE, "GPL");
+program!(0xFFFFFFFE, "GPL");
 
 #[map("syscall_tp_trigger")]
-static mut syscall_event: PerfMap<SyscallTracepoint> = PerfMap::new();
+static mut syscall_event: PerfMap<SyscallTracepoint> = PerfMap::with_max_entries(1024);
 
 #[map("host_pid")]
-static mut host_pid: HashMap<u8, u64> = HashMap::new();
+static mut host_pid: HashMap<u8, u64> = HashMap::with_max_entries(1024);
 
-#[kprobe("syscall_enter")]
+#[kprobe("__arm64_sys_clone")]
 pub extern "C" fn syscall_enter(ctx: *mut c_void) -> i32 {
   let ignore_pid = unsafe { host_pid.get(1u8) };
   let pid_tgid = bpf_get_current_pid_tgid();

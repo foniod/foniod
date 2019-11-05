@@ -5,7 +5,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use redbpf::build::{build, cache::BuildCache, generate_bindings, headers::kernel_headers};
-use cargo_bpf;
+use cargo_bpf_lib as cargo_bpf;
 
 const CAPNP_SCHEMA: &'static str = "schema/ingraind.capnp";
 

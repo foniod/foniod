@@ -6,15 +6,15 @@ use core::mem;
 
 use redbpf_probes::bindings::*;
 use redbpf_probes::maps::*;
-use redbpf_probes::xdp::{xdp_md, XdpAction, XdpContext};
-use redbpf_macros::{map, probe, xdp};
+use redbpf_probes::xdp::{XdpAction, XdpContext, PerfMap};
+use redbpf_macros::{map, program, xdp};
 
 use ingraind_probes::dns::Event;
 
-probe!(0xFFFFFFFE, "GPL");
+program!(0xFFFFFFFE, "GPL");
 
 #[map("events")]
-static mut events: PerfMap<Event> = PerfMap::new();
+static mut events: PerfMap<Event> = PerfMap::with_max_entries(1024);
 
 #[xdp("dns_queries")]
 pub extern "C" fn probe(ctx: XdpContext) -> XdpAction {
@@ -49,7 +49,7 @@ pub extern "C" fn probe(ctx: XdpContext) -> XdpAction {
         data: []
     };
 
-    unsafe { events.insert(ctx.inner(), event) }
+    unsafe { events.insert(&ctx, event, ctx.len()) }
 
     XdpAction::Pass
 }
