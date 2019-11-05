@@ -1,5 +1,3 @@
-use cty::*;
-
 #[repr(C)]
 pub struct Event {
     pub saddr: u32,

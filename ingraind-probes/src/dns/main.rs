@@ -1,4 +1,3 @@
-#![feature(const_fn, const_transmute, lang_items, start, ptr_offset_from)]
 #![no_std]
 #![no_main]
 use cty::*;
@@ -50,7 +49,7 @@ pub extern "C" fn probe(ctx: XdpContext) -> XdpAction {
         data: []
     };
 
-    unsafe { events.insert(ctx.inner(), event, PerfMapFlags::with_xdp_size(ctx.len())) }
+    unsafe { events.insert(ctx.inner(), event) }
 
     XdpAction::Pass
 }
