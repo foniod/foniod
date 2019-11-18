@@ -136,7 +136,7 @@ jobs:
       - run:
           name: Configure env vars
           command: |
-            echo export KERNEL_VERSION=5.3.6-300.fc31.x86_64 >> $BASH_ENV
+            echo export KERNEL_SOURCE=/usr/src/kernels/$(rpm -qa kernel-devel |cut -d- -f3-)/ >> $BASH_ENV
             echo export LLC=llc >> $BASH_ENV
 
       - cargo_build
