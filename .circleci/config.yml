@@ -129,7 +129,7 @@ jobs:
       - run:
           name: Install deps
           command: |
-            yum install -y clang-9.0.0-1.fc31 llvm-9.0.0-1.fc31 capnproto kernel-5.3.6-300.fc31.x86_64 kernel-devel-5.3.6-300.fc31.x86_64 elfutils-libelf-devel ca-certificates
+            yum install -y clang-9.0.0-1.fc31 llvm-9.0.0-1.fc31 capnproto kernel kernel-devel elfutils-libelf-devel ca-certificates
 
       - install_rust
 
