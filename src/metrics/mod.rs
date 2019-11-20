@@ -172,8 +172,12 @@ pub struct Measurement {
 
 impl Measurement {
     pub fn new(kind: Kind, name: String, value: Unit, tags: Tags) -> Self {
+	Self::with_timestamp(timestamp_now(), kind, name, value, tags)
+    }
+
+    pub fn with_timestamp(timestamp: u64, kind: Kind, name: String, value: Unit, tags: Tags) -> Self {
         Self {
-            timestamp: timestamp_now(),
+            timestamp,
             kind,
             name,
             value,

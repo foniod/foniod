@@ -1,10 +1,12 @@
 use std::convert::TryInto;
-use std::os::raw::c_char;
 
 use crate::grains::protocol::ip::to_ipv4;
 use crate::grains::*;
+use crate::metrics::timestamp_now;
 
-use dns_parser::{rdata::RData, Packet};
+use dns_parser::{rdata::RData, Packet, ResourceRecord};
+use metrohash::MetroHash64;
+use std::hash::Hasher;
 
 use ingraind_probes::dns::Event;
 
@@ -33,41 +35,136 @@ impl EBPFGrain<'static> for DNS {
         Box::new(|raw| {
             let event = unsafe { &*(raw.as_ptr() as *const Event) };
             if let Ok(packet) = Packet::parse(event.data()) {
+                let timestamp = timestamp_now();
                 let query = DNSQuery::from(event);
+
                 let mut tags = query.to_tags();
+                let id = hash_event(event, timestamp);
 
-                tags.insert(
-                    "q_address_str",
-                    packet.questions
-                        .iter()
-                        .map(|v| v.qname.to_string())
-                        .collect::<Vec<String>>()
-                        .join(","),
-                );
-                tags.insert(
-                    "q_answer_ip_list",
-                    packet.answers
-                        .iter()
-			.filter(|v| match v.data {
-			    RData::Unknown(_) => false,
-			    _ => true
-			})
-                        .map(|v| format!("{:?}", v.data))
-                        .collect::<Vec<String>>()
-                        .join(","),
-                );
+                tags.insert("id", &id);
 
-                Some(Message::Single(Measurement::new(
+                let mut measurements = vec![Measurement::with_timestamp(
+                    timestamp,
                     COUNTER | HISTOGRAM | METER,
                     "dns.answer".to_string(),
                     Unit::Count(1),
                     tags,
-                )))
+                )];
+
+                measurements.extend(
+                    packet
+                        .questions
+                        .iter()
+                        .map(|v| {
+                            Measurement::with_timestamp(
+                                timestamp,
+                                COUNTER | HISTOGRAM | METER,
+                                "dns.answer_address".to_string(),
+                                Unit::Count(1),
+                                Tags(vec![
+                                    ("q_address_str".to_string(), v.qname.to_string()),
+                                    ("id".to_string(), id.clone()),
+                                ]),
+                            )
+                        })
+                        .collect::<Vec<Measurement>>(),
+                );
+
+                measurements.extend(
+                    packet
+                        .answers
+                        .iter()
+                        .filter(|v| match v.data {
+                            RData::Unknown(_) => false,
+                            _ => true,
+                        })
+                        .map(|v| {
+                            Measurement::with_timestamp(
+                                timestamp,
+                                COUNTER | HISTOGRAM | METER,
+                                "dns.answer_record".to_string(),
+                                Unit::Count(1),
+                                ip_to_tags(v, &id),
+                            )
+                        })
+                        .collect::<Vec<Measurement>>(),
+                );
+
+                Some(Message::List(measurements))
             } else {
                 None
             }
         })
     }
+}
+
+fn hash_event(event: &Event, timestamp: u64) -> String {
+    let mut hasher = MetroHash64::new();
+
+    hasher.write_u64(timestamp);
+    hasher.write_u32(event.saddr);
+    hasher.write_u32(event.daddr);
+    hasher.write_u16(event.sport);
+    hasher.write_u16(event.dport);
+
+    hasher.finish().to_string()
+}
+
+fn ip_to_tags(v: &ResourceRecord, id: &str) -> Tags {
+    let mut tags = Tags::new();
+    use RData::*;
+    match &v.data {
+        A(a) => {
+            tags.insert("record_type", "A");
+            tags.insert("address", a.0.to_string());
+        }
+        AAAA(aaaa) => {
+            tags.insert("record_type", "AAAA");
+            tags.insert("address", aaaa.0.to_string());
+        }
+        CNAME(cname) => {
+            tags.insert("record_type", "CNAME");
+            tags.insert("address", cname.0.to_string());
+        }
+        MX(mx) => {
+            tags.insert("record_type", "MX");
+            tags.insert("mx_preference", format!("{}", mx.preference));
+            tags.insert("address", mx.exchange.to_string());
+        }
+        NS(ns) => {
+            tags.insert("record_type", "NS");
+            tags.insert("address", ns.0.to_string());
+        }
+        PTR(ptr) => {
+            tags.insert("record_type", "PTR");
+            tags.insert("address", ptr.0.to_string());
+        }
+        SOA(soa) => {
+            tags.insert("record_type", "SOA");
+            tags.insert("primary_ns", soa.primary_ns.to_string());
+            tags.insert("mailbox", soa.mailbox.to_string());
+            tags.insert("serial", format!("{}", soa.serial));
+            tags.insert("refresh", format!("{}", soa.refresh));
+            tags.insert("retry", format!("{}", soa.retry));
+            tags.insert("expire", format!("{}", soa.expire));
+            tags.insert("minimum_ttl", format!("{}", soa.minimum_ttl));
+        }
+        SRV(srv) => {
+            tags.insert("record_type", "SRV");
+            tags.insert("srv_priority", format!("{}", srv.priority));
+            tags.insert("srv_weight", format!("{}", srv.weight));
+            tags.insert("srv_port", format!("{}", srv.port));
+            tags.insert("address", srv.target.to_string());
+        }
+        TXT(_txt) => {
+            tags.insert("record_type", "TXT");
+	    // ignore txt responses for now because of potential size
+	    // and encoding issues
+        }
+	Unknown(_) => unreachable!()
+    };
+
+    tags
 }
 
 #[derive(Debug, Serialize, Deserialize)]
