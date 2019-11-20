@@ -248,10 +248,7 @@ workflows:
           name: "fedora 31"
 
       - build_docker_binary:
-          filters:
-            branches:
-              only:
-                - master
+          name: build_docker_binary
 
       - build_docker_image:
           requires:
