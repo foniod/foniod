@@ -6,6 +6,7 @@ use crate::grains::*;
 
 use failure::Error;
 use redbpf::{Module, VoidPtr};
+use redbpf::uname::get_kernel_internal_version;
 
 use ingraind_probes::syscalls::SyscallTracepoint;
 
@@ -26,11 +27,16 @@ const SYSCALL_PREFIX: &str = "__arm64_sys_";
 
 impl EBPFProbe for Grain<Syscall> {
     fn attach(&mut self) -> MessageStreams {
+        let prefix = if get_kernel_internal_version().unwrap() >= 0x041100 {
+            SYSCALL_PREFIX
+        } else {
+            "sys_"
+        };
         let bind_to = self.native.0.monitor_syscalls.clone();
         bind_to
             .iter()
             .flat_map(|syscall| {
-                self.attach_kprobes_to_names(&format!("{}{}", SYSCALL_PREFIX, syscall))
+                self.attach_kprobes_to_names(&format!("{}{}", prefix, syscall))
             })
             .collect()
     }
