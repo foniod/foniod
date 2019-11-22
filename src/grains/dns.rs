@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use crate::grains::protocol::ip::to_ipv4;
 use crate::grains::*;
 use crate::metrics::timestamp_now;
@@ -14,12 +12,16 @@ pub struct DNS(pub DnsConfig);
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DnsConfig {
     interface: String,
+    #[serde(default = "default_xdp_mode")]
+    xdp_mode: XdpMode
 }
 
 impl EBPFProbe for Grain<DNS> {
     fn attach(&mut self) -> MessageStreams {
-        let iface = self.native.0.interface.clone();
-        self.attach_xdps(iface.as_str())
+        let conf = &self.native.0;
+        let interface = conf.interface.clone();
+        let flags = conf.xdp_mode.into();
+        self.attach_xdps(&interface, flags)
     }
 }
 
