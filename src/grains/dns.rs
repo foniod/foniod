@@ -113,8 +113,11 @@ fn hash_event(event: &Event, timestamp: u64) -> String {
 }
 
 fn ip_to_tags(v: &ResourceRecord, id: &str) -> Tags {
-    let mut tags = Tags::new();
     use RData::*;
+
+    let mut tags = Tags::new();
+    tags.insert("id", id.clone());
+
     match &v.data {
         A(a) => {
             tags.insert("record_type", "A");
