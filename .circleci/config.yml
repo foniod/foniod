@@ -83,7 +83,7 @@ jobs:
           command: |
             apt-get update
             apt-get install -y curl wget gnupg2 software-properties-common lsb-release
-      
+
       - run:
           name: Configure llvm 9 repo
           command: |
@@ -154,6 +154,53 @@ jobs:
           root: /tmp/workspace
           paths:
             - bin
+
+  gke:
+    working_directory: /build
+    docker:
+      - image: ubuntu
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /build
+
+      - run:
+          name: Install some deps
+          command: |
+            apt-get update
+            apt-get install -y curl wget gnupg2 software-properties-common lsb-release
+
+      - run:
+          name: Configure llvm 9 repo
+          command: |
+            curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+            add-apt-repository 'deb http://apt.llvm.org/bionic/   llvm-toolchain-bionic-9  main'
+
+      - run:
+          name: Install more deps
+          command: |
+            apt-get update
+            apt-get install -y build-essential bc kmod cpio flex cpio libncurses5-dev
+            apt-get install -y clang llvm llvm-9 musl-tools capnproto libelf-dev ca-certificates{,-java}
+
+      - run:
+          name: Configure kernel tree
+          command: |
+            mkdir cos-kernel && cd cos-kernel
+            wget -O kernel.tgz https://chromium.googlesource.com/chromiumos/third_party/kernel/+archive/8549f18963962124c0f0d73667e59dbfc17c5218.tar.gz
+            tar -xf kernel.tgz
+            zcat /build/tests/config-gke-4.14.138+.gz > .config
+            make olddefconfig
+            make prepare
+            echo export KERNEL_SOURCE=/build/cos-kernel >> $BASH_ENV
+            cd ..
+
+      - install_rust
+
+      - cargo_build:
+          flags: --target=x86_64-unknown-linux-musl
+          debug_binary: target/x86_64-unknown-linux-musl/debug/ingraind
+          release_binary: target/x86_64-unknown-linux-musl/release/ingraind
 
   build_docker_image:
     environment:
@@ -246,6 +293,8 @@ workflows:
 
       - fedora:
           name: "fedora 31"
+
+      - gke
 
       - build_docker_binary:
           name: build_docker_binary
