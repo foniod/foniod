@@ -1,6 +1,6 @@
 [package]
 name = "ingraind"
-version = "0.2.0"
+version = "1.0.0"
 authors = ["Peter Parkanyi <peter@redsift.io>"]
 license = "GPL-3.0"
 description = "eBPF-based system monitoring agent"
