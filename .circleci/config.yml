@@ -207,6 +207,7 @@ jobs:
       CONTAINER_NAME: "quay.io/redsift/ingraind"
 
     working_directory: /build
+    resource_class: large
     docker:
       - image: docker:latest
     steps:
