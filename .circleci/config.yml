@@ -205,6 +205,28 @@ jobs:
           paths:
             - "target/x86_64-unknown-linux-musl/release/ingraind"
 
+  run_test_gke:
+    environment:
+      GCLOUD_PROJECT: ingrain-playground
+      GCLOUD_PRIMARY_ZONE: europe-west1-b
+      GCLOUD_PRIMARY_CLUSTER: ingraind-test-cluster
+    working_directory: /build
+    docker:
+      - image: google/cloud-sdk:latest
+    steps:
+      - checkout
+      - run:
+          name: Setup credentials
+          command: |
+            gcloud auth activate-service-account --key-file <(echo ${GCLOUD_SERVICE_KEY})
+            gcloud config set project ${GCLOUD_PROJECT}
+            gcloud container clusters get-credentials ${GCLOUD_PRIMARY_CLUSTER} --zone ${GCLOUD_PRIMARY_ZONE}
+      - run:
+          name: Deploy
+          command: |
+            cd tests/gke
+            ./run-test.sh
+
   build_docker_image:
     parameters:
       binary:
@@ -308,10 +330,14 @@ workflows:
           requires:
             - build_docker_binary
 
-  build_gke_image:
+  gke:
     jobs:
       - gke
       - build_docker_image:
+          name: build gke image
           tags: latest-gke ${CIRCLE_SHA1:0:7}-gke ${CIRCLE_TAG/%/-gke}
           requires:
             - gke
+      - run_test_gke:
+          requires:
+            - build gke image
