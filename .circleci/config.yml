@@ -161,8 +161,6 @@ jobs:
       - image: ubuntu
     steps:
       - checkout
-      - attach_workspace:
-          at: /build
 
       - run:
           name: Install some deps
@@ -199,13 +197,21 @@ jobs:
 
       - cargo_build:
           flags: --target=x86_64-unknown-linux-musl
-          debug_binary: target/x86_64-unknown-linux-musl/debug/ingraind
           release_binary: target/x86_64-unknown-linux-musl/release/ingraind
+          debug_binary: target/x86_64-unknown-linux-musl/debug/ingraind
+
+      - persist_to_workspace:
+          root: "./"
+          paths:
+            - "target/x86_64-unknown-linux-musl/release/ingraind"
 
   build_docker_image:
-    environment:
-      CONTAINER_NAME: "quay.io/redsift/ingraind"
-
+    parameters:
+      binary:
+        type: string
+        default: "target/x86_64-unknown-linux-musl/release/ingraind"
+      tags:
+        type: string
     working_directory: /build
     resource_class: large
     docker:
@@ -218,27 +224,25 @@ jobs:
       - setup_remote_docker
 
       - run:
-          name: Login to a regsitry
+          name: Login to the registry
           command: |
-            echo ${QUAY_PASS} | docker login --username ${QUAY_USER} --password-stdin quay.io
+            echo ${DOCKER_PASSWORD} | docker login --username ${DOCKER_USERNAME} --password-stdin ${DOCKER_SERVER}
 
       - run:
           name: Build Docker image
           command: |
-            export TAG=${CIRCLE_TAG:-unknown}
-            export SHA=${CIRCLE_SHA1:0:7}
-
             cd /build
-            cp /build/target/x86_64-unknown-linux-musl/release/ingraind .
+            cp << parameters.binary >> .
             docker build --build-arg BINARY_PATH=./ingraind \
                    -f docker/Dockerfile.static \
-                   -t $CONTAINER_NAME:latest \
-                   -t $CONTAINER_NAME:$SHA \
+                   $(for tag in << parameters.tags >>; do
+                      echo -t $DOCKER_IMAGE:$tag
+                    done) \
                    /build
 
             echo "Total sizes"
-            docker images $CONTAINER_NAME
-            docker push $CONTAINER_NAME
+            docker images $DOCKER_IMAGE
+            docker push $DOCKER_IMAGE
 
   build_docker_binary:
     working_directory: /build
@@ -255,14 +259,15 @@ jobs:
             cargo test --target=x86_64-unknown-linux-musl --release || exit 1
             cargo build --target=x86_64-unknown-linux-musl --release || exit 1
 
+      - cargo_build:
+          flags: --target=x86_64-unknown-linux-musl
+          debug_binary: target/x86_64-unknown-linux-musl/debug/ingraind
+          release_binary: target/x86_64-unknown-linux-musl/release/ingraind
+
       - persist_to_workspace:
           root: "./"
           paths:
             - "target"
-
-      - store_artifacts:
-          path: /build/target/x86_64-unknown-linux-musl/release/ingraind
-          destination: ingraind
 
 workflows:
   version: 2.1
@@ -295,11 +300,18 @@ workflows:
       - fedora:
           name: "fedora 31"
 
-      - gke
-
-      - build_docker_binary:
-          name: build_docker_binary
-
+  build_image:
+    jobs:
+      - build_docker_binary
       - build_docker_image:
+          tags: latest ${CIRCLE_SHA1:0:7} ${CIRCLE_TAG}
           requires:
             - build_docker_binary
+
+  build_gke_image:
+    jobs:
+      - gke
+      - build_docker_image:
+          tags: latest-gke ${CIRCLE_SHA1:0:7}-gke ${CIRCLE_TAG/%/-gke}
+          requires:
+            - gke
