@@ -59,7 +59,7 @@ jobs:
       - run:
           name: Deploy
           command: |
-            cd terraform
+            cd tests/terraform
             ./run-test.sh << parameters.ami >>
 
   ubuntu:
