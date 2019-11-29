@@ -187,7 +187,7 @@ jobs:
             mkdir cos-kernel && cd cos-kernel
             wget -O kernel.tgz https://chromium.googlesource.com/chromiumos/third_party/kernel/+archive/8549f18963962124c0f0d73667e59dbfc17c5218.tar.gz
             tar -xf kernel.tgz
-            zcat /build/tests/config-gke-4.14.138+.gz > .config
+            zcat /build/tests/gke/config-gke-4.14.138+.gz > .config
             make olddefconfig
             make prepare
             echo export KERNEL_SOURCE=/build/cos-kernel >> $BASH_ENV
