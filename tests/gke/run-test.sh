@@ -1,5 +1,9 @@
 #!/bin/sh
 
+IMAGE=$1
+
+sed "s#IMAGE#$IMAGE#" <ingraind.yaml.in >ingraind.yaml
+
 kubectl apply -f config.yaml
 kubectl apply -f ingraind.yaml
 sleep 10 # this is needed or kubectl logs can fail if a container is starting up but not ready to serve logs

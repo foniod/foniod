@@ -251,7 +251,7 @@ jobs:
           name: Deploy
           command: |
             cd tests/gke
-            ./run-test.sh
+            ./run-test.sh $DOCKER_IMAGE:${CIRCLE_SHA1:0:7}-gke
 
   build_docker_image:
     parameters:

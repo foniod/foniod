@@ -17,7 +17,7 @@ spec:
       hostNetwork: true
       hostPID: true
       containers:
-      - image: alessandrode/ingraind:latest
+      - image: IMAGE
         name: ingraind
         terminationMessagePath: /dev/termination-log
         env:
