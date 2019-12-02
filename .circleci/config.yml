@@ -15,28 +15,34 @@ commands:
             rustup component add rustfmt
   cargo_build:
     parameters:
+      type:
+        type: enum
+        enum: ["release", "debug"]
       flags:
         type: string
         default: ""
-      debug_binary:
-        type: string
-        default: "target/debug/ingraind"
-      release_binary:
+      binary:
         type: string
         default: "target/release/ingraind"
+      condition:
+        type: string
+        default: "true"
     steps:
       - run:
           name: Build
           command: |
-              mkdir /build/binaries
-              cargo build << parameters.flags >> || exit 1
-              cp << parameters.debug_binary >> /build/binaries/ingraind-debug
-              if [ ${CIRCLE_BRANCH} = "master" ]; then
+              mkdir -p /build/binaries
+              if ! << parameters.condition >>; then
+                exit 0;
+              fi
+              if [ "<< parameters.type >>" = "release" ]; then
                 cargo test << parameters.flags >> --release || exit 1
                 cargo build << parameters.flags >> --release || exit 1
-                cp << parameters.release_binary >> /build/binaries/ingraind
+                cp << parameters.binary >> /build/binaries/ingraind
               else
                 cargo test << parameters.flags >> || exit 1
+                cargo build << parameters.flags >> || exit 1
+                cp << parameters.binary >> /build/binaries/ingraind-debug
               fi
       - store_artifacts:
           path: /build/binaries
@@ -99,9 +105,16 @@ jobs:
       - install_rust
 
       - cargo_build:
+          type: debug
           flags: --target=x86_64-unknown-linux-musl
-          debug_binary: target/x86_64-unknown-linux-musl/debug/ingraind
-          release_binary: target/x86_64-unknown-linux-musl/release/ingraind
+          binary: target/x86_64-unknown-linux-musl/debug/ingraind
+
+      - cargo_build:
+          type: release
+          # only do release builds for terraform workflows
+          condition: "[ -n \"$AWS_EC2_SSH_KEY_ID\" ]"
+          flags: --target=x86_64-unknown-linux-musl
+          binary: target/x86_64-unknown-linux-musl/release/ingraind
 
       - run:
           name: Persist binaries
@@ -139,7 +152,15 @@ jobs:
             echo export KERNEL_SOURCE=/usr/src/kernels/$(rpm -qa kernel-devel |cut -d- -f3-)/ >> $BASH_ENV
             echo export LLC=llc >> $BASH_ENV
 
-      - cargo_build
+      - cargo_build:
+          type: debug
+          binary: target/debug/ingraind
+
+      - cargo_build:
+          type: release
+          # only do release builds for terraform workflows
+          condition: "[ -n \"$AWS_EC2_SSH_KEY_ID\" ]"
+          binary: target/release/ingraind
 
       - run:
           name: Persist binaries
@@ -196,9 +217,14 @@ jobs:
       - install_rust
 
       - cargo_build:
+          type: debug
           flags: --target=x86_64-unknown-linux-musl
-          release_binary: target/x86_64-unknown-linux-musl/release/ingraind
-          debug_binary: target/x86_64-unknown-linux-musl/debug/ingraind
+          binary: target/x86_64-unknown-linux-musl/debug/ingraind
+
+      - cargo_build:
+          type: release
+          flags: --target=x86_64-unknown-linux-musl
+          binary: target/x86_64-unknown-linux-musl/release/ingraind
 
       - persist_to_workspace:
           root: "./"
@@ -275,16 +301,15 @@ jobs:
       - attach_workspace:
           at: /build
 
-      - run:
-          name: Build static binary
-          command: |
-            cargo test --target=x86_64-unknown-linux-musl --release || exit 1
-            cargo build --target=x86_64-unknown-linux-musl --release || exit 1
-
       - cargo_build:
+          type: debug
           flags: --target=x86_64-unknown-linux-musl
-          debug_binary: target/x86_64-unknown-linux-musl/debug/ingraind
-          release_binary: target/x86_64-unknown-linux-musl/release/ingraind
+          binary: target/x86_64-unknown-linux-musl/debug/ingraind
+      
+      - cargo_build:
+          type: release
+          flags: --target=x86_64-unknown-linux-musl
+          binary: target/x86_64-unknown-linux-musl/release/ingraind
 
       - persist_to_workspace:
           root: "./"
