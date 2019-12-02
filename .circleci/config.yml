@@ -244,9 +244,13 @@ jobs:
       - run:
           name: Setup credentials
           command: |
+            if [ -z "$GCLOUD_SERVICE_KEY" ]; then
+              circleci-agent step halt
+            fi
             gcloud auth activate-service-account --key-file <(echo ${GCLOUD_SERVICE_KEY})
             gcloud config set project ${GCLOUD_PROJECT}
             gcloud container clusters get-credentials ${GCLOUD_PRIMARY_CLUSTER} --zone ${GCLOUD_PRIMARY_ZONE}
+
       - run:
           name: Deploy
           command: |
