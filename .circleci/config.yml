@@ -178,6 +178,7 @@ jobs:
 
   gke:
     working_directory: /build
+    resource_class: large
     docker:
       - image: ubuntu
     steps:
