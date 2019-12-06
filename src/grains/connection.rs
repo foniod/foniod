@@ -79,7 +79,7 @@ impl From<_data_connect> for Connection {
     fn from(data: _data_connect) -> Connection {
         Connection {
             task_id: data.id,
-            name: to_string(unsafe { &*(&data.comm as *const [c_char] as *const [u8]) }),
+            name: to_string(unsafe { &*(&data.comm as *const [c_char]) }),
             source_ip: to_ipv4(data.saddr),
             destination_ip: to_ipv4(data.daddr),
             destination_port: to_le(data.dport),
