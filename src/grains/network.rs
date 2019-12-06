@@ -7,15 +7,15 @@ use redbpf_probes::bindings::{IPPROTO_TCP, IPPROTO_UDP};
 
 use std::net;
 
-pub struct TCP4;
+pub struct Network;
 
-impl EBPFProbe for Grain<TCP4> {
+impl EBPFProbe for Grain<Network> {
     fn attach(&mut self) -> MessageStreams {
         self.attach_kprobes()
     }
 }
 
-impl EBPFGrain<'static> for TCP4 {
+impl EBPFGrain<'static> for Network {
     fn code() -> &'static [u8] {
         include_bytes!(concat!(
             env!("CARGO_MANIFEST_DIR"),
