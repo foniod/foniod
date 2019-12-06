@@ -1,7 +1,11 @@
 #![allow(non_camel_case_types)]
 
-use crate::grains::connection::{Connection, _data_connect, get_volume_callback};
-use crate::grains::*;
+use crate::grains::{self, *};
+
+use ingraind_probes::connection::{Connection, Ipv6Addr, Message};
+use redbpf_probes::bindings::{IPPROTO_TCP, IPPROTO_UDP};
+
+use std::net;
 
 pub struct TCP4;
 
@@ -13,25 +17,37 @@ impl EBPFProbe for Grain<TCP4> {
 
 impl EBPFGrain<'static> for TCP4 {
     fn code() -> &'static [u8] {
-        include_bytes!(concat!(env!("OUT_DIR"), "/tcpv4.elf"))
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/ingraind-probes/target/release/bpf-programs/connection/connection.elf"
+        ))
     }
 
     fn get_handler(&self, id: &str) -> EventCallback {
         match id {
-            "tcp4_connections" => Box::new(|raw| {
-                let mut connection = Connection::from(_data_connect::from(raw));
-                connection.proto = "tcp4".to_string();
-                let tags = connection.to_tags();
+            "ip_connections" => Box::new(|raw| {
+                let event = unsafe { std::ptr::read(raw.as_ptr() as *const Connection) };
 
-                Some(Message::Single(Measurement::new(
+                let mut tags = Tags::new();
+                tags.insert("process_str", to_string(&event.comm));
+                tags.insert("process_id", event.pid.to_string());
+                tags.insert("d_ip", to_ipv6(&event.daddr).to_string());
+                tags.insert("s_ip", to_ipv6(&event.saddr).to_string());
+                tags.insert("d_port", to_le(event.dport as u16).to_string());
+                tags.insert("s_port", to_le(event.sport as u16).to_string());
+
+                Some(grains::Message::Single(Measurement::new(
                     COUNTER | HISTOGRAM | METER,
                     "connection.out".to_string(),
                     Unit::Count(1),
                     tags,
                 )))
             }),
-            "tcp4_volume" => get_volume_callback("tcp4"),
-            _ => unreachable!(),
+            _ => Box::new(|_| None),
         }
     }
+}
+
+fn to_ipv6(addr: &Ipv6Addr) -> &net::Ipv6Addr {
+    unsafe { std::mem::transmute(addr) }
 }
