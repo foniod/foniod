@@ -76,7 +76,7 @@ fn store_socket(ctx: *mut c_void) -> i32 {
 #[helpers]
 fn trace_message(ctx: *mut c_void) -> i32 {
     let regs = Registers::from(ctx);
-    let len = regs.parm3() as u16;
+    let len = regs.parm3();
     let conn = conn_details(regs.parm1() as *mut c_void);
 
     match conn {
