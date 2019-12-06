@@ -19,7 +19,7 @@ impl EBPFGrain<'static> for Network {
     fn code() -> &'static [u8] {
         include_bytes!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/ingraind-probes/target/release/bpf-programs/connection/connection.elf"
+            "/ingraind-probes/target/release/bpf-programs/network/network.elf"
         ))
     }
 
