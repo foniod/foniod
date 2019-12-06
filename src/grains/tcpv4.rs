@@ -68,14 +68,19 @@ fn conn_tags(event: &Connection) -> Tags {
     let mut tags = Tags::new();
     tags.insert("process_str", to_string(&event.comm));
     tags.insert("process_id", event.pid.to_string());
-    tags.insert("d_ip", to_ipv6(&event.daddr).to_string());
-    tags.insert("s_ip", to_ipv6(&event.saddr).to_string());
+    tags.insert("d_ip", ip_to_string(&event.daddr));
+    tags.insert("s_ip", ip_to_string(&event.saddr));
     tags.insert("d_port", to_le(event.dport as u16).to_string());
     tags.insert("s_port", to_le(event.sport as u16).to_string());
-
+    
     tags
 }
 
-fn to_ipv6(addr: &Ipv6Addr) -> &net::Ipv6Addr {
-    unsafe { std::mem::transmute(addr) }
+fn ip_to_string(addr: &Ipv6Addr) -> String {
+    let v6: &std::net::Ipv6Addr = unsafe { std::mem::transmute(addr) };
+
+    match v6.to_ipv4() {
+	Some(v4) => v4.to_string(),
+	None => v6.to_string()
+    }
 }
