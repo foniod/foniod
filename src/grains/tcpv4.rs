@@ -55,7 +55,7 @@ impl EBPFGrain<'static> for TCP4 {
                 Some(grains::Message::Single(Measurement::new(
                     COUNTER | HISTOGRAM,
                     name.to_string(),
-                    Unit::Byte(vol),
+                    Unit::Byte(vol as u64),
                     tags,
                 )))
             }),
