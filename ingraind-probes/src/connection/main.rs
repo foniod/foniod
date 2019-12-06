@@ -161,7 +161,7 @@ pub fn conn_details(ctx: *mut c_void) -> Option<Connection> {
     let typ = {
         let typ = read_pointer::<u32>(ctx_field!((*socket)._bitfield_1));
 
-        (typ & SK_FL_TYPE_MASK) >> SK_FL_TYPE_SHIFT
+        (typ & SK_FL_PROTO_MASK) >> SK_FL_PROTO_SHIFT
     };
 
     unsafe {
