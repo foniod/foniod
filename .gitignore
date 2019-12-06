@@ -1,5 +1,4 @@
-/redbpf/target
-/bpf-sys/target
+/ingraind_probes/target
 /target
 /kernel
 **/*.rs.bk
