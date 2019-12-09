@@ -11,7 +11,7 @@ use redbpf_probes::bindings::*;
 use redbpf_probes::kprobe::*;
 use redbpf_probes::maps::*;
 
-use ingraind_probes::connection::{Connection, Message};
+use ingraind_probes::network::{Connection, Message};
 
 // Use the types you're going to share with userspace, eg:
 // use ingraind-probes::connection::SomeEvent;

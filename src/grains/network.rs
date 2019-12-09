@@ -2,7 +2,7 @@
 
 use crate::grains::{self, *};
 
-use ingraind_probes::connection::{Connection, Ipv6Addr, Message};
+use ingraind_probes::network::{Connection, Ipv6Addr, Message};
 use redbpf_probes::bindings::{IPPROTO_TCP, IPPROTO_UDP};
 
 use std::net;
