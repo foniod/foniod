@@ -6,8 +6,9 @@ extern crate redbpf_probes;
 
 use cty::*;
 
-use redbpf_macros::{helpers, kprobe, kretprobe, map, program};
+use redbpf_macros::{kprobe, kretprobe, map, program};
 use redbpf_probes::bindings::*;
+use redbpf_probes::helpers::*;
 use redbpf_probes::kprobe::*;
 use redbpf_probes::maps::*;
 
@@ -64,7 +65,6 @@ pub extern "C" fn udp_send_exit(ctx: *mut c_void) -> i32 {
 }
 
 #[inline(always)]
-#[helpers]
 fn store_socket(ctx: *mut c_void) -> i32 {
     let regs = Registers::from(ctx);
     unsafe { task_to_socket.set(bpf_get_current_pid_tgid(), regs.parm1() as *const sock) };
@@ -73,7 +73,6 @@ fn store_socket(ctx: *mut c_void) -> i32 {
 }
 
 #[inline(always)]
-#[helpers]
 fn trace_message(ctx: *mut c_void) -> i32 {
     let regs = Registers::from(ctx);
     let len = regs.parm3() as u16;
@@ -89,7 +88,6 @@ fn trace_message(ctx: *mut c_void) -> i32 {
 }
 
 #[inline(always)]
-#[helpers]
 pub fn conn_details(ctx: *mut c_void) -> Option<Connection> {
     let pid_tgid = bpf_get_current_pid_tgid();
     let socket = match unsafe { task_to_socket.get(pid_tgid) } {
