@@ -1,13 +1,13 @@
 #![no_std]
 #![no_main]
-use cty::*;
-use core::slice;
 use core::mem;
+use core::slice;
+use cty::*;
 
+use redbpf_macros::{map, program, xdp};
 use redbpf_probes::bindings::*;
 use redbpf_probes::maps::*;
-use redbpf_probes::xdp::{XdpAction, XdpContext, PerfMap};
-use redbpf_macros::{map, program, xdp};
+use redbpf_probes::xdp::{MapData, PerfMap, XdpAction, XdpContext};
 
 use ingraind_probes::dns::Event;
 
@@ -36,20 +36,19 @@ pub extern "C" fn probe(ctx: XdpContext) -> XdpAction {
         return XdpAction::Pass
     }
 
-    let offset = data.offset() as u32;
-    let size = data.len() as u32;
-
     let event = Event {
         saddr: ip.saddr,
         daddr: ip.daddr,
         sport: transport.source(),
         dport: transport.dest(),
-        offset,
-        size,
-        data: []
     };
 
-    unsafe { events.insert(&ctx, event, ctx.len()) }
+    unsafe {
+        events.insert(
+            &ctx,
+            MapData::with_payload(event, data.offset() as u32, data.len() as u32),
+        )
+    };
 
     XdpAction::Pass
 }
