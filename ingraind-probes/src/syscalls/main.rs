@@ -4,6 +4,7 @@
 use cty::*;
 
 use redbpf_probes::bindings::*;
+use redbpf_probes::helpers::*;
 use redbpf_probes::maps::*;
 use redbpf_macros::{map, program, kprobe};
 use ingraind_probes::syscalls::SyscallTracepoint;
