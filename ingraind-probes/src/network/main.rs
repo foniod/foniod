@@ -14,9 +14,6 @@ use redbpf_probes::maps::*;
 
 use ingraind_probes::network::{Connection, Message};
 
-// Use the types you're going to share with userspace, eg:
-// use ingraind-probes::connection::SomeEvent;
-
 program!(0xFFFFFFFE, "GPL");
 
 #[map("task_to_socket")]
@@ -91,13 +88,13 @@ fn trace_message(ctx: *mut c_void) -> i32 {
 pub fn conn_details(ctx: *mut c_void) -> Option<Connection> {
     let pid_tgid = bpf_get_current_pid_tgid();
     let socket = match unsafe { task_to_socket.get(pid_tgid) } {
-        Some(s) => s,
+        Some(s) => *s,
         None => return None,
     };
 
     let pid = (pid_tgid >> 32) as u32;
     let ts = unsafe { bpf_ktime_get_ns() };
-    let family = read_pointer::<u16>(ctx_field!((*socket).__sk_common.skc_family));
+    let family = bpf_probe_read!(&(*socket).__sk_common.skc_family);
 
     let mut daddr = in6_addr {
         in6_u: in6_addr__bindgen_ty_1 {
@@ -111,23 +108,23 @@ pub fn conn_details(ctx: *mut c_void) -> Option<Connection> {
     };
 
     if family as u32 == AF_INET6 {
-        daddr = read_pointer::<in6_addr>(ctx_field!((*socket).__sk_common.skc_v6_daddr));
-        saddr = read_pointer::<in6_addr>(ctx_field!((*socket).__sk_common.skc_v6_rcv_saddr));
+        daddr = bpf_probe_read!(&(*socket).__sk_common.skc_v6_daddr);
+        saddr = bpf_probe_read!(&(*socket).__sk_common.skc_v6_rcv_saddr);
     } else if family as u32 == AF_INET {
-        let dest = read_pointer::<u32>(ctx_field!(
-            (*socket)
+        let dest = bpf_probe_read!(
+            &(*socket)
                 .__sk_common
                 .__bindgen_anon_1
                 .__bindgen_anon_1
                 .skc_daddr
-        ));
-        let src = read_pointer::<u32>(ctx_field!(
-            (*socket)
+        );
+        let src = bpf_probe_read!(
+            &(*socket)
                 .__sk_common
                 .__bindgen_anon_1
                 .__bindgen_anon_1
                 .skc_rcv_saddr
-        ));
+        );
 
         daddr = in6_addr {
             in6_u: in6_addr__bindgen_ty_1 {
@@ -141,23 +138,23 @@ pub fn conn_details(ctx: *mut c_void) -> Option<Connection> {
         };
     }
 
-    let dport = read_pointer::<u16>(ctx_field!(
-        (*socket)
+    let dport = bpf_probe_read!(
+        &(*socket)
             .__sk_common
             .__bindgen_anon_3
             .__bindgen_anon_1
             .skc_dport
-    ));
-    let sport = read_pointer::<u16>(ctx_field!(
-        (*socket)
+    );
+    let sport = bpf_probe_read!(
+        &(*socket)
             .__sk_common
             .__bindgen_anon_3
             .__bindgen_anon_1
             .skc_num
-    ));
+    );
 
     let typ = {
-        let typ = read_pointer::<u32>(ctx_field!((*socket)._bitfield_1));
+        let typ = bpf_probe_read!(&(*socket)._bitfield_1 as *const _ as *const u32);
 
         (typ & SK_FL_PROTO_MASK) >> SK_FL_PROTO_SHIFT
     };
@@ -169,7 +166,7 @@ pub fn conn_details(ctx: *mut c_void) -> Option<Connection> {
     Some(Connection {
         pid,
         ts,
-	comm: bpf_get_current_comm(),
+        comm: bpf_get_current_comm(),
         saddr: saddr.into(),
         daddr: daddr.into(),
         sport: sport as u32,

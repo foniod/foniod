@@ -47,5 +47,5 @@ pub struct Connection {
 #[derive(Debug)]
 pub enum Message {
     Send(Connection, u16),
-    Receive(Connection, u16)
+    Receive(Connection, u16),
 }
