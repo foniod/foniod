@@ -77,6 +77,7 @@ jobs:
         type: string
         default: "$(uname -r)"
     working_directory: /build
+    resource_class: large
     docker:
       - image: ubuntu:<< parameters.tag >>
     steps:
@@ -132,6 +133,7 @@ jobs:
 
   fedora:
     working_directory: /build
+    resource_class: large
     docker:
       - image: fedora:31
     steps:
@@ -178,6 +180,7 @@ jobs:
 
   gke:
     working_directory: /build
+    resource_class: large
     docker:
       - image: ubuntu
     steps:
@@ -298,6 +301,7 @@ jobs:
 
   build_docker_binary:
     working_directory: /build
+    resource_class: large
     docker:
       - image: quay.io/redsift/ingraind-build:latest
     steps:
