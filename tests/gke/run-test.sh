@@ -6,9 +6,18 @@ sed "s#IMAGE#$IMAGE#" <ingraind.yaml.in >ingraind.yaml
 
 kubectl apply -f config.yaml
 kubectl apply -f ingraind.yaml
-sleep 10 # this is needed or kubectl logs can fail if a container is starting up but not ready to serve logs
-POD=$(kubectl get pods -l app=ingraind -oname | head -n1)
-kubectl logs --pod-running-timeout=60s $POD | tee test-output
+
+i=0
+while [ $(( i+=1 )) -lt 30 ]; do
+    kubectl get pods -l app=ingraind
+
+    POD=$(kubectl get pods -l app=ingraind |grep Running |cut -d\  -f1 | head -n1)
+    [ -z "$POD" ] || break;
+done
+
+[ -z "$POD" ] && { echo "Failed to start InGRAINd container"; exit 1; }
+
+kubectl logs --pod-running-timeout=60s "$POD" | tee test-output
 kubectl delete -f ingraind.yaml
 kubectl delete -f config.yaml
 
