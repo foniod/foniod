@@ -176,7 +176,7 @@ monitor_dirs = ["/"]
 [[probe]]
 pipelines = ["statsd", "http"]
 [probe.config]
-type = "TCP4"
+type = "Network"
 
 [[probe]]
 pipelines = ["statsd"]
