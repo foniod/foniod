@@ -93,7 +93,7 @@ pub fn conn_details(ctx: *mut c_void) -> Option<Connection> {
     };
 
     let pid = (pid_tgid >> 32) as u32;
-    let ts = unsafe { bpf_ktime_get_ns() };
+    let ts = bpf_ktime_get_ns();
     let family = bpf_probe_read!(&(*socket).__sk_common.skc_family);
 
     let mut daddr = in6_addr {
