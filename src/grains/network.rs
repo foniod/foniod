@@ -46,7 +46,7 @@ impl EBPFGrain<'static> for Network {
 		let proto = match conn.typ {
 		    IPPROTO_TCP => "tcp",
 		    IPPROTO_UDP => "udp",
-		    _ => "unknown"
+		    _ => return None
 		};
 
 		let mut tags = conn_tags(&conn);
