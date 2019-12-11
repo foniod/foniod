@@ -9,19 +9,18 @@ kubectl apply -f ingraind.yaml
 
 i=0
 while [ $(( i+=1 )) -lt 30 ]; do
-    kubectl get pods -l app=ingraind
-
     POD=$(kubectl get pods -l app=ingraind |grep Running |cut -d\  -f1 | head -n1)
     [ -z "$POD" ] || break;
 done
 
 [ -z "$POD" ] && { echo "Failed to start InGRAINd container"; exit 1; }
 
-kubectl logs --pod-running-timeout=60s "$POD" | tee test-output
+kubectl logs --pod-running-timeout=60s "$POD" > test-output
 kubectl delete -f ingraind.yaml
 kubectl delete -f config.yaml
 
 modules_loaded=$(<test-output awk -F': ' '/ingraind::grains::ebpf: Loaded/ { print $NF }' | sort)
+echo $modules_loaded
 
 exec test "$modules_loaded" = "dns_queries, XDP
 tcp_recvmsg, Kprobe
