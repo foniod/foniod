@@ -20,7 +20,6 @@ kubectl delete -f ingraind.yaml
 kubectl delete -f config.yaml
 
 modules_loaded=$(<test-output awk -F': ' '/ingraind::grains::ebpf: Loaded/ { print $NF }' | sort)
-echo $modules_loaded
 
 exec test "$modules_loaded" = "dns_queries, XDP
 tcp_recvmsg, Kprobe

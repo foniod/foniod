@@ -46,8 +46,18 @@ pub extern "C" fn send_enter(ctx: *mut c_void) -> i32 {
     store_socket(ctx)
 }
 
+#[kretprobe("tcp_sendmsg")]
+pub extern "C" fn send_exit(ctx: *mut c_void) -> i32 {
+    trace_message(ctx)
+}
+
 #[kprobe("tcp_recvmsg")]
 pub extern "C" fn recv_enter(ctx: *mut c_void) -> i32 {
+    store_socket(ctx)
+}
+
+#[kretprobe("tcp_recvmsg")]
+pub extern "C" fn recv_exit(ctx: *mut c_void) -> i32 {
     trace_message(ctx)
 }
 
