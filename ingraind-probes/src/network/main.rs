@@ -48,7 +48,7 @@ pub extern "C" fn send_enter(ctx: *mut c_void) -> i32 {
 
 #[kretprobe("tcp_sendmsg")]
 pub extern "C" fn send_exit(ctx: *mut c_void) -> i32 {
-    trace_message(ctx)
+    trace_message(ctx, Message::Send)
 }
 
 #[kprobe("tcp_recvmsg")]
@@ -58,7 +58,7 @@ pub extern "C" fn recv_enter(ctx: *mut c_void) -> i32 {
 
 #[kretprobe("tcp_recvmsg")]
 pub extern "C" fn recv_exit(ctx: *mut c_void) -> i32 {
-    trace_message(ctx)
+    trace_message(ctx, Message::Receive)
 }
 
 #[kprobe("udp_sendmsg")]
@@ -68,7 +68,17 @@ pub extern "C" fn udp_send_enter(ctx: *mut c_void) -> i32 {
 
 #[kretprobe("udp_sendmsg")]
 pub extern "C" fn udp_send_exit(ctx: *mut c_void) -> i32 {
-    trace_message(ctx)
+    trace_message(ctx, Message::Send)
+}
+
+#[kprobe("udp_rcv")]
+pub extern "C" fn udp_rcv_enter(ctx: *mut c_void) -> i32 {
+    store_socket(ctx)
+}
+
+#[kretprobe("udp_rcv")]
+pub extern "C" fn udp_rcv_exit(ctx: *mut c_void) -> i32 {
+    trace_message(ctx, Message::Receive)
 }
 
 #[inline(always)]
@@ -80,14 +90,14 @@ fn store_socket(ctx: *mut c_void) -> i32 {
 }
 
 #[inline(always)]
-fn trace_message(ctx: *mut c_void) -> i32 {
+fn trace_message(ctx: *mut c_void, direction: fn(Connection, u16) -> Message) -> i32 {
     let regs = Registers::from(ctx);
     let len = regs.parm3() as u16;
     let conn = conn_details(regs.parm1() as *mut c_void);
 
     match conn {
         Some(c) => unsafe {
-            ip_volumes.insert(ctx, Message::Send(c, len));
+            ip_volumes.insert(ctx, direction(c, len));
             0
         },
         None => 0,
@@ -95,7 +105,7 @@ fn trace_message(ctx: *mut c_void) -> i32 {
 }
 
 #[inline(always)]
-pub fn conn_details(ctx: *mut c_void) -> Option<Connection> {
+pub fn conn_details(_ctx: *mut c_void) -> Option<Connection> {
     let pid_tgid = bpf_get_current_pid_tgid();
     let socket = match unsafe { task_to_socket.get(pid_tgid) } {
         Some(s) => *s,
