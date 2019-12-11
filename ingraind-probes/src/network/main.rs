@@ -63,21 +63,11 @@ pub extern "C" fn recv_exit(ctx: *mut c_void) -> i32 {
 
 #[kprobe("udp_sendmsg")]
 pub extern "C" fn udp_send_enter(ctx: *mut c_void) -> i32 {
-    store_socket(ctx)
-}
-
-#[kretprobe("udp_sendmsg")]
-pub extern "C" fn udp_send_exit(ctx: *mut c_void) -> i32 {
     trace_message(ctx, Message::Send)
 }
 
 #[kprobe("udp_rcv")]
 pub extern "C" fn udp_rcv_enter(ctx: *mut c_void) -> i32 {
-    store_socket(ctx)
-}
-
-#[kretprobe("udp_rcv")]
-pub extern "C" fn udp_rcv_exit(ctx: *mut c_void) -> i32 {
     trace_message(ctx, Message::Receive)
 }
 
