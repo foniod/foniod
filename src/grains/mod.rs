@@ -9,6 +9,7 @@ pub mod statsd;
 pub mod syscalls;
 pub mod tls;
 pub mod network;
+pub mod test;
 
 pub use crate::grains::ebpf::*;
 pub use crate::grains::ebpf_io::*;
