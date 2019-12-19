@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ::actix::prelude::*;
+use actix::prelude::*;
 use futures::{finished, Future};
 use hyper::{client::HttpConnector, header, Body, Client, HeaderMap, Method, Request, Uri};
 use hyper_rustls::HttpsConnector;
@@ -13,7 +13,7 @@ pub struct HTTP {
     uri: Uri,
     client: Client<HttpsConnector<HttpConnector>>,
     encoder: Encoder,
-    content_type: String
+    content_type: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -47,8 +47,9 @@ impl HTTP {
         let content_type = match &encoding {
             Encoding::JSON => "application/json",
             #[cfg(feature = "capnp-encoding")]
-            Encoding::Capnp => "application/octet-stream"
-        }.to_string();
+            Encoding::Capnp => "application/octet-stream",
+        }
+        .to_string();
 
         let encoder = encoding.to_encoder();
 
@@ -70,7 +71,12 @@ impl Handler<Message> for HTTP {
     type Result = ();
 
     fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
-        let mut req = Request::new(Body::from((self.encoder)(msg)));
+        let measurements = match msg {
+            Message::Single(m) => vec![m],
+            Message::List(ms) => ms,
+        };
+
+        let mut req = Request::new(Body::from((self.encoder)(&measurements)));
         *req.method_mut() = Method::POST;
         *req.uri_mut() = self.uri.clone();
         req.headers_mut().clone_from(&self.headers);

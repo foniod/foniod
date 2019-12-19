@@ -11,7 +11,7 @@ pub enum Encoding {
     Capnp,
 }
 
-pub type Encoder = Box<dyn Fn(Message) -> Vec<u8>>;
+pub type Encoder = Box<dyn Fn(&[Measurement]) -> Vec<u8>>;
 
 impl Encoding {
     pub fn to_encoder(&self) -> Encoder {
@@ -24,21 +24,16 @@ impl Encoding {
 }
 
 #[cfg(feature = "capnp-encoding")]
-pub fn to_capnp(msg: Message) -> Vec<u8> {
+pub fn to_capnp(src: &[Measurement]) -> Vec<u8> {
     use crate::ingraind_capnp::*;
     use capnp::serialize;
     use std::io::Cursor;
-
-    let mut src = match msg {
-        Message::Single(m) => vec![m],
-        Message::List(l) => l,
-    };
 
     let mut message = ::capnp::message::Builder::new_default();
     let payload = message.init_root::<ingrain_payload::Builder>();
 
     let mut data = payload.init_data(src.len() as u32);
-    for (i, mut source) in src.drain(..).enumerate() {
+    for (i, source) in src.iter().enumerate() {
         let mut m = data.reborrow().get(i as u32);
         m.set_timestamp(source.timestamp);
         m.set_kind(source.kind);
@@ -46,7 +41,7 @@ pub fn to_capnp(msg: Message) -> Vec<u8> {
         m.set_measurement(source.value.get() as f64);
 
         let mut tags = m.init_tags(source.tags.0.len() as u32);
-        for (i, source) in source.tags.0.drain(..).enumerate() {
+        for (i, source) in source.tags.0.iter().enumerate() {
             let mut tag = tags.reborrow().get(i as u32);
             tag.set_key(&source.0);
             tag.set_value(&source.1);
@@ -58,23 +53,15 @@ pub fn to_capnp(msg: Message) -> Vec<u8> {
     buffer.into_inner()
 }
 
-pub fn to_json(mut msg: Message) -> Vec<u8> {
-    match msg {
-        Message::List(ref mut lst) => serde_json::to_vec(
-            &lst.drain(..)
-                .map(SerializedMeasurement::from)
-                .collect::<Vec<_>>(),
-        )
-        .unwrap(),
-        Message::Single(msg) => serde_json::to_vec(&[SerializedMeasurement::from(msg)]).unwrap(),
-    }
+pub fn to_json(measurements: &[Measurement]) -> Vec<u8> {
+    serde_json::to_vec(&measurements.iter().map(SerializedMeasurement::from).collect::<Vec<_>>()).unwrap()
 }
 
 fn serialized_name(msg: &Measurement) -> String {
     let type_str = match msg.value {
         Unit::Byte(_) => "byte",
         Unit::Count(_) => "count",
-        Unit::Str(_) => "string"
+        Unit::Str(_) => "string",
     };
 
     format!("{}_{}", &msg.name, type_str)
@@ -89,15 +76,15 @@ struct SerializedMeasurement {
     pub tags: HashMap<String, String>,
 }
 
-impl From<Measurement> for SerializedMeasurement {
-    fn from(mut msg: Measurement) -> SerializedMeasurement {
-        let name = serialized_name(&msg);
+impl From<&Measurement> for SerializedMeasurement {
+    fn from(msg: &Measurement) -> SerializedMeasurement {
+        let name = serialized_name(msg);
 
         SerializedMeasurement {
             timestamp: msg.timestamp,
             kind: msg.kind,
             measurement: msg.value.get(),
-            tags: msg.tags.drain(..).collect(),
+            tags: msg.tags.iter().cloned().collect(),
             name,
         }
     }
