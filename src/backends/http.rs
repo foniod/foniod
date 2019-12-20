@@ -4,6 +4,7 @@ use actix::prelude::*;
 use futures::{finished, Future};
 use hyper::{client::HttpConnector, header, Body, Client, HeaderMap, Method, Request, Uri};
 use hyper_rustls::HttpsConnector;
+use rayon::prelude::*;
 
 use crate::backends::encoders::Encoding;
 use crate::backends::Message;
@@ -14,6 +15,7 @@ pub struct HTTP {
     client: Client<HttpsConnector<HttpConnector>>,
     encoding: Encoding,
     content_type: String,
+    parallel_chunk_size: usize
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -22,6 +24,7 @@ pub struct HTTPConfig {
     headers: HashMap<String, String>,
     threads: Option<usize>,
     encoding: Option<Encoding>,
+    parallel_chunk_size: Option<usize>,
 }
 
 impl HTTP {
@@ -51,12 +54,15 @@ impl HTTP {
         }
         .to_string();
 
+        let parallel_chunk_size = config.parallel_chunk_size.unwrap_or(0);
+
         HTTP {
             headers,
             client,
             uri,
             encoding,
             content_type,
+            parallel_chunk_size
         }
     }
 }
@@ -74,18 +80,31 @@ impl Handler<Message> for HTTP {
             Message::List(ms) => ms,
         };
 
-        let mut req = Request::new(Body::from(self.encoding.encode(&measurements)));
-        *req.method_mut() = Method::POST;
-        *req.uri_mut() = self.uri.clone();
-        req.headers_mut().clone_from(&self.headers);
-        req.headers_mut()
-            .insert(header::CONTENT_TYPE, self.content_type.parse().unwrap());
+        let encoding = self.encoding;
+        let payloads: Vec<_> = if self.parallel_chunk_size > 0 {
+            measurements
+                .into_par_iter()
+                .chunks(self.parallel_chunk_size)
+                .map(|chunks| encoding.encode(&chunks))
+                .collect()
+        } else {
+            vec![encoding.encode(&measurements)]
+        };
 
-        ::actix::spawn(
-            self.client
-                .request(req)
-                .and_then(|_| finished(()))
-                .or_else(|_| finished(())),
-        );
+        for payload in payloads {
+            let mut req = Request::new(Body::from(payload));
+            *req.method_mut() = Method::POST;
+            *req.uri_mut() = self.uri.clone();
+            req.headers_mut().clone_from(&self.headers);
+            req.headers_mut()
+                .insert(header::CONTENT_TYPE, self.content_type.parse().unwrap());
+
+            actix::spawn(
+                self.client
+                    .request(req)
+                    .and_then(|_| finished(()))
+                    .or_else(|_| finished(())),
+            );
+        }
     }
 }
