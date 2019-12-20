@@ -5,14 +5,14 @@ use futures::{finished, Future};
 use hyper::{client::HttpConnector, header, Body, Client, HeaderMap, Method, Request, Uri};
 use hyper_rustls::HttpsConnector;
 
-use crate::backends::encoders::{Encoder, Encoding};
+use crate::backends::encoders::Encoding;
 use crate::backends::Message;
 
 pub struct HTTP {
     headers: HeaderMap,
     uri: Uri,
     client: Client<HttpsConnector<HttpConnector>>,
-    encoder: Encoder,
+    encoding: Encoding,
     content_type: String,
 }
 
@@ -51,13 +51,11 @@ impl HTTP {
         }
         .to_string();
 
-        let encoder = encoding.to_encoder();
-
         HTTP {
             headers,
             client,
             uri,
-            encoder,
+            encoding,
             content_type,
         }
     }
@@ -76,7 +74,7 @@ impl Handler<Message> for HTTP {
             Message::List(ms) => ms,
         };
 
-        let mut req = Request::new(Body::from((self.encoder)(&measurements)));
+        let mut req = Request::new(Body::from(self.encoding.encode(&measurements)));
         *req.method_mut() = Method::POST;
         *req.uri_mut() = self.uri.clone();
         req.headers_mut().clone_from(&self.headers);

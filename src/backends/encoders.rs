@@ -2,24 +2,22 @@ use std::collections::HashMap;
 
 use serde_json;
 
-use super::{Kind, Measurement, Message, Unit};
+use super::{Kind, Measurement, Unit};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum Encoding {
     JSON,
     #[cfg(feature = "capnp")]
     Capnp,
 }
 
-pub type Encoder = Box<dyn Fn(&[Measurement]) -> Vec<u8>>;
-
 impl Encoding {
-    pub fn to_encoder(&self) -> Encoder {
-        Box::new(match self {
-            Encoding::JSON => to_json,
+    pub fn encode(&self, measurements: &[Measurement]) -> Vec<u8> {
+        match self {
+            Encoding::JSON => to_json(measurements),
             #[cfg(feature = "capnp")]
-            Encoding::Capnp => to_capnp,
-        })
+            Encoding::Capnp => to_capnp(measurements)
+        }
     }
 }
 
