@@ -51,6 +51,7 @@ pub enum Grain {
     Syscall(syscalls::SyscallConfig),
     StatsD(grains::statsd::StatsdConfig),
     Osquery(osquery::OsqueryConfig),
+    Test(grains::test::TestProbeConfig),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -113,6 +114,7 @@ pub enum ProbeActor {
     EBPF(EBPFActor),
     StatsD(grains::statsd::Statsd),
     Osquery(osquery::Osquery),
+    Test(grains::test::TestProbe)
 }
 
 impl ProbeActor {
@@ -122,6 +124,9 @@ impl ProbeActor {
                 Actor::start_in_arbiter(io, |_| a);
             }
             ProbeActor::StatsD(a) => {
+                Actor::start_in_arbiter(io, |_| a);
+            }
+            ProbeActor::Test(a) => {
                 Actor::start_in_arbiter(io, |_| a);
             }
             ProbeActor::Osquery(a) => {
@@ -139,6 +144,9 @@ impl Grain {
             }
             Grain::Osquery(config) => {
                 ProbeActor::Osquery(osquery::Osquery::with_config(config, recipients))
+            }
+            Grain::Test(config) => {
+                ProbeActor::Test(grains::test::TestProbe::with_config(config, recipients))
             }
             _ => {
                 let probe: Box<dyn EBPFProbe> = match self {
