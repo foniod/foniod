@@ -47,6 +47,8 @@ log = { version = "^0.4", features = ["serde"] }
 env_logger = "^0.5.13"
 syslog = "^4.0"
 
+rayon = "1.2.1"
+
 dns-parser = "0.8"
 hdrhistogram = { version = "6.3", default-features = false }
 ingraind-probes = { path = "ingraind-probes" }

@@ -240,8 +240,8 @@ impl Buffer {
     }
 
     fn flush(&mut self, _ctx: &mut Context<Self>) {
-        info!("flushing");
         let metrics = self.aggregator.flush();
+        info!("flushing metrics: {}", metrics.len());
         if !metrics.is_empty() {
             let message = Message::List(metrics);
             self.upstream.do_send(message.clone()).unwrap();
