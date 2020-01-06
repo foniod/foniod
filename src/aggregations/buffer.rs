@@ -4,11 +4,7 @@ use std::convert::Into;
 use std::hash::{Hash, Hasher};
 use std::time::{Duration, Instant};
 
-use actix::utils::IntervalFunc;
-use actix::{
-    Actor, ActorStream, AsyncContext, Context, ContextFutureSpawner, Handler, Recipient,
-    SpawnHandle,
-};
+use actix::{Actor, AsyncContext, Context, Handler, Recipient, SpawnHandle};
 use hdrhistogram::Histogram;
 
 use rayon::prelude::*;
@@ -69,8 +65,6 @@ impl Aggregator {
     }
 
     pub fn record<T: Into<Measurement>>(&mut self, measurement: T) {
-        use kind::*;
-
         let measurement = measurement.into();
         let key = measurement_key(&measurement);
         let Measurement {
@@ -150,18 +144,6 @@ impl Aggregator {
                 });
             am.value.saturating_record(value.get());
         }
-    }
-
-    pub fn counter(&self, key: &MeasurementKey) -> Option<&AggregatedMetric<f64>> {
-        self.counters.get(key)
-    }
-
-    pub fn gauge(&self, key: &MeasurementKey) -> Option<&AggregatedMetric<f64>> {
-        self.gauges.get(key)
-    }
-
-    pub fn uniques(&self, key: &MeasurementKey) -> Option<usize> {
-        self.sets.get(key).map(|am| am.value.len())
     }
 
     pub fn flush(&mut self) -> Vec<Measurement> {
@@ -259,7 +241,7 @@ pub struct Buffer {
     upstream: Recipient<Message>,
     flush_handle: SpawnHandle,
     flush_period: Duration,
-    last_flush_time: Instant
+    last_flush_time: Instant,
 }
 
 impl Buffer {
@@ -275,7 +257,7 @@ impl Buffer {
             upstream,
             flush_handle: SpawnHandle::default(),
             flush_period,
-            last_flush_time: Instant::now()
+            last_flush_time: Instant::now(),
         })
         .recipient()
     }
@@ -359,6 +341,22 @@ fn join<T: Into<String>, I: Iterator<Item = T>>(mut iter: I, sep: &str) -> Optio
     }
 
     None
+}
+
+#[cfg(test)]
+impl Aggregator {
+    pub fn counter(&self, key: &MeasurementKey) -> Option<&AggregatedMetric<f64>> {
+        self.counters.get(key)
+    }
+
+    pub fn gauge(&self, key: &MeasurementKey) -> Option<&AggregatedMetric<f64>> {
+        self.gauges.get(key)
+    }
+
+    pub fn uniques(&self, key: &MeasurementKey) -> Option<usize> {
+        self.sets.get(key).map(|am| am.value.len())
+    }
+
 }
 
 #[cfg(test)]
