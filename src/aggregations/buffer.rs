@@ -282,7 +282,7 @@ impl Handler<Message> for Buffer {
     fn handle(&mut self, msg: Message, ctx: &mut Context<Self>) -> Self::Result {
         if let Some(max_elems) = self.config.max_records {
             if self.aggregator.max_len() > max_elems as usize {
-                self.aggregator.flush();
+                self.flush(ctx);
             }
         }
 
