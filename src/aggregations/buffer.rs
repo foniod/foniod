@@ -2,10 +2,10 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::convert::Into;
 use std::hash::{Hash, Hasher};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use actix::utils::IntervalFunc;
-use actix::{Actor, ActorStream, Context, ContextFutureSpawner, Handler, Recipient};
+use actix::{Actor, ActorStream, Context, AsyncContext, ContextFutureSpawner, Handler, Recipient, SpawnHandle};
 use hdrhistogram::Histogram;
 
 use crate::backends::Message;
@@ -228,19 +228,37 @@ pub struct Buffer {
     aggregator: Aggregator,
     config: BufferConfig,
     upstream: Recipient<Message>,
+    flush_handle: SpawnHandle,
+    flush_period: Duration,
+    last_flush_time: Instant
 }
 
 impl Buffer {
     pub fn launch(config: BufferConfig, upstream: Recipient<Message>) -> Recipient<Message> {
-        Actor::start_in_arbiter(&actix::Arbiter::new(), |_| Buffer {
+        let ms = config
+            .interval_s
+            .map(|s| s * 1000)
+            .unwrap_or(config.interval_ms);
+        let flush_period = Duration::from_millis(ms);
+        Actor::start_in_arbiter(&actix::Arbiter::new(), move |_| Buffer {
             aggregator: Aggregator::new(config.enable_histograms),
             config,
             upstream,
+            flush_handle: SpawnHandle::default(),
+            flush_period,
+            last_flush_time: Instant::now()
         })
         .recipient()
     }
 
-    fn flush(&mut self, _ctx: &mut Context<Self>) {
+    fn schedule_next_flush(&mut self, ctx: &mut Context<Self>) {
+        ctx.cancel_future(self.flush_handle);
+        self.last_flush_time = Instant::now();
+        self.flush_handle = ctx.run_later(self.flush_period, Self::flush);
+    }
+
+    fn flush(&mut self, ctx: &mut Context<Self>) {
+        self.schedule_next_flush(ctx);
         let metrics = self.aggregator.flush();
         info!("flushing metrics: {}", metrics.len());
         if !metrics.is_empty() {
@@ -254,25 +272,22 @@ impl Actor for Buffer {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        let ms = self
-            .config
-            .interval_s
-            .map(|s| s * 1000)
-            .unwrap_or(self.config.interval_ms);
-        IntervalFunc::new(Duration::from_millis(ms), Self::flush)
-            .finish()
-            .spawn(ctx);
+        self.schedule_next_flush(ctx);
     }
 }
 
 impl Handler<Message> for Buffer {
     type Result = ();
 
-    fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: Message, ctx: &mut Context<Self>) -> Self::Result {
         if let Some(max_elems) = self.config.max_records {
             if self.aggregator.max_len() > max_elems as usize {
                 self.aggregator.flush();
             }
+        }
+
+        if self.last_flush_time.elapsed() >= self.flush_period {
+            self.flush(ctx);
         }
 
         match msg {
