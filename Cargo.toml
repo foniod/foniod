@@ -81,6 +81,13 @@ default-features = false
 features = ["rustls"]
 optional = true
 
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "aggregator"
+harness = false
+
 [features]
 default = ["statsd-backend", "http-backend", "capnp-encoding"]
 s3-backend = ["rusoto_core", "rusoto_s3"]

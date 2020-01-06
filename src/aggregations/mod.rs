@@ -1,4 +1,4 @@
-mod buffer;
+pub mod buffer;
 mod container;
 mod regex;
 mod systemdetails;

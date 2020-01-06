@@ -14,20 +14,20 @@ use crate::metrics::{kind, Measurement, Tags, Unit, UnitType};
 const PERCENTILES: [f64; 6] = [25f64, 50f64, 75f64, 90f64, 95f64, 99f64];
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct MeasurementKey {
+pub struct MeasurementKey {
     name: String,
     tags_hash: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct AggregatedMetric<T: PartialEq> {
+pub struct AggregatedMetric<T: PartialEq> {
     value: T,
     unit: UnitType,
     tags: Tags,
 }
 
-#[derive(Debug)]
-struct Aggregator {
+#[derive(Debug, Clone)]
+pub struct Aggregator {
     counters: HashMap<MeasurementKey, AggregatedMetric<f64>>,
     gauges: HashMap<MeasurementKey, AggregatedMetric<f64>>,
     timers: HashMap<MeasurementKey, AggregatedMetric<Vec<f64>>>,
