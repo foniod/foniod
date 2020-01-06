@@ -151,6 +151,12 @@ impl Aggregator {
     }
 
     pub fn flush(&mut self) -> Vec<Measurement> {
+        self.counters.shrink_to_fit();
+        self.gauges.shrink_to_fit();
+        self.timers.shrink_to_fit();
+        self.sets.shrink_to_fit();
+        self.histograms.shrink_to_fit();
+
         let mut metrics = Vec::new();
         metrics.extend(self.counters.drain().map(|(k, v)| {
             Measurement::new(
@@ -160,12 +166,10 @@ impl Aggregator {
                 v.tags,
             )
         }));
-        self.counters.shrink_to_fit();
-        
+
         metrics.extend(self.gauges.drain().map(|(k, v)| {
             Measurement::new(kind::GAUGE, k.name, v.unit.to_unit(v.value as u64), v.tags)
         }));
-        self.gauges.shrink_to_fit();
         
         for (k, mut v) in self.timers.drain() {
             let tags = v.tags;
@@ -178,7 +182,6 @@ impl Aggregator {
                 )
             }));
         }
-        self.timers.shrink_to_fit();
         
         for (k, v) in self.sets.drain() {
             let mut tags = v.tags;
@@ -192,7 +195,6 @@ impl Aggregator {
                 tags,
             ));
         }
-        self.sets.shrink_to_fit();
         
         for (k, v) in self.histograms.drain() {
             metrics.extend(PERCENTILES.iter().cloned().map(|p| {
@@ -204,7 +206,6 @@ impl Aggregator {
                 )
             }));
         }
-        self.histograms.shrink_to_fit();
 
         metrics
     }
