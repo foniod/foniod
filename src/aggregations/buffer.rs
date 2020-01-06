@@ -5,8 +5,13 @@ use std::hash::{Hash, Hasher};
 use std::time::{Duration, Instant};
 
 use actix::utils::IntervalFunc;
-use actix::{Actor, ActorStream, Context, AsyncContext, ContextFutureSpawner, Handler, Recipient, SpawnHandle};
+use actix::{
+    Actor, ActorStream, AsyncContext, Context, ContextFutureSpawner, Handler, Recipient,
+    SpawnHandle,
+};
 use hdrhistogram::Histogram;
+
+use rayon::prelude::*;
 
 use crate::backends::Message;
 use crate::metrics::{kind, Measurement, Tags, Unit, UnitType};
@@ -51,7 +56,16 @@ impl Aggregator {
     }
 
     pub fn max_len(&self) -> usize {
-        *[self.counters.len(), self.gauges.len(), self.timers.len(), self.sets.len(), self.histograms.len()].iter().max().unwrap()
+        *[
+            self.counters.len(),
+            self.gauges.len(),
+            self.timers.len(),
+            self.sets.len(),
+            self.histograms.len(),
+        ]
+        .iter()
+        .max()
+        .unwrap()
     }
 
     pub fn record<T: Into<Measurement>>(&mut self, measurement: T) {
@@ -157,56 +171,71 @@ impl Aggregator {
         self.sets.shrink_to_fit();
         self.histograms.shrink_to_fit();
 
-        let mut metrics = Vec::new();
-        metrics.extend(self.counters.drain().map(|(k, v)| {
+        let capacity = self.counters.len()
+            + self.gauges.len()
+            + self.timers.len()
+            + self.sets.len()
+            + self.histograms.len();
+        let mut metrics = Vec::with_capacity(capacity);
+        metrics.par_extend(self.counters.par_iter().map(|(k, v)| {
             Measurement::new(
                 kind::COUNTER,
-                k.name,
+                k.name.clone(),
                 v.unit.to_unit(v.value as u64),
-                v.tags,
+                v.tags.clone(),
             )
         }));
+        self.counters.clear();
 
-        metrics.extend(self.gauges.drain().map(|(k, v)| {
-            Measurement::new(kind::GAUGE, k.name, v.unit.to_unit(v.value as u64), v.tags)
+        metrics.par_extend(self.gauges.par_iter().map(|(k, v)| {
+            Measurement::new(
+                kind::GAUGE,
+                k.name.clone(),
+                v.unit.to_unit(v.value as u64),
+                v.tags.clone(),
+            )
         }));
-        
-        for (k, mut v) in self.timers.drain() {
-            let tags = v.tags;
-            metrics.extend(v.value.drain(..).map(|t| {
+        self.gauges.clear();
+
+        metrics.par_extend(self.timers.par_iter().flat_map(|(k, v)| {
+            let k = k.clone();
+            let tags = v.tags.clone();
+            v.value.par_iter().map(move |t| {
                 Measurement::new(
                     kind::TIMER,
                     k.name.clone(),
-                    Unit::Count(t as u64),
+                    Unit::Count(*t as u64),
                     tags.clone(),
                 )
-            }));
-        }
-        
-        for (k, v) in self.sets.drain() {
-            let mut tags = v.tags;
+            })
+        }));
+        self.timers.clear();
+
+        metrics.par_extend(self.sets.par_iter().map(|(k, v)| {
+            let mut tags = v.tags.clone();
             if let Some(elements) = join(v.value.iter(), ",") {
                 tags.insert("set_elements", elements);
             }
-            metrics.push(Measurement::new(
+            Measurement::new(
                 kind::SET,
-                k.name,
+                k.name.clone(),
                 Unit::Count(v.value.len() as u64),
-                tags,
-            ));
-        }
-        
-        for (k, v) in self.histograms.drain() {
-            metrics.extend(PERCENTILES.iter().cloned().map(|p| {
+                tags.clone(),
+            )
+        }));
+        self.sets.clear();
+
+        metrics.par_extend(self.histograms.par_iter().flat_map(|(k, v)| {
+            PERCENTILES.par_iter().cloned().map(move |p| {
                 Measurement::new(
                     kind::PERCENTILE,
                     format!("{}_{}", k.name, p),
                     Unit::Count(v.value.value_at_percentile(p)),
                     v.tags.clone(),
                 )
-            }));
-        }
-
+            })
+        }));
+        self.histograms.clear();
         metrics
     }
 }
