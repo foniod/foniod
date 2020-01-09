@@ -11,6 +11,8 @@ pub mod tls;
 pub mod network;
 pub mod test;
 
+use actix::Recipient;
+
 pub use crate::grains::ebpf::*;
 pub use crate::grains::ebpf_io::*;
 
@@ -21,6 +23,27 @@ pub use std::net::Ipv4Addr;
 
 use redbpf::{Map, Module};
 use std::{os::raw::c_char, mem::transmute };
+trait SendToManyRecipients {
+    fn do_send(&self, message: Message) {
+        let recipients = self.recipients();
+        for (i, r) in recipients.iter().enumerate() {
+            if i == recipients.len() - 1 {
+                r.do_send(message).unwrap();
+                break;
+            }
+            r.do_send(message.clone()).unwrap();
+        }
+    }
+
+    fn recipients(&self) -> &Vec<Recipient<Message>>;
+}
+
+impl SendToManyRecipients for Vec<Recipient<Message>> {
+    fn recipients(&self) -> &Vec<Recipient<Message>> {
+        self
+    }
+}
+
 
 pub fn to_le(i: u16) -> u16 {
     (i >> 8) | (i << 8)

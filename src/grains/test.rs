@@ -2,6 +2,7 @@ use actix::{Actor, AsyncContext, Context, Recipient, StreamHandler};
 use futures::{Async, Poll, Stream};
 use std::{time, thread};
 
+use crate::grains::SendToManyRecipients;
 use crate::backends::Message;
 use crate::metrics::{kind, timestamp_now, Measurement, Tags, Unit};
 
@@ -43,9 +44,7 @@ impl Actor for TestProbe {
 
 impl StreamHandler<Message, ()> for TestProbe {
     fn handle(&mut self, message: Message, _ctx: &mut Context<TestProbe>) {
-        for recipient in &self.recipients {
-            recipient.do_send(message.clone()).unwrap();
-        }
+        self.recipients.do_send(message);
     }
 }
 

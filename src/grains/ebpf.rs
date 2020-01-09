@@ -1,6 +1,7 @@
 use crate::backends::Message;
+use crate::grains::SendToManyRecipients;
 use crate::grains::ebpf_io::{
-    MessageStream, MessageStreams, PerfMessageStream, SocketMessageStream,
+    MessageStream, MessageStreams, PerfMessageStream, SocketMessageStream
 };
 
 use redbpf::{cpus, Module, PerfMap, XdpFlags, Result};
@@ -181,9 +182,7 @@ impl Actor for EBPFActor {
 impl StreamHandler<Vec<Message>, io::Error> for EBPFActor {
     fn handle(&mut self, mut messages: Vec<Message>, _ctx: &mut Context<Self>) {
         for message in messages.drain(..) {
-            for recipient in &self.recipients {
-                recipient.do_send(message.clone()).unwrap();
-            }
+            self.recipients.do_send(message);
         }
     }
 
