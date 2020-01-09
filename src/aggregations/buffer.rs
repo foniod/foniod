@@ -274,7 +274,7 @@ impl Buffer {
         info!("flushing metrics: {}", metrics.len());
         if !metrics.is_empty() {
             let message = Message::List(metrics);
-            self.upstream.do_send(message.clone()).unwrap();
+            self.upstream.do_send(message).unwrap();
         }
     }
 }
