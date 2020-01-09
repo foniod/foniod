@@ -39,10 +39,12 @@ commands:
                 cargo test << parameters.flags >> --release || exit 1
                 cargo build << parameters.flags >> --release || exit 1
                 cp << parameters.binary >> /build/binaries/ingraind
+                sha256sum /build/binaries/ingraind
               else
                 cargo test << parameters.flags >> || exit 1
                 cargo build << parameters.flags >> || exit 1
                 cp << parameters.binary >> /build/binaries/ingraind-debug
+                sha256sum /build/binaries/ingraind-debug
               fi
       - store_artifacts:
           path: /build/binaries
