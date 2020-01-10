@@ -252,7 +252,7 @@ impl Buffer {
     fn schedule_next_flush(&mut self, ctx: &mut Context<Self>) {
         ctx.cancel_future(self.flush_handle);
         self.last_flush_time = Instant::now();
-        self.flush_handle = ctx.run_later(self.flush_period, Self::flush);
+        self.flush_handle = ctx.run_later(self.flush_period, Self::flush_if_needed);
     }
 
     fn flush(&mut self, ctx: &mut Context<Self>) {
@@ -262,6 +262,12 @@ impl Buffer {
         if !metrics.is_empty() {
             let message = Message::List(metrics);
             self.upstream.do_send(message).unwrap();
+        }
+    }
+
+    fn flush_if_needed(&mut self, ctx: &mut Context<Self>) {
+        if self.last_flush_time.elapsed() >= self.flush_period {
+            self.flush(ctx);
         }
     }
 }
@@ -278,9 +284,7 @@ impl Handler<Message> for Buffer {
     type Result = ();
 
     fn handle(&mut self, msg: Message, ctx: &mut Context<Self>) -> Self::Result {
-        if self.last_flush_time.elapsed() >= self.flush_period {
-            self.flush(ctx);
-        }
+        self.flush_if_needed(ctx);
 
         match msg {
             Message::List(mut ms) => {
