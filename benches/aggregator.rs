@@ -2,7 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion, BatchSize
 use ingraind::aggregations::buffer::Aggregator;
 use ingraind::metrics::{kind, timestamp_now, Measurement, Tags, Unit};
 
-pub fn record_flush(c: &mut Criterion) {
+pub fn record(c: &mut Criterion) {
     let mut metrics = Vec::new();
     for i in 0..1000 {
         let mut tags = Tags::new();
@@ -15,16 +15,12 @@ pub fn record_flush(c: &mut Criterion) {
             tags,
         ));
     }
-    c.bench_function("record_flush", |b| {
+    c.bench_function("record", |b| {
         b.iter_batched(
             || metrics.clone(),
             |metrics| {
                 let mut aggregator = Aggregator::new(true);
                 for m in metrics.iter().cloned() {
-                    aggregator.record(m);
-                }
-                aggregator.flush();
-                for m in metrics {
                     aggregator.record(m);
                 }
             },
@@ -55,5 +51,5 @@ pub fn flush(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, record_flush, flush);
+criterion_group!(benches, record, flush);
 criterion_main!(benches);
