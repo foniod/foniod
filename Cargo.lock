@@ -341,8 +341,8 @@ dependencies = [
 
 [[package]]
 name = "bpf-sys"
-version = "0.9.8"
-source = "git+https://github.com/redsift/redbpf#ba0af3100fb3c65675c1b35e213838b99b7e0a5b"
+version = "0.9.9"
+source = "git+https://github.com/redsift/redbpf#41daec82498f1611c858b5ffaece9f3b9accd9ba"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -414,14 +414,14 @@ dependencies = [
 
 [[package]]
 name = "cargo-bpf"
-version = "0.9.8"
-source = "git+https://github.com/redsift/redbpf#ba0af3100fb3c65675c1b35e213838b99b7e0a5b"
+version = "0.9.9"
+source = "git+https://github.com/redsift/redbpf#41daec82498f1611c858b5ffaece9f3b9accd9ba"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hexdump 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "redbpf 0.9.8 (git+https://github.com/redsift/redbpf)",
+ "redbpf 0.9.9 (git+https://github.com/redsift/redbpf)",
  "tokio 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml_edit 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1122,7 +1122,7 @@ dependencies = [
  "cadence 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "capnp 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "capnpc 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "cargo-bpf 0.9.8 (git+https://github.com/redsift/redbpf)",
+ "cargo-bpf 0.9.9 (git+https://github.com/redsift/redbpf)",
  "dns-parser 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "epoll 4.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1138,8 +1138,8 @@ dependencies = [
  "metrohash 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.6.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "redbpf 0.9.8 (git+https://github.com/redsift/redbpf)",
- "redbpf-probes 0.9.8 (git+https://github.com/redsift/redbpf)",
+ "redbpf 0.9.9 (git+https://github.com/redsift/redbpf)",
+ "redbpf-probes 0.9.9 (git+https://github.com/redsift/redbpf)",
  "regex 1.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_core 0.41.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusoto_s3 0.41.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1160,9 +1160,9 @@ version = "0.1.0"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cty 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "redbpf 0.9.8 (git+https://github.com/redsift/redbpf)",
- "redbpf-macros 0.9.8 (git+https://github.com/redsift/redbpf)",
- "redbpf-probes 0.9.8 (git+https://github.com/redsift/redbpf)",
+ "redbpf 0.9.9 (git+https://github.com/redsift/redbpf)",
+ "redbpf-macros 0.9.9 (git+https://github.com/redsift/redbpf)",
+ "redbpf-probes 0.9.9 (git+https://github.com/redsift/redbpf)",
 ]
 
 [[package]]
@@ -1741,11 +1741,11 @@ dependencies = [
 
 [[package]]
 name = "redbpf"
-version = "0.9.8"
-source = "git+https://github.com/redsift/redbpf#ba0af3100fb3c65675c1b35e213838b99b7e0a5b"
+version = "0.9.9"
+source = "git+https://github.com/redsift/redbpf#41daec82498f1611c858b5ffaece9f3b9accd9ba"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "bpf-sys 0.9.8 (git+https://github.com/redsift/redbpf)",
+ "bpf-sys 0.9.9 (git+https://github.com/redsift/redbpf)",
  "futures 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "goblin 0.0.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1762,8 +1762,8 @@ dependencies = [
 
 [[package]]
 name = "redbpf-macros"
-version = "0.9.8"
-source = "git+https://github.com/redsift/redbpf#ba0af3100fb3c65675c1b35e213838b99b7e0a5b"
+version = "0.9.9"
+source = "git+https://github.com/redsift/redbpf#41daec82498f1611c858b5ffaece9f3b9accd9ba"
 dependencies = [
  "proc-macro2 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1772,14 +1772,14 @@ dependencies = [
 
 [[package]]
 name = "redbpf-probes"
-version = "0.9.8"
-source = "git+https://github.com/redsift/redbpf#ba0af3100fb3c65675c1b35e213838b99b7e0a5b"
+version = "0.9.9"
+source = "git+https://github.com/redsift/redbpf#41daec82498f1611c858b5ffaece9f3b9accd9ba"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cty 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "redbpf 0.9.8 (git+https://github.com/redsift/redbpf)",
- "redbpf-macros 0.9.8 (git+https://github.com/redsift/redbpf)",
+ "redbpf 0.9.9 (git+https://github.com/redsift/redbpf)",
+ "redbpf-macros 0.9.9 (git+https://github.com/redsift/redbpf)",
  "syn 1.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2853,7 +2853,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum blake2b_simd 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)" = "d8fb2d74254a3a0b5cac33ac9f8ed0e44aa50378d9dbb2e5d83bd21ed1dc2c8a"
 "checksum block-buffer 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)" = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
 "checksum block-padding 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "fa79dedbb091f449f1f39e53edf88d5dbe95f895dae6135a8d7b881fb5af73f5"
-"checksum bpf-sys 0.9.8 (git+https://github.com/redsift/redbpf)" = "<none>"
+"checksum bpf-sys 0.9.9 (git+https://github.com/redsift/redbpf)" = "<none>"
 "checksum bumpalo 3.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "5fb8038c1ddc0a5f73787b130f4cc75151e96ed33e417fde765eb5a81e3532f4"
 "checksum byte-tools 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"
 "checksum byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a7c3dd8985a7111efc5c80b44e23ecdd8c007de8ade3b96595387e812b957cf5"
@@ -2863,7 +2863,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum cadence 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3970b43fb5b4049ac086516d1ca06f929924aa0ed38566ba52d6cbb291892a40"
 "checksum capnp 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)" = "50bc40e18a764f679fd13673b61c12d2c45c1581a2c6c949ffa424d9f58716c7"
 "checksum capnpc 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)" = "097449bb52d9c96340c88e9726be5ad8dea78bd6ee4a27c7e5c3fbe0d6f60056"
-"checksum cargo-bpf 0.9.8 (git+https://github.com/redsift/redbpf)" = "<none>"
+"checksum cargo-bpf 0.9.9 (git+https://github.com/redsift/redbpf)" = "<none>"
 "checksum cc 1.0.50 (registry+https://github.com/rust-lang/crates.io-index)" = "95e28fa049fda1c330bcf9d723be7663a899c4679724b34c81e9f5a326aab8cd"
 "checksum cexpr 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "fce5b5fb86b0c57c20c834c1b412fd09c77c8a59b9473f86272709e78874cd1d"
 "checksum cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)" = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
@@ -3012,9 +3012,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rayon 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "db6ce3297f9c85e16621bb8cca38a06779ffc31bb8184e1be4bed2be4678a098"
 "checksum rayon-core 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "08a89b46efaf957e52b18062fb2f4660f8b8a4dde1807ca002690868ef2c85a9"
 "checksum rdrand 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
-"checksum redbpf 0.9.8 (git+https://github.com/redsift/redbpf)" = "<none>"
-"checksum redbpf-macros 0.9.8 (git+https://github.com/redsift/redbpf)" = "<none>"
-"checksum redbpf-probes 0.9.8 (git+https://github.com/redsift/redbpf)" = "<none>"
+"checksum redbpf 0.9.9 (git+https://github.com/redsift/redbpf)" = "<none>"
+"checksum redbpf-macros 0.9.9 (git+https://github.com/redsift/redbpf)" = "<none>"
+"checksum redbpf-probes 0.9.9 (git+https://github.com/redsift/redbpf)" = "<none>"
 "checksum redox_syscall 0.1.56 (registry+https://github.com/rust-lang/crates.io-index)" = "2439c63f3f6139d1b57529d16bc3b8bb855230c8efcc5d3a896c8bea7c3b1e84"
 "checksum redox_users 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4ecedbca3bf205f8d8f5c2b44d83cd0690e39ee84b951ed649e9f1841132b66d"
 "checksum regex 1.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "b5508c1941e4e7cb19965abef075d35a9a8b5cdf0846f30b4050e9b55dc55e87"
