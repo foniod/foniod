@@ -1,9 +1,11 @@
 use actix::{Actor, AsyncContext, Context, Recipient, StreamHandler};
 use futures::{Async, Poll, Stream};
-use std::{time, thread};
+use std::cmp;
+use std::time::Duration;
+use tokio_timer::Interval;
 
-use crate::grains::SendToManyRecipients;
 use crate::backends::Message;
+use crate::grains::SendToManyRecipients;
 use crate::metrics::{kind, timestamp_now, Measurement, Tags, Unit};
 
 pub struct TestProbe {
@@ -33,7 +35,8 @@ impl Actor for TestProbe {
             unit,
             kind,
             self.config.tags.clone(),
-            self.config.message_len
+            self.config.message_len,
+            self.config.measurements_per_second,
         ));
     }
 
@@ -53,17 +56,30 @@ pub struct MeasurementStream {
     unit: Unit,
     kind: kind::Kind,
     tags: Vec<Tag>,
-    message_len: usize
+    message_len: usize,
+    ms_per_second: usize,
+    ms_sent: usize,
+    interval: Interval,
 }
 
 impl MeasurementStream {
-    fn new(name: String, unit: Unit, kind: kind::Kind, tags: Vec<Tag>, message_len: usize) -> Self {
+    fn new(
+        name: String,
+        unit: Unit,
+        kind: kind::Kind,
+        tags: Vec<Tag>,
+        message_len: usize,
+        ms_per_second: usize,
+    ) -> Self {
         MeasurementStream {
             name,
             unit,
             kind,
             tags,
-            message_len
+            message_len,
+            ms_per_second,
+            ms_sent: 0,
+            interval: Interval::new_interval(Duration::from_secs(1)),
         }
     }
 }
@@ -73,28 +89,37 @@ impl Stream for MeasurementStream {
     type Error = ();
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        let measurements = (0..self.message_len).map(|_| {
-            let mut tags = Tags::new();
-            for (key, value) in &self.tags {
-                let value = match value.as_str() {
-                    "$TS" => format!("{}", timestamp_now()),
-                    _ => value.clone(),
-                };
-                tags.insert(key.clone(), value);
-            }
-            Measurement::new(
-                self.kind,
-                self.name.clone(),
-                self.unit.clone(),
-                tags,
-            )
-        }).collect();
-        let message = Message::List(measurements);
-        Ok(Async::Ready(Some(message)))
+        if let Ok(Async::Ready(_)) = self.interval.poll() {
+            self.ms_sent = 0;
+        }
+        if self.ms_sent < self.ms_per_second {
+            let message_len = cmp::min(self.message_len, self.ms_per_second - self.ms_sent);
+            self.ms_sent += message_len;
+            let measurements = (0..message_len)
+                .map(|_| {
+                    let mut tags = Tags::new();
+                    for (key, value) in &self.tags {
+                        let value = match value.as_str() {
+                            "$TS" => format!("{}", timestamp_now()),
+                            _ => value.clone(),
+                        };
+                        tags.insert(key.clone(), value);
+                    }
+                    Measurement::new(self.kind, self.name.clone(), self.unit.clone(), tags)
+                })
+                .collect();
+            let message = Message::List(measurements);
+            return Ok(Async::Ready(Some(message)));
+        }
+        Ok(Async::NotReady)
     }
 }
 
 pub type Tag = (String, String);
+
+fn default_ms_per_second() -> usize {
+    10000
+}
 
 fn default_message_len() -> usize {
     5000
@@ -107,6 +132,8 @@ pub struct TestProbeConfig {
     measurement_type: String,
     aggregation_type: Option<String>,
     tags: Vec<Tag>,
+    #[serde(default = "default_ms_per_second")]
+    measurements_per_second: usize,
     #[serde(default = "default_message_len")]
-    message_len: usize
+    message_len: usize,
 }

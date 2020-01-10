@@ -23,6 +23,7 @@ futures = "^0.1"
 tokio = "0.1"
 tokio-reactor = "0.1"
 tokio-udp = "0.1"
+tokio-timer = "0.2.12"
 bytes = "0.4"
 mio = "0.6"
 
