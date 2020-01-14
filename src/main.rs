@@ -1,24 +1,11 @@
 #![deny(clippy::all)]
 
-#[macro_use]
-extern crate actix;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate log;
-
 use std::collections::HashMap;
 use std::env;
 use std::fs;
 
-mod aggregations;
-mod backends;
-mod config;
-mod grains;
-mod metrics;
-
 use actix::Recipient;
-use backends::Message;
+use ingraind::{backends::Message, config};
 
 #[cfg(feature = "capnp-encoding")]
 mod ingraind_capnp {

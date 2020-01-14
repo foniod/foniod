@@ -23,6 +23,7 @@ futures = "^0.1"
 tokio = "0.1"
 tokio-reactor = "0.1"
 tokio-udp = "0.1"
+tokio-timer = "0.2.12"
 bytes = "0.4"
 mio = "0.6"
 
@@ -80,6 +81,13 @@ version = "0.41.0"
 default-features = false
 features = ["rustls"]
 optional = true
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "aggregator"
+harness = false
 
 [features]
 default = ["statsd-backend", "http-backend", "capnp-encoding"]

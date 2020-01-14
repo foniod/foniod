@@ -100,7 +100,7 @@ pub enum Unit {
     Str(String)
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum UnitType {
     Byte,
     Count,

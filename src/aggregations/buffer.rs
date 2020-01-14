@@ -2,11 +2,12 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::convert::Into;
 use std::hash::{Hash, Hasher};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use actix::utils::IntervalFunc;
-use actix::{Actor, ActorStream, Context, ContextFutureSpawner, Handler, Recipient};
+use actix::{Actor, AsyncContext, Context, Handler, Recipient, SpawnHandle};
 use hdrhistogram::Histogram;
+
+use rayon::prelude::*;
 
 use crate::backends::Message;
 use crate::metrics::{kind, Measurement, Tags, Unit, UnitType};
@@ -14,20 +15,20 @@ use crate::metrics::{kind, Measurement, Tags, Unit, UnitType};
 const PERCENTILES: [f64; 6] = [25f64, 50f64, 75f64, 90f64, 95f64, 99f64];
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct MeasurementKey {
+pub struct MeasurementKey {
     name: String,
     tags_hash: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct AggregatedMetric<T: PartialEq> {
+pub struct AggregatedMetric<T: PartialEq> {
     value: T,
     unit: UnitType,
     tags: Tags,
 }
 
-#[derive(Debug)]
-struct Aggregator {
+#[derive(Debug, Clone)]
+pub struct Aggregator {
     counters: HashMap<MeasurementKey, AggregatedMetric<f64>>,
     gauges: HashMap<MeasurementKey, AggregatedMetric<f64>>,
     timers: HashMap<MeasurementKey, AggregatedMetric<Vec<f64>>>,
@@ -50,13 +51,7 @@ impl Aggregator {
         }
     }
 
-    pub fn max_len(&self) -> usize {
-        *[self.counters.len(), self.gauges.len(), self.timers.len(), self.sets.len(), self.histograms.len()].iter().max().unwrap()
-    }
-
     pub fn record<T: Into<Measurement>>(&mut self, measurement: T) {
-        use kind::*;
-
         let measurement = measurement.into();
         let key = measurement_key(&measurement);
         let Measurement {
@@ -138,74 +133,78 @@ impl Aggregator {
         }
     }
 
-    pub fn counter(&self, key: &MeasurementKey) -> Option<&AggregatedMetric<f64>> {
-        self.counters.get(key)
-    }
-
-    pub fn gauge(&self, key: &MeasurementKey) -> Option<&AggregatedMetric<f64>> {
-        self.gauges.get(key)
-    }
-
-    pub fn uniques(&self, key: &MeasurementKey) -> Option<usize> {
-        self.sets.get(key).map(|am| am.value.len())
-    }
-
     pub fn flush(&mut self) -> Vec<Measurement> {
-        let mut metrics = Vec::new();
-        metrics.extend(self.counters.drain().map(|(k, v)| {
+        self.counters.shrink_to_fit();
+        self.gauges.shrink_to_fit();
+        self.timers.shrink_to_fit();
+        self.sets.shrink_to_fit();
+        self.histograms.shrink_to_fit();
+
+        let capacity = self.counters.len()
+            + self.gauges.len()
+            + self.timers.len()
+            + self.sets.len()
+            + self.histograms.len();
+        let mut metrics = Vec::with_capacity(capacity);
+        metrics.par_extend(self.counters.par_iter().map(|(k, v)| {
             Measurement::new(
                 kind::COUNTER,
-                k.name,
+                k.name.clone(),
                 v.unit.to_unit(v.value as u64),
-                v.tags,
+                v.tags.clone(),
             )
         }));
-        self.counters.shrink_to_fit();
-        
-        metrics.extend(self.gauges.drain().map(|(k, v)| {
-            Measurement::new(kind::GAUGE, k.name, v.unit.to_unit(v.value as u64), v.tags)
+        self.counters.clear();
+
+        metrics.par_extend(self.gauges.par_iter().map(|(k, v)| {
+            Measurement::new(
+                kind::GAUGE,
+                k.name.clone(),
+                v.unit.to_unit(v.value as u64),
+                v.tags.clone(),
+            )
         }));
-        self.gauges.shrink_to_fit();
-        
-        for (k, mut v) in self.timers.drain() {
-            let tags = v.tags;
-            metrics.extend(v.value.drain(..).map(|t| {
+        self.gauges.clear();
+
+        metrics.par_extend(self.timers.par_iter().flat_map(|(k, v)| {
+            let k = k.clone();
+            let tags = v.tags.clone();
+            v.value.par_iter().map(move |t| {
                 Measurement::new(
                     kind::TIMER,
                     k.name.clone(),
-                    Unit::Count(t as u64),
+                    Unit::Count(*t as u64),
                     tags.clone(),
                 )
-            }));
-        }
-        self.timers.shrink_to_fit();
-        
-        for (k, v) in self.sets.drain() {
-            let mut tags = v.tags;
+            })
+        }));
+        self.timers.clear();
+
+        metrics.par_extend(self.sets.par_iter().map(|(k, v)| {
+            let mut tags = v.tags.clone();
             if let Some(elements) = join(v.value.iter(), ",") {
                 tags.insert("set_elements", elements);
             }
-            metrics.push(Measurement::new(
+            Measurement::new(
                 kind::SET,
-                k.name,
+                k.name.clone(),
                 Unit::Count(v.value.len() as u64),
-                tags,
-            ));
-        }
-        self.sets.shrink_to_fit();
-        
-        for (k, v) in self.histograms.drain() {
-            metrics.extend(PERCENTILES.iter().cloned().map(|p| {
+                tags.clone(),
+            )
+        }));
+        self.sets.clear();
+
+        metrics.par_extend(self.histograms.par_iter().flat_map(|(k, v)| {
+            PERCENTILES.par_iter().cloned().map(move |p| {
                 Measurement::new(
                     kind::PERCENTILE,
                     format!("{}_{}", k.name, p),
                     Unit::Count(v.value.value_at_percentile(p)),
                     v.tags.clone(),
                 )
-            }));
-        }
-        self.histograms.shrink_to_fit();
-
+            })
+        }));
+        self.histograms.clear();
         metrics
     }
 }
@@ -227,24 +226,48 @@ pub struct Buffer {
     aggregator: Aggregator,
     config: BufferConfig,
     upstream: Recipient<Message>,
+    flush_handle: SpawnHandle,
+    flush_period: Duration,
+    last_flush_time: Instant,
 }
 
 impl Buffer {
     pub fn launch(config: BufferConfig, upstream: Recipient<Message>) -> Recipient<Message> {
-        Actor::start_in_arbiter(&actix::Arbiter::new(), |_| Buffer {
+        let ms = config
+            .interval_s
+            .map(|s| s * 1000)
+            .unwrap_or(config.interval_ms);
+        let flush_period = Duration::from_millis(ms);
+        Actor::start_in_arbiter(&actix::Arbiter::new(), move |_| Buffer {
             aggregator: Aggregator::new(config.enable_histograms),
             config,
             upstream,
+            flush_handle: SpawnHandle::default(),
+            flush_period,
+            last_flush_time: Instant::now(),
         })
         .recipient()
     }
 
-    fn flush(&mut self, _ctx: &mut Context<Self>) {
+    fn schedule_next_flush(&mut self, ctx: &mut Context<Self>) {
+        ctx.cancel_future(self.flush_handle);
+        self.last_flush_time = Instant::now();
+        self.flush_handle = ctx.run_later(self.flush_period, Self::flush_if_needed);
+    }
+
+    fn flush(&mut self, ctx: &mut Context<Self>) {
+        self.schedule_next_flush(ctx);
         let metrics = self.aggregator.flush();
         info!("flushing metrics: {}", metrics.len());
         if !metrics.is_empty() {
             let message = Message::List(metrics);
-            self.upstream.do_send(message.clone()).unwrap();
+            self.upstream.do_send(message).unwrap();
+        }
+    }
+
+    fn flush_if_needed(&mut self, ctx: &mut Context<Self>) {
+        if self.last_flush_time.elapsed() >= self.flush_period {
+            self.flush(ctx);
         }
     }
 }
@@ -253,26 +276,15 @@ impl Actor for Buffer {
     type Context = Context<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        let ms = self
-            .config
-            .interval_s
-            .map(|s| s * 1000)
-            .unwrap_or(self.config.interval_ms);
-        IntervalFunc::new(Duration::from_millis(ms), Self::flush)
-            .finish()
-            .spawn(ctx);
+        self.schedule_next_flush(ctx);
     }
 }
 
 impl Handler<Message> for Buffer {
     type Result = ();
 
-    fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
-        if let Some(max_elems) = self.config.max_records {
-            if self.aggregator.max_len() > max_elems as usize {
-                self.aggregator.flush();
-            }
-        }
+    fn handle(&mut self, msg: Message, ctx: &mut Context<Self>) -> Self::Result {
+        self.flush_if_needed(ctx);
 
         match msg {
             Message::List(mut ms) => {
@@ -298,7 +310,6 @@ pub struct BufferConfig {
     #[serde(default = "default_interval_ms")]
     pub interval_ms: u64,
     pub interval_s: Option<u64>,
-    pub max_records: Option<u64>,
     #[serde(default = "default_enable_histograms")]
     pub enable_histograms: bool,
 }
@@ -314,6 +325,22 @@ fn join<T: Into<String>, I: Iterator<Item = T>>(mut iter: I, sep: &str) -> Optio
     }
 
     None
+}
+
+#[cfg(test)]
+impl Aggregator {
+    pub fn counter(&self, key: &MeasurementKey) -> Option<&AggregatedMetric<f64>> {
+        self.counters.get(key)
+    }
+
+    pub fn gauge(&self, key: &MeasurementKey) -> Option<&AggregatedMetric<f64>> {
+        self.gauges.get(key)
+    }
+
+    pub fn uniques(&self, key: &MeasurementKey) -> Option<usize> {
+        self.sets.get(key).map(|am| am.value.len())
+    }
+
 }
 
 #[cfg(test)]
