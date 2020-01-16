@@ -4,7 +4,7 @@ use crate::grains::ebpf_io::{
     MessageStream, MessageStreams, PerfMessageStream, SocketMessageStream
 };
 
-use redbpf::{cpus, Module, PerfMap, XdpFlags, Result};
+use redbpf::{cpus, xdp, Module, PerfMap, Result};
 
 use actix::{Actor, AsyncContext, Context, Recipient, Running, StreamHandler};
 use lazy_socket::raw::Socket;
@@ -76,7 +76,7 @@ where
         self.bind_perf()
     }
 
-    pub fn attach_xdps(&mut self, iface: &str, flags: XdpFlags) -> MessageStreams {
+    pub fn attach_xdps(&mut self, iface: &str, flags: xdp::Flags) -> MessageStreams {
         use redbpf::ProgramKind::*;
         for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
             info!("Loaded: {}, {:?}", prog.name, prog.kind);
@@ -200,12 +200,12 @@ pub enum XdpMode {
     Hardware
 }
 
-impl Into<XdpFlags> for XdpMode {
-    fn into(self) -> XdpFlags {
+impl Into<xdp::Flags> for XdpMode {
+    fn into(self) -> xdp::Flags {
         use XdpMode::*;
-        use XdpFlags::*;
+        use xdp::Flags::*;
         match self {
-            Auto => XdpFlags::default(),
+            Auto => xdp::Flags::default(),
             Skb => SkbMode,
             Driver => DrvMode,
             Hardware => HwMode,

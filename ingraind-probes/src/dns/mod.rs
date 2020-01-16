@@ -1,5 +1,3 @@
-pub use redbpf_probes::xdp::MapData;
-
 #[repr(C)]
 pub struct Event {
     pub saddr: u32,

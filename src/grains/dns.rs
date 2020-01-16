@@ -6,7 +6,8 @@ use dns_parser::{rdata::RData, Packet, ResourceRecord};
 use metrohash::MetroHash64;
 use std::hash::Hasher;
 
-use ingraind_probes::dns::{MapData, Event};
+use redbpf::xdp::MapData;
+use ingraind_probes::dns::Event;
 
 pub struct DNS(pub DnsConfig);
 #[derive(Serialize, Deserialize, Debug)]
@@ -36,7 +37,7 @@ impl EBPFGrain<'static> for DNS {
     fn get_handler(&self, _id: &str) -> EventCallback {
         Box::new(|raw| {
             let data = unsafe { &*(raw.as_ptr() as *const MapData<Event>) };
-            let event = &data.data;
+            let event = data.data();
             if let Ok(packet) = Packet::parse(data.payload()) {
                 let timestamp = timestamp_now();
                 let query = DNSQuery::from(event);
