@@ -68,7 +68,26 @@ jobs:
           name: Deploy
           command: |
             cd tests/terraform
-            ./run-test.sh << parameters.ami >>
+            ./run-amd64.sh << parameters.ami >>
+
+  terraform_arm:
+    parameters:
+      ami:
+        type: string
+        default: "ubuntu-arm64-1910"
+    working_directory: /build
+    docker:
+      - image: hashicorp/terraform:light
+    steps:
+      - checkout
+      - attach_workspace:
+          # Must be absolute path or relative path from working_directory
+          at: /tmp/workspace
+      - run:
+          name: Deploy
+          command: |
+            cd tests/terraform
+            ./run-arm64.sh << parameters.ami >>
 
   ubuntu:
     parameters:
@@ -330,6 +349,9 @@ workflows:
   version: 2.1
   build:
     jobs:
+      - terraform_arm:
+          name: 'terraform - ubuntu/arm64'
+
       - terraform:
           name: 'terraform - ubuntu 18.04'
           ami: 'ubuntu-1804'

@@ -1,30 +1,50 @@
 provider "aws" {
-  region = "eu-west-2"
+  region = "eu-west-1"
+}
+
+output "amd64_ip" {
+  value = aws_instance.ingraind.public_ip
+}
+
+output "arm64_ip" {
+  value = aws_instance.ingraind_arm64.public_ip
 }
 
 resource "aws_instance" "ingraind" {
-  ami           = "${lookup(local.ec2_ami_map, var.ec2_os_ami)}"
+  ami           = lookup(local.ec2_ami_map, var.ec2_os_ami)
   instance_type = "t2.micro"
-  key_name      = "${var.ec2_ssh_key_name}"
-  vpc_security_group_ids = ["${data.aws_security_group.allow_ssh.id}"]
-  subnet_id     = "${data.aws_subnet.ingraind.id}"
+  key_name      = var.ec2_ssh_key_name
+  vpc_security_group_ids = [data.aws_security_group.allow_ssh.id]
+  subnet_id     = data.aws_subnet.ingraind.id
 
   tags = {
     Name = "ingraind-test"
   }
 }
 
+resource "aws_instance" "ingraind_arm64" {
+  ami           = lookup(local.ec2_ami_map, var.ec2_os_ami)
+  instance_type = "a1.large"
+  key_name      = var.ec2_ssh_key_name
+  vpc_security_group_ids = [data.aws_security_group.allow_ssh.id]
+  subnet_id     = data.aws_subnet.ingraind.id
+
+  tags = {
+    Name = "ingraind-arm64-test"
+  }
+}
+
 resource "null_resource" "provision" {
   # Changes to any instance of the cluster requires re-provisioning
   triggers = {
-    instance_ids = "${aws_instance.ingraind.id}"
+    instance_ids = aws_instance.ingraind.id
   }
 
   connection {
     type = "ssh"
-    user = "${lookup(local.ec2_user_map, var.ec2_os_ami)}"
-    host = "${aws_instance.ingraind.public_ip}"
-    private_key = "${var.ec2_ssh_private_key}"
+    user = lookup(local.ec2_user_map, var.ec2_os_ami)
+    host = aws_instance.ingraind.public_ip
+    private_key = var.ec2_ssh_private_key
   }
 
   provisioner "file" {
@@ -47,6 +67,26 @@ resource "null_resource" "provision" {
   }
 }
 
+resource "null_resource" "provision_arm64" {
+  # this is techincally just here to delay the exit of terraform until
+  # we can verify the VM has booted.
+
+  triggers = {
+    instance_ids = aws_instance.ingraind_arm64.id
+  }
+
+  connection {
+    type = "ssh"
+    user = lookup(local.ec2_user_map, var.ec2_os_ami)
+    host = aws_instance.ingraind_arm64.public_ip
+    private_key = var.ec2_ssh_private_key
+  }
+
+  provisioner "remote-exec" {
+    inline = ["echo connection established"]
+  }
+}
+
 data "aws_subnet" "ingraind" {
   filter {
     name = "tag:Environment"
@@ -63,6 +103,7 @@ data "aws_security_group" "allow_ssh" {
 
 locals {
   ec2_ami_map = "${map(
+    "ubuntu-arm64-1910", "${data.aws_ami.ubuntu-arm64-1910.id}",
     "ubuntu-1804", "${data.aws_ami.ubuntu-1804.id}",
     "ubuntu-1604", "${data.aws_ami.ubuntu-1604.id}",
     "debian-9", "${data.aws_ami.debian-9.id}",
@@ -71,6 +112,7 @@ locals {
   )}"
 
   ec2_user_map = "${map(
+    "ubuntu-arm64-1910", "ubuntu",
     "ubuntu-1804", "ubuntu",
     "ubuntu-1604", "ubuntu",
     "debian-9", "admin",
@@ -173,6 +215,22 @@ data "aws_ami" "ubuntu-1604" {
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
+  }
+
+  owners = ["099720109477"] # Canonical
+}
+
+data "aws_ami" "ubuntu-arm64-1910" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-eoan-19.10-arm64-server-*"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["arm64"]
   }
 
   owners = ["099720109477"] # Canonical
