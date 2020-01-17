@@ -7,7 +7,7 @@ use cty::*;
 use redbpf_macros::{map, program, xdp};
 use redbpf_probes::bindings::*;
 use redbpf_probes::maps::*;
-use redbpf_probes::xdp::{MapData, PerfMap, XdpAction, XdpContext};
+use redbpf_probes::xdp::{MapData, PerfMap, XdpAction, XdpContext, Transport};
 
 use ingraind_probes::dns::Event;
 
@@ -19,7 +19,7 @@ static mut events: PerfMap<Event> = PerfMap::with_max_entries(1024);
 #[xdp("dns_queries")]
 pub extern "C" fn probe(ctx: XdpContext) -> XdpAction {
     let (ip, transport) = match (ctx.ip(), ctx.transport()) {
-        (Some(i), Some(t)) => (unsafe { *i }, t),
+        (Some(i), Some(t @ Transport::UDP(_))) => (unsafe { *i }, t),
         _ => return XdpAction::Pass,
     };
     let data = match ctx.data() {
