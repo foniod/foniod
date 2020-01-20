@@ -7,7 +7,7 @@
    Data-first Monitoring
  </strong>
  <br/>
- <a src="https://circleci.com/gh/redsift/ingraind"><img src="https://circleci.com/gh/redsift/ingraind.svg?style=shield" alt="CircleCI" /></a>
+ <a href="https://circleci.com/gh/redsift/ingraind"><img src="https://circleci.com/gh/redsift/ingraind.svg?style=shield" alt="CircleCI" /></a>
 </p>
 
 ingraind is a security monitoring agent built around [RedBPF](https://github.com/redsift/redbpf)
