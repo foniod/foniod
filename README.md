@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.png">
+  <img width="150" src="./logo.png">
 </p>
 <h1 align="center">ingraind</h1>
 
