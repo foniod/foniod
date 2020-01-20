@@ -2,10 +2,13 @@
   <img width="150" src="./logo.png">
 </p>
 <h1 align="center">ingraind</h1>
-
-[![CircleCI](https://circleci.com/gh/redsift/ingraind.svg?style=shield)](https://circleci.com/gh/redsift/ingraind)
-
-Data-first monitoring.
+<p align="center">
+ <strong>
+   Data-first Monitoring
+ </strong>
+ <br/>
+ <a src="https://circleci.com/gh/redsift/ingraind"><img src="https://circleci.com/gh/redsift/ingraind.svg?style=shield" alt="CircleCI" /></a>
+</p>
 
 ingraind is a security monitoring agent built around [RedBPF](https://github.com/redsift/redbpf)
 for complex containerized environments and endpoints. The ingraind agent uses eBPF
