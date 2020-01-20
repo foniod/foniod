@@ -1,5 +1,7 @@
-ingraind
-========
+<p align="center">
+  <img src="./logo.png">
+</p>
+<h1 align="center">ingraind</h1>
 
 [![CircleCI](https://circleci.com/gh/redsift/ingraind.svg?style=shield)](https://circleci.com/gh/redsift/ingraind)
 
