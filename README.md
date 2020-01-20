@@ -6,7 +6,8 @@
  <strong>
    Data-first Monitoring
  </strong>
- <br/>
+</p>
+<p align="center">
  <a href="https://circleci.com/gh/redsift/ingraind"><img src="https://circleci.com/gh/redsift/ingraind.svg?style=shield" alt="CircleCI" /></a>
 </p>
 
