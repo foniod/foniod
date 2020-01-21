@@ -46,7 +46,7 @@ pub extern "C" fn probe(ctx: XdpContext) -> XdpAction {
     unsafe {
         events.insert(
             &ctx,
-            MapData::with_payload(event, data.offset() as u32, data.len() as u32),
+            MapData::with_payload(event, data.offset() as u32, ctx.len() as u32),
         )
     };
 
