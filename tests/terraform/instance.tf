@@ -84,6 +84,17 @@ resource "null_resource" "provision_arm64" {
     private_key = var.ec2_ssh_private_key
   }
 
+  provisioner "file" {
+    source = "config.toml"
+    destination = "/home/ubuntu/config.toml"
+  }
+
+  provisioner "file" {
+    source = "provision-arm64.sh"
+    destination = "/home/ubuntu/provision.sh"
+  }
+
+
   provisioner "remote-exec" {
     inline = ["echo connection established"]
   }
