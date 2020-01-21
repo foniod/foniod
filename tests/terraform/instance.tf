@@ -85,6 +85,11 @@ resource "null_resource" "provision_arm64" {
   }
 
   provisioner "file" {
+    source = "../../"
+    destination = "/home/ubuntu/ingraind"
+  }
+
+  provisioner "file" {
     source = "config.toml"
     destination = "/home/ubuntu/config.toml"
   }

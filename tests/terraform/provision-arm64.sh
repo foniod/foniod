@@ -21,9 +21,7 @@ sh rustup.sh -y \
 rustup toolchain install stable --force
 rustup target add aarch64-unknown-linux-musl
 
-cd /home/ubuntu
-git clone --branch v1.0 https://github.com/redsift/ingraind
-cd ingraind
+cd /home/ubuntu/ingraind
 
 sed -i 's/eth0/enP2p4s0/' ../config.toml
 cargo run --release ../config.toml
