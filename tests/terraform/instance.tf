@@ -17,6 +17,7 @@ resource "aws_instance" "ingraind" {
   vpc_security_group_ids = [data.aws_security_group.allow_ssh.id]
   subnet_id     = data.aws_subnet.ingraind.id
 
+  availability_zone = "eu-west-1c"
   tags = {
     Name = "ingraind-test"
   }
@@ -24,11 +25,12 @@ resource "aws_instance" "ingraind" {
 
 resource "aws_instance" "ingraind_arm64" {
   ami           = lookup(local.ec2_ami_map, var.ec2_os_ami)
-  instance_type = "a1.large"
+  instance_type = "a1.metal"
   key_name      = var.ec2_ssh_key_name
   vpc_security_group_ids = [data.aws_security_group.allow_ssh.id]
   subnet_id     = data.aws_subnet.ingraind.id
 
+  availability_zone = "eu-west-1c"
   tags = {
     Name = "ingraind-arm64-test"
   }
