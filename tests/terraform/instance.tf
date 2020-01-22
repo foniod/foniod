@@ -84,9 +84,8 @@ resource "null_resource" "provision_arm64" {
     private_key = var.ec2_ssh_private_key
   }
 
-  provisioner "file" {
-    source = "../../"
-    destination = "/home/ubuntu/ingraind"
+  provisioner "remote-exec" {
+    inline = ["mkdir -p /home/ubuntu/ingraind"]
   }
 
   provisioner "file" {
@@ -99,10 +98,6 @@ resource "null_resource" "provision_arm64" {
     destination = "/home/ubuntu/provision.sh"
   }
 
-
-  provisioner "remote-exec" {
-    inline = ["echo connection established"]
-  }
 }
 
 data "aws_subnet" "ingraind" {

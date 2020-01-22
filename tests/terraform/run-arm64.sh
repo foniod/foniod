@@ -10,8 +10,9 @@ ip=$(terraform output arm64_ip)
 
 echo $AWS_EC2_SSH_KEY |tr '|' '\n' >ssh_key 
 chmod 600 ssh_key
-alias ssh_run="ssh -i ssh_key -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -nT ubuntu@${ip}"
+alias ssh_run="ssh -i ssh_key -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -T ubuntu@${ip}"
 
-ssh_run sudo sh provision.sh
+tar cz ../../ | ssh_run tar xz -C /home/ubuntu/ingraind
+ssh_run -n sudo sh provision.sh
 
 terraform destroy -input=false -auto-approve
