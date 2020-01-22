@@ -14,5 +14,3 @@ alias ssh_run="ssh -i ssh_key -o UserKnownHostsFile=/dev/null -o StrictHostKeyCh
 
 tar cz ../../ | ssh_run tar xz -C /home/ubuntu/ingraind
 ssh_run -n sudo sh provision.sh
-
-terraform destroy -input=false -auto-approve

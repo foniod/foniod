@@ -8,8 +8,7 @@ terraform apply -target=null_resource.provision -input=false -auto-approve |tee 
 
 modules_loaded=$(<test-output awk -F': ' '/ingraind::grains::ebpf: Loaded/ { print $NF }' | sort)
 
-terraform destroy -input=false -auto-approve
-
+cleanup
 exec test "$modules_loaded" = "dns_queries, XDP
 tcp_recvmsg, Kprobe
 tcp_recvmsg, Kretprobe

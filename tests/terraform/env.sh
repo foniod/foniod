@@ -1,5 +1,10 @@
 set -e
 
+cleanup() {
+    terraform destroy -input=false -auto-approve
+}
+trap cleanup quit exit
+
 export OS_AMI=$1
 
 export TF_VAR_ec2_ssh_key_name="$AWS_EC2_SSH_KEY_ID"
