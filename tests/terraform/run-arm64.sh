@@ -12,5 +12,5 @@ echo $AWS_EC2_SSH_KEY |tr '|' '\n' >ssh_key
 chmod 600 ssh_key
 alias ssh_run="ssh -i ssh_key -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -T ubuntu@${ip}"
 
-tar cz ../../ | ssh_run tar xz -C /home/ubuntu/ingraind
+tar cz -C ../.. . | ssh_run tar xz -C /home/ubuntu/ingraind
 ssh_run -n sudo sh provision.sh
