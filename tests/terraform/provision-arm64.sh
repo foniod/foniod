@@ -24,4 +24,7 @@ rustup target add aarch64-unknown-linux-musl
 cd /home/ubuntu/ingraind
 
 sed -i 's/eth0/enP2p4s0/' ../config.toml
-cargo run --release ../config.toml
+
+(env RUST_BACKTRACE=1 RUST_LOG=INFO cargo run --release ../config.toml | grep -v Measurement) &> /tmp/ingrain.log &
+sleep 3
+pkill -9 cargo
