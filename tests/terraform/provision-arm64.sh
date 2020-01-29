@@ -2,6 +2,7 @@
 
 set -e
 
+trap "kill 0" SIGINT
 apt-get update
 apt-get install -y \
     llvm llvm-9 libllvm9 llvm-9-dev clang libclang-9-dev clang-format-9 \
@@ -26,7 +27,6 @@ cd /home/ubuntu/ingraind
 sed -i 's/eth0/enP2p4s0/' ../config.toml
 
 cargo build --release
-(env RUST_BACKTRACE=1 RUST_LOG=INFO cargo run --release ../config.toml | grep -v Measurement) &> /tmp/ingrain.log &
+(env RUST_BACKTRACE=1 RUST_LOG=INFO cargo run --release ../config.toml | grep -v Measurement | tee /tmp/ingrain.log) &
 sleep 3
-pkill -9 cargo
-cat /tmp/ingrain.log
+kill -9 0

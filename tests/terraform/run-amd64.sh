@@ -7,5 +7,4 @@ terraform init -input=false
 terraform apply -target=null_resource.provision -input=false -auto-approve |tee test-output
 
 modules_loaded=$(<test-output awk -F': ' '/ingraind::grains::ebpf: Loaded/ { print $NF }' | sort)
-
-test "$modules_loaded" = $EXPECTED_RESULT
+test "$modules_loaded" = "$EXPECTED_RESULT"
