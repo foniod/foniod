@@ -97,14 +97,14 @@ fn trace_message(ctx: *mut c_void, direction: fn(Connection, u16) -> Message) ->
 #[inline(always)]
 pub fn conn_details(_ctx: *mut c_void) -> Option<Connection> {
     let pid_tgid = bpf_get_current_pid_tgid();
-    let socket = match unsafe { task_to_socket.get(pid_tgid) } {
-        Some(s) => *s,
+    let socket = unsafe { match task_to_socket.get(pid_tgid) {
+        Some(s) => &**s,
         None => return None,
-    };
+    }};
 
     let pid = (pid_tgid >> 32) as u32;
     let ts = bpf_ktime_get_ns();
-    let family = bpf_probe_read!(&(*socket).__sk_common.skc_family);
+    let family = socket.skc_family();
 
     let mut daddr = in6_addr {
         in6_u: in6_addr__bindgen_ty_1 {
@@ -118,23 +118,11 @@ pub fn conn_details(_ctx: *mut c_void) -> Option<Connection> {
     };
 
     if family as u32 == AF_INET6 {
-        daddr = bpf_probe_read!(&(*socket).__sk_common.skc_v6_daddr);
-        saddr = bpf_probe_read!(&(*socket).__sk_common.skc_v6_rcv_saddr);
+        daddr = socket.skc_v6_daddr();
+        saddr = socket.skc_v6_rcv_saddr();
     } else if family as u32 == AF_INET {
-        let dest = bpf_probe_read!(
-            &(*socket)
-                .__sk_common
-                .__bindgen_anon_1
-                .__bindgen_anon_1
-                .skc_daddr
-        );
-        let src = bpf_probe_read!(
-            &(*socket)
-                .__sk_common
-                .__bindgen_anon_1
-                .__bindgen_anon_1
-                .skc_rcv_saddr
-        );
+        let dest = socket.skc_daddr();
+        let src = socket.skc_rcv_saddr();
 
         daddr = in6_addr {
             in6_u: in6_addr__bindgen_ty_1 {
@@ -148,23 +136,11 @@ pub fn conn_details(_ctx: *mut c_void) -> Option<Connection> {
         };
     }
 
-    let dport = bpf_probe_read!(
-        &(*socket)
-            .__sk_common
-            .__bindgen_anon_3
-            .__bindgen_anon_1
-            .skc_dport
-    );
-    let sport = bpf_probe_read!(
-        &(*socket)
-            .__sk_common
-            .__bindgen_anon_3
-            .__bindgen_anon_1
-            .skc_num
-    );
+    let dport = socket.skc_dport();
+    let sport = socket.skc_num();
 
     let typ = {
-        let typ = bpf_probe_read!(&(*socket)._bitfield_1 as *const _ as *const u32);
+        let typ = bpf_probe_read!(&socket._bitfield_1 as *const _ as *const u32);
 
         (typ & SK_FL_PROTO_MASK) >> SK_FL_PROTO_SHIFT
     };
