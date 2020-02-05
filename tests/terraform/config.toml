@@ -8,18 +8,10 @@ pipelines = ["test"]
 type = "Files"
 monitor_dirs = ["/"]
 
-# The TCP4 grain will track outbound TCP/IPv4 connections, as well as
-# send/receive metrics about established connections
 [[probe]]
 pipelines = ["test"]
 [probe.config]
-type = "TCP4"
-
-# The UDP grain will track send/receive metrics about UDP/IPv4 connections.
-[[probe]]
-pipelines = ["test"]
-[probe.config]
-type = "UDP"
+type = "Network"
 
 [[probe]]
 pipelines = ["test"]

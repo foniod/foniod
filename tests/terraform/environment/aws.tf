@@ -3,12 +3,12 @@ terraform {
     bucket         = "redsift-labs-terraform-states"
     dynamodb_table = "terraform-locks"
     region         = "eu-west-2"
-    key            = "ingraind-test"
+    key            = "ingraind-test-infra"
   }
 }
 
 provider "aws" {
-  region = "eu-west-2"
+  region = "eu-west-1"
 }
 
 resource "aws_vpc" "ingraind" {
@@ -32,6 +32,7 @@ resource "aws_subnet" "ingraind" {
   cidr_block        = "172.16.10.0/24"
   map_public_ip_on_launch = true
 
+  availability_zone = "eu-west-1c"
   tags = {
     Environment = "ingraind-test"
   }
