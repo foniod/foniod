@@ -14,7 +14,9 @@ alias ssh_run="ssh -i ssh_key -o UserKnownHostsFile=/dev/null -o StrictHostKeyCh
 
 tar cz -C ../.. . | ssh_run tar xz -C /home/ubuntu/ingraind
 ssh_run -n sudo bash provision.sh || true
-ssh_run -n cat /tmp/ingrain.log   >test-output
+ssh_run -n grep -v Measurement /tmp/ingrain.log > test-output
+
+cat test-output
 
 modules_loaded=$(<test-output awk -F': ' '/ingraind::grains::ebpf: Loaded/ { print $NF }' | sort)
 test "$modules_loaded" = "$EXPECTED_RESULT"
