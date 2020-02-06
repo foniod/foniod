@@ -1,10 +1,15 @@
-use ::actix::prelude::*;
-use futures::Future;
+use actix::prelude::*;
+use rayon::prelude::*;
 
 use crate::backends::Message;
 use crate::metrics::Measurement;
 
-pub struct AddSystemDetails(String, String, Recipient<Message>);
+pub struct AddSystemDetails {
+    host: String,
+    kernel: String,
+    upstream: Recipient<Message>,
+}
+
 impl Actor for AddSystemDetails {
     type Context = Context<Self>;
 }
@@ -16,28 +21,34 @@ impl AddSystemDetails {
         let uts = uname().unwrap();
         let kernel = to_str(&uts.release).to_string();
 
-        AddSystemDetails(get_fqdn().unwrap(), kernel, upstream)
-            .start()
-            .recipient()
+        AddSystemDetails {
+            host: get_fqdn().unwrap(),
+            kernel,
+            upstream,
+        }
+        .start()
+        .recipient()
     }
+}
 
-    fn add_tags(&self, msg: &mut Measurement) {
-        msg.tags.insert("host".to_string(), self.0.clone());
-        msg.tags.insert("kernel".to_string(), self.1.clone());
-    }
+fn add_tags(msg: &mut Measurement, host: String, kernel: String) {
+    msg.tags.insert("host".to_string(), host);
+    msg.tags.insert("kernel".to_string(), kernel);
 }
 
 impl Handler<Message> for AddSystemDetails {
     type Result = ();
 
     fn handle(&mut self, mut msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
+        let host = self.host.clone();
+        let kernel = self.kernel.clone();
         match msg {
-            Message::List(ref mut ms) => for mut m in ms {
-                self.add_tags(&mut m);
-            },
-            Message::Single(ref mut m) => self.add_tags(m),
+            Message::List(ref mut ms) => ms
+                .par_iter_mut()
+                .for_each(move |m| add_tags(m, host.clone(), kernel.clone())),
+            Message::Single(ref mut m) => add_tags(m, host, kernel),
         }
 
-        ::actix::spawn(self.2.send(msg).map_err(|_| ()));
+        self.upstream.do_send(msg).unwrap();
     }
 }

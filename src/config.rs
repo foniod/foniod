@@ -5,7 +5,7 @@ use log::LevelFilter;
 
 use crate::aggregations::*;
 use crate::backends::*;
-use crate::grains::{self, dns, file, syscalls, tcpv4, tls, udp, osquery};
+use crate::grains::{self, dns, file, network, osquery, syscalls, tls};
 use crate::grains::{EBPFActor, EBPFGrain, EBPFProbe};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -45,13 +45,13 @@ pub struct Pipeline {
 #[serde(tag = "type")]
 pub enum Grain {
     Files(file::FilesConfig),
-    TCP4,
-    UDP,
+    Network,
     DNS(dns::DnsConfig),
     TLS(tls::TlsConfig),
     Syscall(syscalls::SyscallConfig),
     StatsD(grains::statsd::StatsdConfig),
-    Osquery(osquery::OsqueryConfig)
+    Osquery(osquery::OsqueryConfig),
+    Test(grains::test::TestProbeConfig),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -92,11 +92,19 @@ impl Backend {
     pub fn into_recipient(self) -> Recipient<Message> {
         match self {
             #[cfg(feature = "s3-backend")]
-            Backend::S3 => Actor::start_in_arbiter(&actix::Arbiter::new(), |_| s3::S3::new()).recipient(),
+            Backend::S3 => {
+                Actor::start_in_arbiter(&actix::Arbiter::new(), |_| s3::S3::new()).recipient()
+            }
             #[cfg(feature = "statsd-backend")]
-            Backend::StatsD(config) => Actor::start_in_arbiter(&actix::Arbiter::new(), |_| statsd::Statsd::new(config)).recipient(),
+            Backend::StatsD(config) => {
+                Actor::start_in_arbiter(&actix::Arbiter::new(), |_| statsd::Statsd::new(config))
+                    .recipient()
+            }
             #[cfg(feature = "http-backend")]
-            Backend::HTTP(config) => Actor::start_in_arbiter(&actix::Arbiter::new(), |_| http::HTTP::new(config)).recipient(),
+            Backend::HTTP(config) => {
+                Actor::start_in_arbiter(&actix::Arbiter::new(), |_| http::HTTP::new(config))
+                    .recipient()
+            }
             Backend::Console => console::Console.start().recipient(),
         }
     }
@@ -105,15 +113,25 @@ impl Backend {
 pub enum ProbeActor {
     EBPF(EBPFActor),
     StatsD(grains::statsd::Statsd),
-    Osquery(osquery::Osquery)
+    Osquery(osquery::Osquery),
+    Test(grains::test::TestProbe)
 }
 
 impl ProbeActor {
     pub fn start(self, io: &Arbiter) {
         match self {
-            ProbeActor::EBPF(a) => { Actor::start_in_arbiter(io, |_| a); },
-            ProbeActor::StatsD(a) => { Actor::start_in_arbiter(io, |_| a); }
-            ProbeActor::Osquery(a) => { a.start(); }
+            ProbeActor::EBPF(a) => {
+                Actor::start_in_arbiter(io, |_| a);
+            }
+            ProbeActor::StatsD(a) => {
+                Actor::start_in_arbiter(io, |_| a);
+            }
+            ProbeActor::Test(a) => {
+                Actor::start_in_arbiter(io, |_| a);
+            }
+            ProbeActor::Osquery(a) => {
+                a.start();
+            }
         };
     }
 }
@@ -121,17 +139,23 @@ impl ProbeActor {
 impl Grain {
     pub fn into_probe_actor(self, recipients: Vec<Recipient<Message>>) -> ProbeActor {
         match self {
-            Grain::StatsD(config) => ProbeActor::StatsD(grains::statsd::Statsd::with_config(config, recipients)),
-            Grain::Osquery(config) => ProbeActor::Osquery(osquery::Osquery::with_config(config, recipients)),
+            Grain::StatsD(config) => {
+                ProbeActor::StatsD(grains::statsd::Statsd::with_config(config, recipients))
+            }
+            Grain::Osquery(config) => {
+                ProbeActor::Osquery(osquery::Osquery::with_config(config, recipients))
+            }
+            Grain::Test(config) => {
+                ProbeActor::Test(grains::test::TestProbe::with_config(config, recipients))
+            }
             _ => {
-                    let probe: Box<dyn EBPFProbe> = match self {
-                        Grain::TCP4 => Box::new(tcpv4::TCP4.load().unwrap()),
-                        Grain::UDP => Box::new(udp::UDP.load().unwrap()),
-                        Grain::Files(config) => Box::new(file::Files(config).load().unwrap()),
-                        Grain::DNS(config) => Box::new(dns::DNS(config).load().unwrap()),
-                        Grain::TLS(config) => Box::new(tls::TLS(config).load().unwrap()),
-                        Grain::Syscall(config) => Box::new(syscalls::Syscall(config).load().unwrap()),
-                        _ => unreachable!()
+                let probe: Box<dyn EBPFProbe> = match self {
+                    Grain::Network => Box::new(network::Network.load().unwrap()),
+                    Grain::Files(config) => Box::new(file::Files(config).load().unwrap()),
+                    Grain::DNS(config) => Box::new(dns::DNS(config).load().unwrap()),
+                    Grain::TLS(config) => Box::new(tls::TLS(config).load().unwrap()),
+                    Grain::Syscall(config) => Box::new(syscalls::Syscall(config).load().unwrap()),
+                    _ => unreachable!(),
                 };
                 ProbeActor::EBPF(EBPFActor::new(probe, recipients))
             }
@@ -160,7 +184,7 @@ monitor_dirs = ["/"]
 [[probe]]
 pipelines = ["statsd", "http"]
 [probe.config]
-type = "TCP4"
+type = "Network"
 
 [[probe]]
 pipelines = ["statsd"]

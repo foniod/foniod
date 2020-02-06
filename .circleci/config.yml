@@ -10,32 +10,41 @@ commands:
             ./rustup.sh -y
             . /root/.cargo/env
             cat /root/.cargo/env >> $BASH_ENV
+            rustup default nightly
             rustup target add x86_64-unknown-linux-musl
             rustup component add rustfmt
   cargo_build:
     parameters:
+      type:
+        type: enum
+        enum: ["release", "debug"]
       flags:
         type: string
         default: ""
-      debug_binary:
-        type: string
-        default: "target/debug/ingraind"
-      release_binary:
+      binary:
         type: string
         default: "target/release/ingraind"
+      condition:
+        type: string
+        default: "true"
     steps:
       - run:
           name: Build
           command: |
-              mkdir /build/binaries
-              cargo build << parameters.flags >> || exit 1
-              cp << parameters.debug_binary >> /build/binaries/ingraind-debug
-              if [ ${CIRCLE_BRANCH} = "master" ]; then
+              mkdir -p /build/binaries
+              if ! << parameters.condition >>; then
+                exit 0;
+              fi
+              if [ "<< parameters.type >>" = "release" ]; then
                 cargo test << parameters.flags >> --release || exit 1
                 cargo build << parameters.flags >> --release || exit 1
-                cp << parameters.release_binary >> /build/binaries/ingraind
+                cp << parameters.binary >> /build/binaries/ingraind
+                sha256sum /build/binaries/ingraind
               else
                 cargo test << parameters.flags >> || exit 1
+                cargo build << parameters.flags >> || exit 1
+                cp << parameters.binary >> /build/binaries/ingraind-debug
+                sha256sum /build/binaries/ingraind-debug
               fi
       - store_artifacts:
           path: /build/binaries
@@ -58,8 +67,27 @@ jobs:
       - run:
           name: Deploy
           command: |
-            cd terraform
-            ./run-test.sh << parameters.ami >>
+            cd tests/terraform
+            ./run-amd64.sh << parameters.ami >>
+
+  terraform_arm:
+    parameters:
+      ami:
+        type: string
+        default: "ubuntu-arm64-1910"
+    working_directory: /build
+    docker:
+      - image: hashicorp/terraform:light
+    steps:
+      - checkout
+      - attach_workspace:
+          # Must be absolute path or relative path from working_directory
+          at: /tmp/workspace
+      - run:
+          name: Deploy
+          command: |
+            cd tests/terraform
+            ./run-arm64.sh << parameters.ami >>
 
   ubuntu:
     parameters:
@@ -70,6 +98,7 @@ jobs:
         type: string
         default: "$(uname -r)"
     working_directory: /build
+    resource_class: large
     docker:
       - image: ubuntu:<< parameters.tag >>
     steps:
@@ -78,17 +107,36 @@ jobs:
           at: /build
 
       - run:
-          name: Install deps
+          name: Install some deps
           command: |
             apt-get update
-            apt-get install -y curl clang llvm musl-tools capnproto libelf-dev linux-headers-<< parameters.kernel_version >> ca-certificates{,-java}
+            apt-get install -y curl wget gnupg2 software-properties-common lsb-release
+
+      - run:
+          name: Configure llvm 9 repo
+          command: |
+            curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+            add-apt-repository 'deb http://apt.llvm.org/bionic/   llvm-toolchain-bionic-9  main'
+
+      - run:
+          name: Install more deps
+          command: |
+            apt-get update
+            apt-get install -y clang llvm llvm-9 musl-tools capnproto libelf-dev linux-headers-<< parameters.kernel_version >> ca-certificates{,-java}
 
       - install_rust
 
       - cargo_build:
+          type: debug
           flags: --target=x86_64-unknown-linux-musl
-          debug_binary: target/x86_64-unknown-linux-musl/debug/ingraind
-          release_binary: target/x86_64-unknown-linux-musl/release/ingraind
+          binary: target/x86_64-unknown-linux-musl/debug/ingraind
+
+      - cargo_build:
+          type: release
+          # only do release builds for terraform workflows
+          condition: "[ -n \"$AWS_EC2_SSH_KEY_ID\" ]"
+          flags: --target=x86_64-unknown-linux-musl
+          binary: target/x86_64-unknown-linux-musl/release/ingraind
 
       - run:
           name: Persist binaries
@@ -106,8 +154,9 @@ jobs:
 
   fedora:
     working_directory: /build
+    resource_class: large
     docker:
-      - image: fedora:29
+      - image: fedora:31
     steps:
       - checkout
       - attach_workspace:
@@ -116,16 +165,25 @@ jobs:
       - run:
           name: Install deps
           command: |
-            yum install -y clang llvm capnproto kernel-4.18.16-300.fc29.x86_64 kernel-devel-4.18.16-300.fc29.x86_64 elfutils-libelf-devel ca-certificates
+            yum install -y clang-9.0.0 llvm-9.0.0 llvm-libs-9.0.0 llvm-devel-9.0.0 llvm-static-9.0.0 capnproto kernel kernel-devel elfutils-libelf-devel ca-certificates
 
       - install_rust
 
       - run:
-          name: Configure kernel version
+          name: Configure env vars
           command: |
-            echo export KERNEL_VERSION=4.18.16-300.fc29.x86_64 >> $BASH_ENV
+            echo export KERNEL_SOURCE=/usr/src/kernels/$(rpm -qa kernel-devel |cut -d- -f3-)/ >> $BASH_ENV
+            echo export LLC=llc >> $BASH_ENV
 
-      - cargo_build
+      - cargo_build:
+          type: debug
+          binary: target/debug/ingraind
+
+      - cargo_build:
+          type: release
+          # only do release builds for terraform workflows
+          condition: "[ -n \"$AWS_EC2_SSH_KEY_ID\" ]"
+          binary: target/release/ingraind
 
       - run:
           name: Persist binaries
@@ -133,7 +191,7 @@ jobs:
             mkdir -p /tmp/workspace/bin
             if [ ${CIRCLE_BRANCH} = "master" ]; then
               cp target/release/ingraind \
-                /tmp/workspace/bin/ingraind-fedora-29
+                /tmp/workspace/bin/ingraind-fedora-31
             fi
 
       - persist_to_workspace:
@@ -141,10 +199,95 @@ jobs:
           paths:
             - bin
 
-  build_docker_image:
-    environment:
-      CONTAINER_NAME: "quay.io/redsift/ingraind"
+  gke:
+    working_directory: /build
+    resource_class: large
+    docker:
+      - image: ubuntu
+    steps:
+      - checkout
 
+      - run:
+          name: Install some deps
+          command: |
+            apt-get update
+            apt-get install -y curl wget gnupg2 software-properties-common lsb-release
+
+      - run:
+          name: Configure llvm 9 repo
+          command: |
+            curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+            add-apt-repository 'deb http://apt.llvm.org/bionic/   llvm-toolchain-bionic-9  main'
+
+      - run:
+          name: Install more deps
+          command: |
+            apt-get update
+            apt-get install -y build-essential bc kmod cpio flex cpio libncurses5-dev
+            apt-get install -y clang llvm llvm-9 musl-tools capnproto libelf-dev ca-certificates{,-java}
+
+      - run:
+          name: Configure kernel tree
+          command: |
+            mkdir cos-kernel && cd cos-kernel
+            wget -O kernel.tgz https://chromium.googlesource.com/chromiumos/third_party/kernel/+archive/8549f18963962124c0f0d73667e59dbfc17c5218.tar.gz
+            tar -xf kernel.tgz
+            zcat /build/tests/gke/config-gke-4.14.138+.gz > .config
+            make olddefconfig
+            make prepare
+            echo export KERNEL_SOURCE=/build/cos-kernel >> $BASH_ENV
+            cd ..
+
+      - install_rust
+
+      - cargo_build:
+          type: debug
+          flags: --target=x86_64-unknown-linux-musl
+          binary: target/x86_64-unknown-linux-musl/debug/ingraind
+
+      - cargo_build:
+          type: release
+          flags: --target=x86_64-unknown-linux-musl
+          binary: target/x86_64-unknown-linux-musl/release/ingraind
+
+      - persist_to_workspace:
+          root: "./"
+          paths:
+            - "target/x86_64-unknown-linux-musl/release/ingraind"
+
+  run_test_gke:
+    environment:
+      GCLOUD_PROJECT: ingrain-playground
+      GCLOUD_PRIMARY_ZONE: europe-west1-b
+      GCLOUD_PRIMARY_CLUSTER: ingraind-test-cluster
+    working_directory: /build
+    docker:
+      - image: google/cloud-sdk:latest
+    steps:
+      - checkout
+      - run:
+          name: Setup credentials
+          command: |
+            if [ -z "$GCLOUD_SERVICE_KEY" ]; then
+              circleci-agent step halt
+            fi
+            gcloud auth activate-service-account --key-file <(echo ${GCLOUD_SERVICE_KEY})
+            gcloud config set project ${GCLOUD_PROJECT}
+            gcloud container clusters get-credentials ${GCLOUD_PRIMARY_CLUSTER} --zone ${GCLOUD_PRIMARY_ZONE}
+
+      - run:
+          name: Deploy
+          command: |
+            cd tests/gke
+            ./run-test.sh $DOCKER_IMAGE:${CIRCLE_SHA1:0:7}-gke
+
+  build_docker_image:
+    parameters:
+      binary:
+        type: string
+        default: "target/x86_64-unknown-linux-musl/release/ingraind"
+      tags:
+        type: string
     working_directory: /build
     resource_class: large
     docker:
@@ -154,34 +297,32 @@ jobs:
       - attach_workspace:
           at: /build
 
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - setup_remote_docker
 
       - run:
-          name: Login to a regsitry
+          name: Login to the registry
           command: |
-            echo ${QUAY_PASS} | docker login --username ${QUAY_USER} --password-stdin quay.io
+            echo ${DOCKER_PASSWORD} | docker login --username ${DOCKER_USERNAME} --password-stdin ${DOCKER_SERVER}
 
       - run:
           name: Build Docker image
           command: |
-            export TAG=${CIRCLE_TAG:-unknown}
-            export SHA=${CIRCLE_SHA1:0:7}
-
             cd /build
-            cp /build/target/x86_64-unknown-linux-musl/release/ingraind .
+            cp << parameters.binary >> .
             docker build --build-arg BINARY_PATH=./ingraind \
                    -f docker/Dockerfile.static \
-                   -t $CONTAINER_NAME:latest \
-                   -t $CONTAINER_NAME:$SHA \
+                   $(for tag in << parameters.tags >>; do
+                      echo -t $DOCKER_IMAGE:$tag
+                    done) \
                    /build
 
             echo "Total sizes"
-            docker images $CONTAINER_NAME
-            docker push $CONTAINER_NAME
+            docker images $DOCKER_IMAGE
+            docker push $DOCKER_IMAGE
 
   build_docker_binary:
     working_directory: /build
+    resource_class: large
     docker:
       - image: quay.io/redsift/ingraind-build:latest
     steps:
@@ -189,25 +330,28 @@ jobs:
       - attach_workspace:
           at: /build
 
-      - run:
-          name: Build static binary
-          command: |
-            cargo test --target=x86_64-unknown-linux-musl --release || exit 1
-            cargo build --target=x86_64-unknown-linux-musl --release || exit 1
+      - cargo_build:
+          type: debug
+          flags: --target=x86_64-unknown-linux-musl
+          binary: target/x86_64-unknown-linux-musl/debug/ingraind
+      
+      - cargo_build:
+          type: release
+          flags: --target=x86_64-unknown-linux-musl
+          binary: target/x86_64-unknown-linux-musl/release/ingraind
 
       - persist_to_workspace:
           root: "./"
           paths:
             - "target"
 
-      - store_artifacts:
-          path: /build/target/x86_64-unknown-linux-musl/release/ingraind
-          destination: ingraind
-
 workflows:
   version: 2.1
   build:
     jobs:
+      - terraform_arm:
+          name: 'terraform - ubuntu/arm64'
+
       - terraform:
           name: 'terraform - ubuntu 18.04'
           ami: 'ubuntu-1804'
@@ -219,10 +363,10 @@ workflows:
                 - master
 
       - terraform:
-          name: 'terraform - fedora 29'
-          ami: 'fedora-29'
+          name: 'terraform - fedora 31'
+          ami: 'fedora-31'
           requires:
-            - fedora 29
+            - fedora 31
           filters:
             branches:
               only:
@@ -233,14 +377,24 @@ workflows:
           tag: "18.04"
 
       - fedora:
-          name: "fedora 29"
+          name: "fedora 31"
 
-      - build_docker_binary:
-          filters:
-            branches:
-              only:
-                - master
-
+  build_image:
+    jobs:
+      - build_docker_binary
       - build_docker_image:
+          tags: latest ${CIRCLE_SHA1:0:7} ${CIRCLE_TAG}
           requires:
             - build_docker_binary
+
+  gke:
+    jobs:
+      - gke
+      - build_docker_image:
+          name: build gke image
+          tags: latest-gke ${CIRCLE_SHA1:0:7}-gke ${CIRCLE_TAG/%/-gke}
+          requires:
+            - gke
+      - run_test_gke:
+          requires:
+            - build gke image

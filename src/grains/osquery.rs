@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use actix::{Actor, AsyncContext, Context, Recipient};
 
+use crate::grains::SendToManyRecipients;
 use crate::backends::Message;
 use crate::metrics::{kind, Measurement, Tags, Unit};
 
@@ -147,9 +148,7 @@ impl Osquery {
             .map_err(|e| OsqueryError::IOError(e))?;
         let measurements = self.process_query_result(query, &output)?;
         let message = Message::List(measurements);
-        for recipient in &self.recipients {
-            recipient.do_send(message.clone()).unwrap();
-        }
+        self.recipients.do_send(message);
 
         Ok(())
     }

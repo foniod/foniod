@@ -6,8 +6,9 @@ use crate::grains::*;
 
 use failure::Error;
 use redbpf::{Module, VoidPtr};
+use redbpf::uname::get_kernel_internal_version;
 
-include!(concat!(env!("OUT_DIR"), "/syscall.rs"));
+use ingraind_probes::syscalls::SyscallTracepoint;
 
 type KSyms = HashMap<u64, String>;
 #[derive(Serialize, Deserialize, Debug)]
@@ -19,18 +20,23 @@ pub struct SyscallConfig {
 pub struct Syscall(pub SyscallConfig);
 
 #[cfg(target_arch = "x86_64")]
-const SYSCALL_PREFIX: &'static str = "__x64_sys_";
+const SYSCALL_PREFIX: &str = "__x64_sys_";
 
 #[cfg(target_arch = "aarch64")]
-const SYSCALL_PREFIX: &'static str = "__arm64_sys_";
+const SYSCALL_PREFIX: &str = "__arm64_sys_";
 
 impl EBPFProbe for Grain<Syscall> {
     fn attach(&mut self) -> MessageStreams {
+        let prefix = if get_kernel_internal_version().unwrap() >= 0x041100 {
+            SYSCALL_PREFIX
+        } else {
+            "sys_"
+        };
         let bind_to = self.native.0.monitor_syscalls.clone();
         bind_to
             .iter()
             .flat_map(|syscall| {
-                self.attach_kprobes_to_names(&format!("{}{}", SYSCALL_PREFIX, syscall))
+                self.attach_kprobes_to_names(&format!("{}{}", prefix, syscall))
             })
             .collect()
     }
@@ -38,7 +44,7 @@ impl EBPFProbe for Grain<Syscall> {
 
 impl EBPFGrain<'static> for Syscall {
     fn code() -> &'static [u8] {
-        include_bytes!(concat!(env!("OUT_DIR"), "/syscall.elf"))
+        include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/ingraind-probes/target/release/bpf-programs/syscalls/syscalls.elf"))
     }
 
     fn loaded(&mut self, module: &mut Module) {
@@ -58,7 +64,7 @@ impl EBPFGrain<'static> for Syscall {
     fn get_handler(&self, _id: &str) -> EventCallback {
         let ksyms = self.0.ksyms.clone().unwrap();
         Box::new(move |raw| {
-            let data = _data_syscall_tracepoint::from(raw);
+            let data = unsafe { std::ptr::read(raw.as_ptr() as *const SyscallTracepoint) };
             let mut tags = Tags::new();
 
             let syscall_name = ksyms[&data.syscall_nr].clone();
@@ -66,7 +72,7 @@ impl EBPFGrain<'static> for Syscall {
 
             tags.insert("process_id", data.id.to_string());
             tags.insert("process_str", crate::grains::to_string(
-                unsafe { &*(&data.comm as *const [c_char] as *const [u8]) }
+                unsafe { &*(&data.comm as *const [c_char]) }
             ));
 
             Some(Message::Single(Measurement::new(

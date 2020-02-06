@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingraind-config
+  namespace: default
+data:
+  ingrain-toml: |-
+    [log]
+    type = "EnvLogger"
+    log_level = "DEBUG"
+
+    [[probe]]
+    pipelines = ["staging"]
+    [probe.config]
+    type = "Files"
+    monitor_dirs = ["/root/rootfs"]
+
+    [[probe]]
+    pipelines = ["staging"]
+    [probe.config]
+    type = "Network"
+
+    [[probe]]
+    pipelines = ["staging"]
+    [probe.config]
+    type = "DNS"
+    interface = "eth0"
+    xdp_mode = "Skb"
+
+    [[probe]]
+    pipelines = ["staging"]
+    [probe.config]
+    type = "TLS"
+    interface = "eth0"
+
+    [[probe]]
+    pipelines = ["staging"]
+    [probe.config]
+    type = "Osquery"
+    interval_ms = 10000
+
+    [[probe.config.queries]]
+    query = "SELECT user_time, name as process_str from processes"
+    name = "process_user_time"
+    measurement = "user_time"
+    measurement_type = "count"
+    aggregation_type = "gauge"
+    run_at_start = true
+
+    [[probe.config.queries]]
+    query = "SELECT system_time, name as process_str from processes"
+    name = "process_system_time"
+    measurement = "system_time"
+    measurement_type = "count"
+    aggregation_type = "gauge"
+    run_at_start = true
+
+    [[probe.config.queries]]
+    query = "SELECT resident_size, total_size, name as process_str from processes"
+    name = "process_rss"
+    measurement = "resident_size"
+    measurement_type = "byte"
+    aggregation_type = "gauge"
+    run_at_start = true
+
+    [pipeline.staging.config]
+    backend = "Console"
+
+    [[pipeline.staging.steps]]
+    type = "AddSystemDetails"
+
+    [[pipeline.staging.steps]]
+    type = "Regex"
+    patterns = [{ key = "process_str", regex = "conn\\d+", replace_with = "docker_proxy"}]
+
+    [[pipeline.staging.steps]]
+    type = "Buffer"
+    enable_histograms = false
+    interval_s = 30

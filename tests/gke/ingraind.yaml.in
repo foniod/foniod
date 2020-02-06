@@ -1,0 +1,52 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  labels:
+    app: ingraind
+  name: ingraind
+spec:
+  selector:
+    matchLabels:
+      app: ingraind
+  template:
+    metadata:
+      labels:
+        app: ingraind
+      name: ingraind
+    spec:
+      hostNetwork: true
+      hostPID: true
+      containers:
+      - image: IMAGE
+        name: ingraind
+        terminationMessagePath: /dev/termination-log
+        env:
+        - name: RUST_BACKTRACE
+          value: "1"
+        - name: RUST_LOG
+          value: "ingraind=DEBUG"
+        volumeMounts:
+        - mountPath: /config
+          name: confd-config
+        - mountPath: /root/rootfs
+          name: hostroot
+        - mountPath: /sys
+          name: sysdir
+        securityContext:
+          privileged: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 5
+      volumes:
+      - hostPath:
+          path: /
+        name: hostroot
+      - hostPath:
+          path: /sys
+        name: sysdir
+      - name: confd-config
+        configMap:
+          name: ingraind-config
+          items:
+            - key: ingrain-toml
+              path: ingraind.toml

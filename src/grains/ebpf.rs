@@ -1,15 +1,16 @@
 use crate::backends::Message;
+use crate::grains::SendToManyRecipients;
 use crate::grains::ebpf_io::{
-    MessageStream, MessageStreams, PerfMessageStream, SocketMessageStream,
+    MessageStream, MessageStreams, PerfMessageStream, SocketMessageStream
 };
 
-use redbpf::cpus;
-use redbpf::{Module, PerfMap, Result};
+use redbpf::{cpus, xdp, Module, PerfMap, Result};
 
 use actix::{Actor, AsyncContext, Context, Recipient, Running, StreamHandler};
 use lazy_socket::raw::Socket;
 use std::io;
 use std::os::unix::io::FromRawFd;
+use std::convert::Into;
 
 pub struct Grain<T> {
     module: Module,
@@ -75,11 +76,11 @@ where
         self.bind_perf()
     }
 
-    pub fn attach_xdps(&mut self, iface: &str) -> MessageStreams {
+    pub fn attach_xdps(&mut self, iface: &str, flags: xdp::Flags) -> MessageStreams {
         use redbpf::ProgramKind::*;
         for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
             info!("Loaded: {}, {:?}", prog.name, prog.kind);
-            prog.attach_xdp(iface).unwrap();
+            prog.attach_xdp(iface, flags).unwrap();
         }
 
         self.bind_perf()
@@ -181,9 +182,7 @@ impl Actor for EBPFActor {
 impl StreamHandler<Vec<Message>, io::Error> for EBPFActor {
     fn handle(&mut self, mut messages: Vec<Message>, _ctx: &mut Context<Self>) {
         for message in messages.drain(..) {
-            for recipient in &self.recipients {
-                recipient.do_send(message.clone()).unwrap();
-            }
+            self.recipients.do_send(message);
         }
     }
 
@@ -191,4 +190,29 @@ impl StreamHandler<Vec<Message>, io::Error> for EBPFActor {
         error!("probe error: {}", err);
         Running::Continue
     }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum XdpMode {
+    Auto,
+    Skb,
+    Driver,
+    Hardware
+}
+
+impl Into<xdp::Flags> for XdpMode {
+    fn into(self) -> xdp::Flags {
+        use XdpMode::*;
+        use xdp::Flags::*;
+        match self {
+            Auto => xdp::Flags::default(),
+            Skb => SkbMode,
+            Driver => DrvMode,
+            Hardware => HwMode,
+        }
+    }
+}
+
+pub fn default_xdp_mode() -> XdpMode {
+    XdpMode::Auto
 }

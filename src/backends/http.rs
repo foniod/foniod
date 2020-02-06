@@ -1,19 +1,21 @@
 use std::collections::HashMap;
 
-use ::actix::prelude::*;
+use actix::prelude::*;
 use futures::{finished, Future};
 use hyper::{client::HttpConnector, header, Body, Client, HeaderMap, Method, Request, Uri};
 use hyper_rustls::HttpsConnector;
+use rayon::prelude::*;
 
-use crate::backends::encoders::{Encoder, Encoding};
+use crate::backends::encoders::Encoding;
 use crate::backends::Message;
 
 pub struct HTTP {
     headers: HeaderMap,
     uri: Uri,
     client: Client<HttpsConnector<HttpConnector>>,
-    encoder: Encoder,
-    content_type: String
+    encoding: Encoding,
+    content_type: String,
+    parallel_chunk_size: usize
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -22,6 +24,7 @@ pub struct HTTPConfig {
     headers: HashMap<String, String>,
     threads: Option<usize>,
     encoding: Option<Encoding>,
+    parallel_chunk_size: Option<usize>,
 }
 
 impl HTTP {
@@ -47,17 +50,19 @@ impl HTTP {
         let content_type = match &encoding {
             Encoding::JSON => "application/json",
             #[cfg(feature = "capnp-encoding")]
-            Encoding::Capnp => "application/octet-stream"
-        }.to_string();
+            Encoding::Capnp => "application/octet-stream",
+        }
+        .to_string();
 
-        let encoder = encoding.to_encoder();
+        let parallel_chunk_size = config.parallel_chunk_size.unwrap_or(0);
 
         HTTP {
             headers,
             client,
             uri,
-            encoder,
+            encoding,
             content_type,
+            parallel_chunk_size
         }
     }
 }
@@ -70,18 +75,36 @@ impl Handler<Message> for HTTP {
     type Result = ();
 
     fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
-        let mut req = Request::new(Body::from((self.encoder)(msg)));
-        *req.method_mut() = Method::POST;
-        *req.uri_mut() = self.uri.clone();
-        req.headers_mut().clone_from(&self.headers);
-        req.headers_mut()
-            .insert(header::CONTENT_TYPE, self.content_type.parse().unwrap());
+        let measurements = match msg {
+            Message::Single(m) => vec![m],
+            Message::List(ms) => ms,
+        };
 
-        ::actix::spawn(
-            self.client
-                .request(req)
-                .and_then(|_| finished(()))
-                .or_else(|_| finished(())),
-        );
+        let encoding = self.encoding;
+        let payloads: Vec<_> = if self.parallel_chunk_size > 0 {
+            measurements
+                .into_par_iter()
+                .chunks(self.parallel_chunk_size)
+                .map(|chunks| encoding.encode(&chunks))
+                .collect()
+        } else {
+            vec![encoding.encode(&measurements)]
+        };
+
+        for payload in payloads {
+            let mut req = Request::new(Body::from(payload));
+            *req.method_mut() = Method::POST;
+            *req.uri_mut() = self.uri.clone();
+            req.headers_mut().clone_from(&self.headers);
+            req.headers_mut()
+                .insert(header::CONTENT_TYPE, self.content_type.parse().unwrap());
+
+            actix::spawn(
+                self.client
+                    .request(req)
+                    .and_then(|_| finished(()))
+                    .or_else(|_| finished(())),
+            );
+        }
     }
 }

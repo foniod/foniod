@@ -8,6 +8,7 @@ use bytes::BytesMut;
 use tokio::codec;
 use tokio_udp::{UdpFramed, UdpSocket};
 
+use crate::grains::SendToManyRecipients;
 use crate::backends::Message;
 use crate::metrics::{kind, Measurement, Tags, Unit};
 
@@ -178,9 +179,7 @@ impl StreamHandler<(Vec<Metric>, SocketAddr), DecoderError> for Statsd {
         _ctx: &mut Context<Statsd>,
     ) {
         let message: Message = metrics.into();
-        for recipient in &self.recipients {
-            recipient.do_send(message.clone()).unwrap();
-        }
+        self.recipients.do_send(message);
     }
 
     fn error(&mut self, err: DecoderError, _ctx: &mut Self::Context) -> Running {

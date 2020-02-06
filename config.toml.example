@@ -34,18 +34,14 @@ pipelines = ["console"]
 type = "Files"
 monitor_dirs = ["/"]
 
-# The TCP4 grain will track outbound TCP/IPv4 connections, as well as
+# The Network grain will track outbound UDP and TCP connections, as well as
 # send/receive metrics about established connections
+# 
+# Supports both IPv6 and IPv4, and will log all inbound UDP traffic.
 [[probe]]
 pipelines = ["console"]
 [probe.config]
-type = "TCP4"
-
-# The UDP grain will track send/receive metrics about UDP/IPv4 connections.
-[[probe]]
-pipelines = ["console"]
-[probe.config]
-type = "UDP"
+type = "Network"
 
 # The DNS grain monitors _inbpound_ DNS traffic only.
 #

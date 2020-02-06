@@ -10,6 +10,10 @@
 #include <linux/types.h>
 #include <linux/version.h>
 
+#ifdef asm_inline
+#undef asm_inline
+#define asm_inline asm
+#endif
 #ifdef asm_volatile_goto
 #undef asm_volatile_goto
 #define asm_volatile_goto(x...) asm volatile("invalid use of asm_volatile_goto")
