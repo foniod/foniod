@@ -54,7 +54,7 @@ type = "Network"
 pipelines = ["console"]
 [probe.config]
 type = "DNS"
-interace = "eth0"
+interface = "eth0"
 
 # The TLS grain reports TLS ClientHello and ServerHello packets.
 
@@ -64,7 +64,7 @@ interace = "eth0"
 pipelines = ["console"]
 [probe.config]
 type = "TLS"
-interace = "eth0"
+interface = "eth0"
 
 # The Syscall grain allows tracking the frequency of specific system calls, system-wide.
 
