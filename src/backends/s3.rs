@@ -37,7 +37,10 @@ impl Handler<Message> for S3 {
     type Result = ();
 
     fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
-        let body = super::encoders::to_json(msg).into();
+        let body = match msg {
+	    Message::Single(m) => super::encoders::to_json(&vec![m]).into(),
+	    Message::List(ref ms) => super::encoders::to_json(ms).into(),
+	};
 
         ::actix::spawn(
             self.client
