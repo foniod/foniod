@@ -172,6 +172,15 @@ backend = "S3"
 [[pipeline.s3.steps]]
 type = "AddSystemDetails"
 
+# The Exec aggregator will execute a command with the specified
+# arguments for every event hitting the pipeline.
+#
+# Using the `{ tag_name }` syntax, the value of a tag can be substituted 
+[[pipeline.s3.steps]]
+type = "Exec"
+command = "kill"
+arguments = ["-9", "{ process_id }"]
+
 # The Whitelist filter will only preserve tags with the listed keys for a metric
 # record.
 [[pipeline.s3.steps]]
