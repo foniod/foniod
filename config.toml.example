@@ -176,10 +176,15 @@ type = "AddSystemDetails"
 # arguments for every event hitting the pipeline.
 #
 # Using the `{ tag_name }` syntax, the value of a tag can be substituted 
+#
+# If the `only_if` block is supplied, the ALL of the listed conditions
+# need to match to execute the command (AND relationship)
 [[pipeline.s3.steps]]
 type = "Exec"
-command = "kill"
-arguments = ["-9", "{ process_id }"]
+arguments = ["kill", "-9", "{ process_id }"]
+only_if = [
+  { key = "some_key", regex = "prefix.*" }
+]
 
 # The Whitelist filter will only preserve tags with the listed keys for a metric
 # record.
