@@ -7,6 +7,7 @@ edition = '2018'
 cty = "0.2"
 redbpf-macros = { git = "https://github.com/redsift/redbpf" }
 redbpf-probes = { git = "https://github.com/redsift/redbpf" }
+memoffset = "0.5.3"
 
 [build-dependencies]
 bindgen = "0.51.1"
@@ -32,4 +33,9 @@ required-features = ["probes"]
 [[bin]]
 name = "network"
 path = "src/network/main.rs"
+required-features = ["probes"]
+
+[[bin]]
+name = "tls"
+path = "src/tls/main.rs"
 required-features = ["probes"]
