@@ -1,13 +1,16 @@
 #![allow(non_camel_case_types)]
 
 use std::cmp::min;
+use std::ffi::CStr;
 use std::fs::metadata;
-use std::os::unix::fs::MetadataExt;
 use std::os::raw::c_char;
+use std::os::unix::fs::MetadataExt;
 
 use redbpf::{Module, VoidPtr};
 
 use crate::grains::*;
+
+use ingraind_probes::file::{Access, FileAccess as RawFileAccess};
 
 include!(concat!(env!("OUT_DIR"), "/file.rs"));
 
@@ -40,7 +43,10 @@ impl EBPFProbe for Grain<Files> {
 
 impl EBPFGrain<'static> for Files {
     fn code() -> &'static [u8] {
-        include_bytes!(concat!(env!("OUT_DIR"), "/file.elf"))
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/ingraind-probes/target/release/bpf-programs/file/file.elf"
+        ))
     }
 
     fn loaded(&mut self, module: &mut Module) {
@@ -61,7 +67,8 @@ impl EBPFGrain<'static> for Files {
 
     fn get_handler(&self, _id: &str) -> EventCallback {
         Box::new(move |raw| {
-            let file = FileAccess::from(_data_volume::from(raw));
+            let raw_access = unsafe { std::ptr::read(raw.as_ptr() as *const RawFileAccess) };
+            let file = FileAccess::from(raw_access);
             let name = format!("file.{}", if file.write > 0 { "write" } else { "read" });
             let vol = if file.write > 0 {
                 file.write
@@ -79,30 +86,34 @@ impl EBPFGrain<'static> for Files {
     }
 }
 
-impl From<_data_volume> for FileAccess {
-    fn from(data: _data_volume) -> FileAccess {
-        let ino = data.file.path[0].ino;
-        let mut path_segments = data.file.path.to_vec();
-        path_segments.reverse();
-        let path = path_segments
+impl From<RawFileAccess> for FileAccess {
+    fn from(raw: RawFileAccess) -> FileAccess {
+        let segments = raw.paths.0.to_vec();
+        let path = segments
             .iter()
-            .map(|s| {
-                let namebuf = unsafe { &*(&s.name as *const [c_char]) };
-                let len = min(s.name.len(), s.nlen as usize) as usize;
-                to_string(&namebuf[0..len as usize])
+            .rev()
+            .map(|s| unsafe {
+                CStr::from_ptr(s.name.as_ptr() as *const i8)
+                    .to_string_lossy()
+                    .into_owned()
             })
             .collect::<Vec<String>>()
             .join("/")
             .trim_start_matches('/')
             .to_string();
 
+        let (read, write) = match raw.access {
+            Access::Read(s) => (s, 0),
+            Access::Write(s) => (0, s),
+        };
+
         FileAccess {
-            id: data.file.id,
-            process: to_string(unsafe { &*(&data.file.comm as *const [c_char]) }),
+            id: raw.tid as u64,
+            process: to_string(unsafe { &*(&raw.comm as *const [c_char]) }),
             path,
-            ino,
-            read: data.read,
-            write: data.write,
+            ino: raw.inode,
+            read,
+            write,
         }
     }
 }

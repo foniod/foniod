@@ -39,3 +39,8 @@ required-features = ["probes"]
 name = "tls"
 path = "src/tls/main.rs"
 required-features = ["probes"]
+
+[[bin]]
+name = "file"
+path = "src/file/main.rs"
+required-features = ["probes"]
