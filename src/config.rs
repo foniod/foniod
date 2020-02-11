@@ -71,9 +71,10 @@ pub enum Backend {
 pub enum Aggregator {
     AddSystemDetails,
     Buffer(BufferConfig),
+    Container(ContainerConfig),
+    Exec(ExecConfig),
     Regex(RegexConfig),
     Whitelist(WhitelistConfig),
-    Container(ContainerConfig),
 }
 
 impl Aggregator {
@@ -81,9 +82,10 @@ impl Aggregator {
         match self {
             Aggregator::AddSystemDetails => AddSystemDetails::launch(upstream),
             Aggregator::Buffer(config) => Buffer::launch(config, upstream),
+            Aggregator::Container(config) => Container::launch(config, upstream),
+            Aggregator::Exec(config) => Exec::launch(config, upstream),
             Aggregator::Regex(config) => Regex::launch(config, upstream),
             Aggregator::Whitelist(config) => Whitelist::launch(config, upstream),
-            Aggregator::Container(config) => Container::launch(config, upstream),
         }
     }
 }

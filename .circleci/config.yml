@@ -351,6 +351,10 @@ workflows:
     jobs:
       - terraform_arm:
           name: 'terraform - ubuntu/arm64'
+          filters:
+            branches:
+              only:
+                - master
 
       - terraform:
           name: 'terraform - ubuntu 18.04'
