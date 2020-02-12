@@ -1,3 +1,4 @@
+
 #![allow(non_camel_case_types)]
 
 use std::cmp::min;
@@ -11,8 +12,6 @@ use redbpf::{Module, VoidPtr};
 use crate::grains::*;
 
 use ingraind_probes::file::{Access, FileAccess as RawFileAccess};
-
-include!(concat!(env!("OUT_DIR"), "/file.rs"));
 
 type ino_t = u64;
 
@@ -37,6 +36,7 @@ pub struct FileAccess {
 
 impl EBPFProbe for Grain<Files> {
     fn attach(&mut self) -> MessageStreams {
+
         self.attach_kprobes()
     }
 }
@@ -52,15 +52,12 @@ impl EBPFGrain<'static> for Files {
     fn loaded(&mut self, module: &mut Module) {
         let actionlist = find_map_by_name(module, "actionlist");
 
-        let mut record = _data_action {
-            action: ACTION_RECORD,
-        };
-
+        let mut record = ACTION_RECORD;
         for dir in self.0.monitor_dirs.iter() {
             let mut ino = metadata(dir).unwrap().ino();
             actionlist.set(
                 &mut ino as *mut ino_t as VoidPtr,
-                &mut record as *mut _data_action as VoidPtr,
+                &mut record as *mut _ as VoidPtr,
             );
         }
     }
