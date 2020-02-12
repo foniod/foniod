@@ -1,0 +1,6 @@
+[Unit]
+Description=InGRAINd data collection agent
+Requires=network.service
+
+[Service]
+ExecStart=/usr/local/bin/ingraind /etc/ingraind/ingraind.toml

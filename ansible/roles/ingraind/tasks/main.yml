@@ -1,0 +1,48 @@
+---
+- assert:
+    that:
+    - "ingraind_circleci_url is defined"
+    - "ingraind_http_api_key is defined"
+    - "ingraind_http_uri is defined"
+    - "ingraind_circleci_sha256 is defined"
+
+- name: Pull InGRAINd
+  get_url:
+    dest: "/usr/local/bin/ingraind"
+    url: "{{ ingraind_circleci_url }}"
+    checksum: "{{ ingraind_circleci_sha256 }}"
+    mode: 0755
+  notify:
+  - restart ingraind
+
+- name: Install Osquery
+  command: |
+    curl -L https://pkg.osquery.io/rpm/GPG | sudo tee /etc/pki/rpm-gpg/RPM-GPG-KEY-osquery
+    yum-config-manager --add-repo https://pkg.osquery.io/rpm/osquery-s3-rpm.repo
+    yum-config-manager --enable osquery-s3-rpm
+    yum install osquery
+  ignore_errors: yes
+  when: ansible_facts['distribution'] in ['CentOS', 'Red Hat Enterprise Linux']
+
+- name: Install Osquery
+  command: |
+    export OSQUERY_KEY=1484120AC4E9F8A1A577AEEE97A80C63C9D8B80B
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys $OSQUERY_KEY
+    add-apt-repository 'deb [arch=amd64] https://pkg.osquery.io/deb deb main'
+    apt-get update
+    apt-get install osquery
+  ignore_errors: yes
+  when: ansible_facts['distribution'] in ['Debian', 'Ubuntu']
+
+- name: Configure InGRAINd
+  file:
+    path: /etc/ingraind
+    state: directory
+    mode: 0755
+
+- template: src="{{ item }}.j2" dest="/{{ item }}"
+  loop:
+  - etc/ingraind/ingraind.toml
+  - etc/systemd/system/ingraind.service
+  notify:
+  - restart ingraind

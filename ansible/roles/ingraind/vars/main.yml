@@ -1,0 +1,5 @@
+---
+ingraind_circleci_url: https://930-130035428-gh.circle-artifacts.com/0/ingraind-binaries/ingraind
+ingraind_circleci_sha256: sha256:413ceda9ce8320867aa90ecb8aa220d3b4aadd82ea7d6ba4e05e6e7f9042e0dd
+ingraind_http_api_key: example
+ingraind_http_uri: https://uri/to/path

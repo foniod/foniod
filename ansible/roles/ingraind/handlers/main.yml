@@ -1,0 +1,6 @@
+- name: restart ingraind
+  systemd: 
+    name: ingraind.service
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
