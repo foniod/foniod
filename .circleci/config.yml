@@ -319,7 +319,7 @@ jobs:
             docker images $DOCKER_IMAGE
             docker push $DOCKER_IMAGE
 
-  build_docker_binary:
+  centos7:
     working_directory: /build
     resource_class: large
     docker:
@@ -382,15 +382,15 @@ workflows:
       - fedora:
           name: "fedora 31"
 
-  build_image:
+  centos7_docker:
     jobs:
-      - build_docker_binary
+      - centos7
       - build_docker_image:
-          tags: latest ${CIRCLE_SHA1:0:7} ${CIRCLE_TAG}
+          tags: latest-centos7 ${CIRCLE_SHA1:0:7}-centos7 ${CIRCLE_TAG/%/-centos7}
           requires:
-            - build_docker_binary
+            - centos7
 
-  gke:
+  gke_docker:
     jobs:
       - gke
       - build_docker_image:
