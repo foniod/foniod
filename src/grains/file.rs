@@ -90,7 +90,7 @@ impl From<RawFileAccess> for FileAccess {
             .iter()
             .rev()
             .map(|s| unsafe {
-                CStr::from_ptr(s.name.as_ptr() as *const i8)
+                CStr::from_ptr(s.name.as_ptr() as *const c_char)
                     .to_string_lossy()
                     .into_owned()
             })
