@@ -310,7 +310,6 @@ jobs:
             cd /build
             cp << parameters.binary >> .
             docker build --build-arg BINARY_PATH=./ingraind \
-                   -f docker/Dockerfile.static \
                    $(for tag in << parameters.tags >>; do
                       echo -t $DOCKER_IMAGE:$tag
                     done) \
