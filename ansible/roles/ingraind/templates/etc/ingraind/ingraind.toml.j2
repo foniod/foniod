@@ -1,0 +1,74 @@
+[log]
+type = "EnvLogger"
+log_level = "ERROR"
+
+[[probe]]
+pipelines = ["prod"]
+[probe.config]
+type = "Files"
+monitor_dirs = ["/"]
+
+[[probe]]
+pipelines = ["prod"]
+[probe.config]
+type = "Network"
+
+[[probe]]
+pipelines = ["prod"]
+[probe.config]
+type = "DNS"
+interface = "eth0"
+
+[[probe]]
+pipelines = ["prod"]
+[probe.config]
+type = "TLS"
+interface = "eth0"
+
+[[probe]]
+pipelines = ["prod"]
+[probe.config]
+type = "Osquery"
+interval_ms = 10000
+
+[[probe.config.queries]]
+query = "SELECT user_time, name as process_str, pid as process_id from processes"
+name = "process_user_time"
+measurement = "user_time"
+measurement_type = "count"
+run_at_start = true
+
+[[probe.config.queries]]
+query = "SELECT system_time, name as process_str, pid as process_id from processes"
+name = "process_system_time"
+measurement = "system_time"
+measurement_type = "count"
+run_at_start = true
+
+[[probe.config.queries]]
+query = "SELECT resident_size, total_size, name as process_str, pid as process_id from processes"
+name = "process_rss"
+measurement = "resident_size"
+measurement_type = "count"
+run_at_start = true
+
+[pipeline.prod.config]
+backend = "HTTP"
+encoding = "JSON"
+uri = "{{ ingraind_http_uri }}"
+headers = { authorization = "API-Key {{ ingraind_http_api_key }}", "redsift-account" = "header" }
+
+[[pipeline.prod.steps]]
+type = "Container"
+
+[[pipeline.prod.steps]]
+type = "AddSystemDetails"
+
+[[pipeline.prod.steps]]
+type = "Regex"
+patterns = [{ key = "process_str", regex = "conn\\d+", replace_with = "docker_proxy"}]
+
+[[pipeline.prod.steps]]
+type = "Buffer"
+enable_histograms = false
+interval_s = 10
