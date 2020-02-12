@@ -123,7 +123,7 @@ fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
         }; PATH_LIST_LEN],
     );
 
-    let mut record = false;
+    let mut policy = None;
     for i in 0..PATH_LIST_LEN {
         if dentry.is_null() {
             break;
@@ -137,18 +137,9 @@ fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
 
         // a nested policy overrides a parent one, eg: you can watch /etc/passwd
         // but ignore everyting else in /etc
-        if !record {
-            use InodePolicy::*;
-            match policy_for_inode(unsafe { &*inode }.i_ino()) {
-                NoPolicy => (),
-                Record => record = true,
-                Ignore => {
-                    record = false;
-                    break;
-                }
-
-            }
-        }
+        if let Some(p) = policy_for_inode(unsafe { &*inode }.i_ino()) {
+            policy.get_or_insert(p);
+        };
 
         let segment = &mut path_list.0[i];
         let read = unsafe {
@@ -169,25 +160,24 @@ fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
         dentry = tmp;
     }
 
-    if record {
-        Some(path_list)
-    } else {
-        None
+    match policy {
+        Some(InodePolicy::Record) => Some(path_list),
+        _ => None
     }
 }
 
 enum InodePolicy {
-    NoPolicy,
     Record,
     Ignore
 }
 
-fn policy_for_inode(inode: u64) -> InodePolicy {
+#[inline]
+fn policy_for_inode(inode: u64) -> Option<InodePolicy> {
     use InodePolicy::*;
 
     match unsafe { actionlist.get(inode) } {
-        Some(0) => Ignore,
-        Some(1) => Record,
-        _ => NoPolicy
+        Some(0) => Some(Ignore),
+        Some(1) => Some(Record),
+        _ => None
     }
 }
