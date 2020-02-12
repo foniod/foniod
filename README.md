@@ -38,25 +38,35 @@ This is what `curl https://redsift.com` looks like if seen through ingraind:
 
 The usual Rust compilation ritual will produce a binary in `target/release`:
 
-    cargo build --release
+    $ cargo build --release
 
 or for a kernel version other than the running one:
 
-    env KERNEL_VERSION=1.2.3 cargo build --release
+    $ export KERNEL_VERSION=1.2.3
+	$ cargo build --release
 
 or with a custom kernel tree path (needs to include generated files):
 
-    env KERNEL_SOURCE=/build/linux cargo build --release
+    $ export KERNEL_SOURCE=/build/linux
+	$ cargo build --release
+	
+We keep `ingraind` compatible with the `musl` target on `x86_64`,
+which you can build like so:
 
-## Build a docker image
+	$ cargo build --release --target=x86_64-unknown-linux-musl
 
-To build a Docker image, make sure the `kernel` directory is populated with
-the source tree of the target kernel.
+## Build a docker image
 
-The resulting container is tagged `ingraind` by default, but you can set
-additional tags or pass `docker` flags like so:
+To build a Docker image, use the instructions above to build an
+ingrain binary for the desired kernel. By default, the Dockerfile will
+assume you've built `ingraind` for the `musl` target.
 
-    docker/build.sh -t ingraind:$(git rev-parse HEAD | cut -c-7)
+    $ docker build .
+
+You can specify an arbitrary `ingraind` binary by setting the
+`BINARY_PATH` environment variable:
+
+    $ docker build --build-arg BINARY_PATH=./target/x86_64-unknown-linux-musl/release/ingraind .
 
 ## Configuration & Run
 
@@ -66,7 +76,7 @@ wiki or take a look at the [example config](./config.toml.example) for a full re
 
 To start `ingraind`, run:
 
-    ./target/release/ingraind config.toml
+    $ ./target/release/ingraind config.toml
 
 Depending on the backends used in the config file, some secrets may need to be
 passed as environment variables. These are documented in
