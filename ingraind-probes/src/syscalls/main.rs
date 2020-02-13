@@ -19,7 +19,7 @@ static mut syscall_event: PerfMap<SyscallTracepoint> = PerfMap::with_max_entries
 static mut host_pid: HashMap<u8, u64> = HashMap::with_max_entries(1024);
 
 #[kprobe("__x64_sys_clone")]
-pub extern "C" fn syscall_enter(regs: Registers) -> i32 {
+pub fn syscall_enter(regs: Registers) -> i32 {
   let ignore_pid = unsafe { host_pid.get(1u8) };
   let pid_tgid = bpf_get_current_pid_tgid();
   if let Some(pid) = ignore_pid {

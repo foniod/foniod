@@ -37,7 +37,7 @@ static mut files: HashMap<u64, *const file> = HashMap::with_max_entries(10240);
 static mut rw: PerfMap<FileAccess> = PerfMap::with_max_entries(1024);
 
 #[kprobe("vfs_read")]
-pub extern "C" fn trace_read_entry(regs: Registers) -> i32 {
+pub fn trace_read_entry(regs: Registers) -> i32 {
     let tid = bpf_get_current_pid_tgid();
     unsafe {
         let f = regs.parm1() as *const file;
@@ -48,13 +48,13 @@ pub extern "C" fn trace_read_entry(regs: Registers) -> i32 {
 }
 
 #[kretprobe("vfs_read")]
-pub extern "C" fn trace_read_exit(regs: Registers) -> i32 {
+pub fn trace_read_exit(regs: Registers) -> i32 {
     track_file_access(regs, AccessType::Read);
     0
 }
 
 #[kprobe("vfs_write")]
-pub extern "C" fn trace_write_entry(regs: Registers) -> i32 {
+pub fn trace_write_entry(regs: Registers) -> i32 {
     let tid = bpf_get_current_pid_tgid();
     unsafe {
         let f = regs.parm1() as *const file;
@@ -65,7 +65,7 @@ pub extern "C" fn trace_write_entry(regs: Registers) -> i32 {
 }
 
 #[kretprobe("vfs_write")]
-pub extern "C" fn trace_write_exit(regs: Registers) -> i32 {
+pub fn trace_write_exit(regs: Registers) -> i32 {
     track_file_access(regs, AccessType::Write);
     0
 }

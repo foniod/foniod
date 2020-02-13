@@ -26,12 +26,12 @@ static mut ip_connections: PerfMap<Connection> = PerfMap::with_max_entries(1024)
 static mut ip_volumes: PerfMap<Message> = PerfMap::with_max_entries(1024);
 
 #[kprobe("tcp_v4_connect")]
-pub extern "C" fn connect_enter(regs: Registers) -> i32 {
+pub fn connect_enter(regs: Registers) -> i32 {
     store_socket(regs)
 }
 
 #[kretprobe("tcp_v4_connect")]
-pub extern "C" fn connect(regs: Registers) -> i32
+pub fn connect(regs: Registers) -> i32
 {
     match conn_details(regs) {
         Some(c) => unsafe {
@@ -43,32 +43,32 @@ pub extern "C" fn connect(regs: Registers) -> i32
 }
 
 #[kprobe("tcp_sendmsg")]
-pub extern "C" fn send_enter(regs: Registers) -> i32 {
+pub fn send_enter(regs: Registers) -> i32 {
     store_socket(regs)
 }
 
 #[kretprobe("tcp_sendmsg")]
-pub extern "C" fn send_exit(regs: Registers) -> i32 {
+pub fn send_exit(regs: Registers) -> i32 {
     trace_message(regs, Message::Send)
 }
 
 #[kprobe("tcp_recvmsg")]
-pub extern "C" fn recv_enter(regs: Registers) -> i32 {
+pub fn recv_enter(regs: Registers) -> i32 {
     store_socket(regs)
 }
 
 #[kretprobe("tcp_recvmsg")]
-pub extern "C" fn recv_exit(regs: Registers) -> i32 {
+pub fn recv_exit(regs: Registers) -> i32 {
     trace_message(regs, Message::Receive)
 }
 
 #[kprobe("udp_sendmsg")]
-pub extern "C" fn udp_send_enter(regs: Registers) -> i32 {
+pub fn udp_send_enter(regs: Registers) -> i32 {
     trace_message(regs, Message::Send)
 }
 
 #[kprobe("udp_rcv")]
-pub extern "C" fn udp_rcv_enter(regs: Registers) -> i32 {
+pub fn udp_rcv_enter(regs: Registers) -> i32 {
     trace_message(regs, Message::Receive)
 }
 
