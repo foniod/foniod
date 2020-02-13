@@ -11,7 +11,7 @@ use redbpf_probes::socket_filter::{SkBuff, SkBuffAction, SkBuffResult};
 program!(0xFFFFFFFE, "GPL");
 
 #[socket_filter("tls_handshake")]
-pub extern "C" fn tls_handshake(skb: SkBuff) -> SkBuffResult {
+pub fn tls_handshake(skb: SkBuff) -> SkBuffResult {
     let eth_len = mem::size_of::<ethhdr>();
     let mut eth_proto: u16 = skb.load(offset_of!(ethhdr, h_proto))?;
     let ip_proto: u8 = skb.load(eth_len + offset_of!(iphdr, protocol))?;

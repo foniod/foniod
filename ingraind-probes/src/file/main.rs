@@ -37,44 +37,35 @@ static mut files: HashMap<u64, *const file> = HashMap::with_max_entries(10240);
 static mut rw: PerfMap<FileAccess> = PerfMap::with_max_entries(1024);
 
 #[kprobe("vfs_read")]
-pub extern "C" fn trace_read_entry(ctx: *mut c_void) -> i32 {
-    let regs = Registers::from(ctx);
+pub fn trace_read_entry(regs: Registers) {
     let tid = bpf_get_current_pid_tgid();
     unsafe {
         let f = regs.parm1() as *const file;
         files.set(tid, f);
     }
-
-    0
 }
 
 #[kretprobe("vfs_read")]
-pub extern "C" fn trace_read_exit(ctx: *mut c_void) -> i32 {
-    track_file_access(ctx, AccessType::Read);
-    0
+pub fn trace_read_exit(regs: Registers) {
+    track_file_access(regs, AccessType::Read);
 }
 
 #[kprobe("vfs_write")]
-pub extern "C" fn trace_write_entry(ctx: *mut c_void) -> i32 {
-    let regs = Registers::from(ctx);
+pub fn trace_write_entry(regs: Registers) {
     let tid = bpf_get_current_pid_tgid();
     unsafe {
         let f = regs.parm1() as *const file;
         files.set(tid, f);
     }
-
-    0
 }
 
 #[kretprobe("vfs_write")]
-pub extern "C" fn trace_write_exit(ctx: *mut c_void) -> i32 {
-    track_file_access(ctx, AccessType::Write);
-    0
+pub fn trace_write_exit(regs: Registers) {
+    track_file_access(regs, AccessType::Write);
 }
 
 #[inline]
-fn track_file_access(ctx: *mut c_void, access_type: AccessType) -> Result<(), ()> {
-    let regs = Registers::from(ctx);
+fn track_file_access(regs: Registers, access_type: AccessType) -> Result<(), ()> {
     let tid = bpf_get_current_pid_tgid();
 
     let size = regs.rc() as usize;
@@ -109,7 +100,7 @@ fn track_file_access(ctx: *mut c_void, access_type: AccessType) -> Result<(), ()
     };
 
     unsafe {
-        rw.insert(ctx, event);
+        rw.insert(regs.ctx, event);
     }
 
     Ok(())
@@ -162,13 +153,13 @@ fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
 
     match policy {
         Some(InodePolicy::Record) => Some(path_list),
-        _ => None
+        _ => None,
     }
 }
 
 enum InodePolicy {
     Record,
-    Ignore
+    Ignore,
 }
 
 #[inline]
@@ -178,6 +169,6 @@ fn policy_for_inode(inode: u64) -> Option<InodePolicy> {
     match unsafe { actionlist.get(inode) } {
         Some(0) => Some(Ignore),
         Some(1) => Some(Record),
-        _ => None
+        _ => None,
     }
 }
