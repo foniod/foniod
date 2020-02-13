@@ -37,37 +37,31 @@ static mut files: HashMap<u64, *const file> = HashMap::with_max_entries(10240);
 static mut rw: PerfMap<FileAccess> = PerfMap::with_max_entries(1024);
 
 #[kprobe("vfs_read")]
-pub fn trace_read_entry(regs: Registers) -> i32 {
+pub fn trace_read_entry(regs: Registers) {
     let tid = bpf_get_current_pid_tgid();
     unsafe {
         let f = regs.parm1() as *const file;
         files.set(tid, f);
     }
-
-    0
 }
 
 #[kretprobe("vfs_read")]
-pub fn trace_read_exit(regs: Registers) -> i32 {
+pub fn trace_read_exit(regs: Registers) {
     track_file_access(regs, AccessType::Read);
-    0
 }
 
 #[kprobe("vfs_write")]
-pub fn trace_write_entry(regs: Registers) -> i32 {
+pub fn trace_write_entry(regs: Registers) {
     let tid = bpf_get_current_pid_tgid();
     unsafe {
         let f = regs.parm1() as *const file;
         files.set(tid, f);
     }
-
-    0
 }
 
 #[kretprobe("vfs_write")]
-pub fn trace_write_exit(regs: Registers) -> i32 {
+pub fn trace_write_exit(regs: Registers) {
     track_file_access(regs, AccessType::Write);
-    0
 }
 
 #[inline]
@@ -159,13 +153,13 @@ fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
 
     match policy {
         Some(InodePolicy::Record) => Some(path_list),
-        _ => None
+        _ => None,
     }
 }
 
 enum InodePolicy {
     Record,
-    Ignore
+    Ignore,
 }
 
 #[inline]
@@ -175,6 +169,6 @@ fn policy_for_inode(inode: u64) -> Option<InodePolicy> {
     match unsafe { actionlist.get(inode) } {
         Some(0) => Some(Ignore),
         Some(1) => Some(Record),
-        _ => None
+        _ => None,
     }
 }

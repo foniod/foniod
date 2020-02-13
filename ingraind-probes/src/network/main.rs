@@ -26,80 +26,73 @@ static mut ip_connections: PerfMap<Connection> = PerfMap::with_max_entries(1024)
 static mut ip_volumes: PerfMap<Message> = PerfMap::with_max_entries(1024);
 
 #[kprobe("tcp_v4_connect")]
-pub fn connect_enter(regs: Registers) -> i32 {
+pub fn connect_enter(regs: Registers) {
     store_socket(regs)
 }
 
 #[kretprobe("tcp_v4_connect")]
-pub fn connect(regs: Registers) -> i32
-{
-    match conn_details(regs) {
-        Some(c) => unsafe {
+pub fn connect(regs: Registers) {
+    if let Some(c) = conn_details(regs) {
+        unsafe {
             ip_connections.insert(regs.ctx, c);
-            0
-        },
-        None => 0,
+        }
     }
 }
 
 #[kprobe("tcp_sendmsg")]
-pub fn send_enter(regs: Registers) -> i32 {
+pub fn send_enter(regs: Registers) {
     store_socket(regs)
 }
 
 #[kretprobe("tcp_sendmsg")]
-pub fn send_exit(regs: Registers) -> i32 {
+pub fn send_exit(regs: Registers) {
     trace_message(regs, Message::Send)
 }
 
 #[kprobe("tcp_recvmsg")]
-pub fn recv_enter(regs: Registers) -> i32 {
+pub fn recv_enter(regs: Registers) {
     store_socket(regs)
 }
 
 #[kretprobe("tcp_recvmsg")]
-pub fn recv_exit(regs: Registers) -> i32 {
+pub fn recv_exit(regs: Registers) {
     trace_message(regs, Message::Receive)
 }
 
 #[kprobe("udp_sendmsg")]
-pub fn udp_send_enter(regs: Registers) -> i32 {
+pub fn udp_send_enter(regs: Registers) {
     trace_message(regs, Message::Send)
 }
 
 #[kprobe("udp_rcv")]
-pub fn udp_rcv_enter(regs: Registers) -> i32 {
+pub fn udp_rcv_enter(regs: Registers) {
     trace_message(regs, Message::Receive)
 }
 
 #[inline(always)]
-fn store_socket(regs: Registers) -> i32 {
+fn store_socket(regs: Registers) {
     unsafe { task_to_socket.set(bpf_get_current_pid_tgid(), regs.parm1() as *const sock) };
-
-    0
 }
 
 #[inline(always)]
-fn trace_message(regs: Registers, direction: fn(Connection, u16) -> Message) -> i32 {
-    let len = regs.parm3() as u16;
-    let conn = conn_details(regs);
-
-    match conn {
-        Some(c) => unsafe {
+fn trace_message(regs: Registers, direction: fn(Connection, u16) -> Message) {
+    if let Some(c) = conn_details(regs) {
+        let len = regs.parm3() as u16;
+        unsafe {
             ip_volumes.insert(regs.ctx, direction(c, len));
-            0
-        },
-        None => 0,
+        }
     }
 }
 
 #[inline(always)]
 pub fn conn_details(_regs: Registers) -> Option<Connection> {
     let pid_tgid = bpf_get_current_pid_tgid();
-    let socket = unsafe { match task_to_socket.get(pid_tgid) {
-        Some(s) => &**s,
-        None => return None,
-    }};
+    let socket = unsafe {
+        match task_to_socket.get(pid_tgid) {
+            Some(s) => &**s,
+            None => return None,
+        }
+    };
 
     let pid = (pid_tgid >> 32) as u32;
     let ts = bpf_ktime_get_ns();
