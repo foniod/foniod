@@ -3,7 +3,7 @@
 use redbpf_macros::{map, program, xdp};
 use redbpf_probes::bindings::*;
 use redbpf_probes::net::NetworkBuffer;
-use redbpf_probes::xdp::{MapData, PerfMap, XdpAction, XdpContext};
+use redbpf_probes::xdp::{MapData, PerfMap, Result as XdpResult, XdpAction, XdpContext};
 
 use ingraind_probes::dns::Event;
 
@@ -13,25 +13,18 @@ program!(0xFFFFFFFE, "GPL");
 static mut events: PerfMap<Event> = PerfMap::with_max_entries(1024);
 
 #[xdp("dns_queries")]
-pub fn probe(ctx: XdpContext) -> XdpAction {
-    let (ip, transport) = match (ctx.ip(), ctx.transport()) {
-        (Some(i), Some(t)) => (unsafe { *i }, t),
-        _ => return XdpAction::Pass,
-    };
-    let data = match ctx.data() {
-        Some(data) => data,
-        None => return XdpAction::Pass,
-    };
+pub fn probe(ctx: XdpContext) -> XdpResult {
+    let ip = unsafe { *ctx.ip()? };
+    let transport = ctx.transport()?;
+    let data = ctx.data()?;
 
-    let header = match data.slice(12) {
-        Some(s) => s,
-        None => return XdpAction::Pass,
-    };
-
+    // DNS is at least 12 bytes
+    let header = data.slice(12)?;
     if header[2] >> 3 & 0xF != 0u8 {
-        return XdpAction::Pass;
+        return Ok(XdpAction::Pass);
     }
 
+    // we got something that looks like DNS, send it to user space for parsing
     let event = Event {
         saddr: ip.saddr,
         daddr: ip.daddr,
@@ -46,5 +39,5 @@ pub fn probe(ctx: XdpContext) -> XdpAction {
         )
     };
 
-    XdpAction::Pass
+    Ok(XdpAction::Pass)
 }
