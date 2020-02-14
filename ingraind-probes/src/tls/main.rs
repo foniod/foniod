@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 use core::mem;
-use cty::*;
 use memoffset::offset_of;
 
 use redbpf_macros::{program, socket_filter};
@@ -13,7 +12,7 @@ program!(0xFFFFFFFE, "GPL");
 #[socket_filter("tls_handshake")]
 pub fn tls_handshake(skb: SkBuff) -> SkBuffResult {
     let eth_len = mem::size_of::<ethhdr>();
-    let mut eth_proto: u16 = skb.load(offset_of!(ethhdr, h_proto))?;
+    let eth_proto: u16 = skb.load(offset_of!(ethhdr, h_proto))?;
     let ip_proto: u8 = skb.load(eth_len + offset_of!(iphdr, protocol))?;
 
     // only parse TCP

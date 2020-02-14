@@ -1,12 +1,7 @@
 #![no_std]
 #![no_main]
-use core::mem;
-use core::slice;
-use cty::*;
-
 use redbpf_macros::{map, program, xdp};
 use redbpf_probes::bindings::*;
-use redbpf_probes::maps::*;
 use redbpf_probes::net::NetworkBuffer;
 use redbpf_probes::xdp::{MapData, PerfMap, XdpAction, XdpContext};
 

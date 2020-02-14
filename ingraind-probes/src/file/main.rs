@@ -1,14 +1,10 @@
 #![no_std]
 #![no_main]
 
-use core::cmp;
-use core::mem;
-use core::ptr;
 use cty::*;
 
 use redbpf_macros::{kprobe, kretprobe, map, program};
 use redbpf_probes::bindings::*;
-use redbpf_probes::helpers::gen;
 use redbpf_probes::helpers::*;
 use redbpf_probes::kprobe::Registers;
 use redbpf_probes::maps::*;
@@ -65,7 +61,12 @@ pub fn trace_write_exit(regs: Registers) {
 }
 
 #[inline]
-fn track_file_access(regs: Registers, access_type: AccessType) -> Result<(), ()> {
+fn track_file_access(regs: Registers, access_type: AccessType) {
+    let _ = do_track_file_access(regs, access_type);
+}
+
+#[inline]
+fn do_track_file_access(regs: Registers, access_type: AccessType) -> Result<(), ()> {
     let tid = bpf_get_current_pid_tgid();
 
     let size = regs.rc() as usize;
@@ -89,7 +90,7 @@ fn track_file_access(regs: Registers, access_type: AccessType) -> Result<(), ()>
         AccessType::Read => Access::Read(size),
         AccessType::Write => Access::Write(size),
     };
-    let paths = dentry_to_path(path.dentry).unwrap();
+    let paths = dentry_to_path(path.dentry).ok_or(())?;
     let event = FileAccess {
         tid: (tid >> 32) as u32,
         access,
