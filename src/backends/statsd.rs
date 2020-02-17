@@ -10,7 +10,6 @@ use crate::metrics::Measurement;
 
 pub struct Statsd {
     client: StatsdClient,
-    config: StatsdConfig,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StatsdConfig {
@@ -18,7 +17,7 @@ pub struct StatsdConfig {
 }
 
 impl Statsd {
-    pub fn new(config: StatsdConfig) -> Statsd {
+    pub fn new(_config: StatsdConfig) -> Statsd {
         let helper_socket = UdpSocket::bind("0.0.0.0:0").unwrap();
         helper_socket.set_nonblocking(true).unwrap();
 
@@ -34,7 +33,7 @@ impl Statsd {
         let queuing_sink = QueuingMetricSink::from(udp_sink);
         let client = StatsdClient::from_sink("ingraind.metrics", queuing_sink);
 
-        Statsd { client, config }
+        Statsd { client }
     }
 
     fn count_with_tags(&mut self, msg: &Measurement) {

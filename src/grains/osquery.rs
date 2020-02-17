@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn test_measurement_from_row() {
-        let mut config = config(None);
+        let config = config(None);
 
         let json = r#"{"name":"systemd","system_time":"23470","user_time":"17220"}"#;
         let row = serde_json::from_slice(json.as_bytes()).unwrap();
@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_measurements_from_rows() {
-        let mut config = config(Some("gauge"));
+        let config = config(Some("gauge"));
 
         let json = r#"[{"name":"systemd","system_time":"23470","user_time":"17220"}]"#;
         let rows = serde_json::from_slice(json.as_bytes()).unwrap();
@@ -394,7 +394,7 @@ mod tests {
     }
     #[test]
     fn test_measurements_from_rows_empty() {
-        let mut config = config(Some("gauge"));
+        let config = config(Some("gauge"));
 
         let json = "[]";
         let rows = serde_json::from_slice(json.as_bytes()).unwrap();
@@ -405,7 +405,7 @@ mod tests {
 
     #[test]
     fn test_measurements_from_rows_error_no_outer_array() {
-        let mut config = config(Some("gauge"));
+        let config = config(Some("gauge"));
 
         let json = r#"{"foo": "bar"}"#;
         let rows = serde_json::from_slice(json.as_bytes()).unwrap();
@@ -419,7 +419,7 @@ mod tests {
 
     #[test]
     fn test_measurements_from_rows_error_no_inner_object() {
-        let mut config = config(Some("gauge"));
+        let config = config(Some("gauge"));
 
         let json = r#"[1, 2]"#;
         let rows = serde_json::from_slice(json.as_bytes()).unwrap();

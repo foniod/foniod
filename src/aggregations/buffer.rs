@@ -224,7 +224,6 @@ fn measurement_key(metric: &Measurement) -> MeasurementKey {
 
 pub struct Buffer {
     aggregator: Aggregator,
-    config: BufferConfig,
     upstream: Recipient<Message>,
     flush_handle: SpawnHandle,
     flush_period: Duration,
@@ -240,7 +239,6 @@ impl Buffer {
         let flush_period = Duration::from_millis(ms);
         Actor::start_in_arbiter(&actix::Arbiter::new(), move |_| Buffer {
             aggregator: Aggregator::new(config.enable_histograms),
-            config,
             upstream,
             flush_handle: SpawnHandle::default(),
             flush_period,

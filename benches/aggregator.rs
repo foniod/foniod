@@ -1,6 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BatchSize};
+use criterion::{criterion_group, criterion_main, Criterion, BatchSize};
 use ingraind::aggregations::buffer::Aggregator;
-use ingraind::metrics::{kind, timestamp_now, Measurement, Tags, Unit};
+use ingraind::metrics::{kind, Measurement, Tags, Unit};
 
 pub fn record(c: &mut Criterion) {
     let mut metrics = Vec::new();

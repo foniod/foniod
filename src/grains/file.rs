@@ -1,7 +1,6 @@
 
 #![allow(non_camel_case_types)]
 
-use std::cmp::min;
 use std::ffi::CStr;
 use std::fs::metadata;
 use std::os::raw::c_char;
@@ -15,7 +14,7 @@ use ingraind_probes::file::{Access, FileAccess as RawFileAccess};
 
 type ino_t = u64;
 
-const ACTION_IGNORE: u8 = 0;
+//const ACTION_IGNORE: u8 = 0;
 const ACTION_RECORD: u8 = 1;
 
 pub struct Files(pub FilesConfig);
