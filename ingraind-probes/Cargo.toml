@@ -9,10 +9,6 @@ redbpf-macros = { git = "https://github.com/redsift/redbpf" }
 redbpf-probes = { git = "https://github.com/redsift/redbpf" }
 memoffset = "0.5.3"
 
-[build-dependencies]
-bindgen = "0.51.1"
-redbpf = { git = "https://github.com/redsift/redbpf", features = ["build"] }
-
 [features]
 default = []
 probes = []
