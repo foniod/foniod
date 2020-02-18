@@ -75,10 +75,7 @@ fn do_track_file_access(regs: Registers, access_type: AccessType) -> Result<(), 
     }
     let file = unsafe { &**files.get(tid).ok_or(())? };
     let path = file.f_path();
-    let inode = file.f_inode();
-    if inode.is_null() {
-        return Ok(());
-    }
+    let inode = file.f_inode().ok_or(())?;
     let inode = unsafe { &*inode };
     let i_no = inode.i_ino();
     let mode = inode.i_mode();
@@ -122,10 +119,7 @@ fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
         }
         let de = unsafe { &*dentry };
         let name = de.d_name();
-        let inode = de.d_inode();
-        if inode.is_null() {
-            return None;
-        }
+        let inode = de.d_inode()?;
 
         // a nested policy overrides a parent one, eg: you can watch /etc/passwd
         // but ignore everyting else in /etc
@@ -145,7 +139,7 @@ fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
             break;
         }
 
-        let tmp = de.d_parent();
+        let tmp = de.d_parent()?;
         if tmp == dentry {
             break;
         }
