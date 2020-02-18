@@ -385,6 +385,37 @@ workflows:
           requires:
             - build elrepo7
 
+  elrepo8_docker:
+    jobs:
+      - build_rh_binary:
+          name: build elrepo8
+          yum_repo: elrepo8
+          kernel_pkg: kernel-ml-devel
+      - build_docker_image:
+          tags: latest-elrepo8 ${CIRCLE_SHA1:0:7}-elrepo8 ${CIRCLE_TAG/%/-elrepo7}
+          requires:
+            - build elrepo8
+
+  amzn2_docker:
+    jobs:
+      - build_rh_binary:
+          name: build amzn2
+          yum_repo: amzn2-core
+      - build_docker_image:
+          tags: latest-amzn2 ${CIRCLE_SHA1:0:7}-amzn2 ${CIRCLE_TAG/%/-amzn2}
+          requires:
+            - build amzn2
+
+  fedora31_docker:
+    jobs:
+      - build_rh_binary:
+          name: build fedora31
+          yum_repo: fedora
+      - build_docker_image:
+          tags: latest-fedora31 ${CIRCLE_SHA1:0:7}-fedora31 ${CIRCLE_TAG/%/-fedora31}
+          requires:
+            - build fedora31
+
   gke_docker:
     jobs:
       - gke
