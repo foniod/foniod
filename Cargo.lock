@@ -347,7 +347,7 @@ dependencies = [
 [[package]]
 name = "bpf-sys"
 version = "0.9.10"
-source = "git+https://github.com/redsift/redbpf#725b14da3717ed7dd339c34c1fd83c62c9055746"
+source = "git+https://github.com/redsift/redbpf#be002cf086766edad90e4bbf1122fdf1dab738c2"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -431,7 +431,7 @@ dependencies = [
 [[package]]
 name = "cargo-bpf"
 version = "0.9.10"
-source = "git+https://github.com/redsift/redbpf#725b14da3717ed7dd339c34c1fd83c62c9055746"
+source = "git+https://github.com/redsift/redbpf#be002cf086766edad90e4bbf1122fdf1dab738c2"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1854,7 +1854,7 @@ dependencies = [
 [[package]]
 name = "redbpf"
 version = "0.9.10"
-source = "git+https://github.com/redsift/redbpf#725b14da3717ed7dd339c34c1fd83c62c9055746"
+source = "git+https://github.com/redsift/redbpf#be002cf086766edad90e4bbf1122fdf1dab738c2"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "bpf-sys 0.9.10 (git+https://github.com/redsift/redbpf)",
@@ -1875,7 +1875,7 @@ dependencies = [
 [[package]]
 name = "redbpf-macros"
 version = "0.9.10"
-source = "git+https://github.com/redsift/redbpf#725b14da3717ed7dd339c34c1fd83c62c9055746"
+source = "git+https://github.com/redsift/redbpf#be002cf086766edad90e4bbf1122fdf1dab738c2"
 dependencies = [
  "proc-macro2 1.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1885,7 +1885,7 @@ dependencies = [
 [[package]]
 name = "redbpf-probes"
 version = "0.9.10"
-source = "git+https://github.com/redsift/redbpf#725b14da3717ed7dd339c34c1fd83c62c9055746"
+source = "git+https://github.com/redsift/redbpf#be002cf086766edad90e4bbf1122fdf1dab738c2"
 dependencies = [
  "cargo-bpf 0.9.10 (git+https://github.com/redsift/redbpf)",
  "cty 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
