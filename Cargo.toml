@@ -9,7 +9,6 @@ build = "build.rs"
 edition = "2018"
 
 [build-dependencies]
-failure = "0.1"
 cargo-bpf = { git = "https://github.com/redsift/redbpf" }
 
 [build-dependencies.capnpc]

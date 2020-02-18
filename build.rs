@@ -1,4 +1,3 @@
-use failure::{bail, Error};
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -6,17 +5,26 @@ use cargo_bpf_lib as cargo_bpf;
 
 const CAPNP_SCHEMA: &'static str = "schema/ingraind.capnp";
 
-fn main() -> Result<(), Error> {
-    let cargo = PathBuf::from(env::var("CARGO")?);
+fn main() {
+    let cargo = PathBuf::from(env::var("CARGO").unwrap());
 
     let probes = Path::new("ingraind-probes");
-    if let Err(e) = cargo_bpf::build(&cargo, &probes, &probes.join("target/release/bpf-programs"), Vec::new()) {
-        bail!("couldn't compile ingraind-probes: {}", e);
-    }
+    cargo_bpf::build(
+        &cargo,
+        &probes,
+        &probes.join("target/release/bpf-programs"),
+        Vec::new(),
+    )
+    .expect("couldn't compile ingraind-probes");
 
     build_capnp();
 
-    Ok(())
+    cargo_bpf::probe_files(&probes)
+        .expect("couldn't list probe files")
+        .iter()
+        .for_each(|file| {
+            println!("cargo:rerun-if-changed={}", file);
+        });
 }
 
 #[cfg(feature = "capnp-encoding")]
