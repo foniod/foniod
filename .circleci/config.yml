@@ -203,9 +203,28 @@ jobs:
     working_directory: /build
     resource_class: large
     docker:
-      - image: quay.io/redsift/ingraind-build:latest
+      - image: ubuntu
     steps:
       - checkout
+      - run:
+          name: Install some deps
+          command: |
+            apt-get update
+            apt-get install -y curl wget gnupg2 software-properties-common lsb-release
+
+      - run:
+          name: Configure llvm 9 repo
+          command: |
+            curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+            add-apt-repository 'deb http://apt.llvm.org/bionic/   llvm-toolchain-bionic-9  main'
+
+      - run:
+          name: Install more deps
+          command: |
+            apt-get update
+            apt-get install -y build-essential bc kmod cpio flex cpio libncurses5-dev
+            apt-get install -y clang llvm llvm-9 musl-tools capnproto libelf-dev ca-certificates{,-java}
+
       - run:
           name: Configure kernel tree
           command: |
@@ -217,6 +236,8 @@ jobs:
             make prepare
             echo export KERNEL_SOURCE=/build/cos-kernel >> $BASH_ENV
             cd ..
+
+      - install_rust
 
       - cargo_build:
           type: debug
