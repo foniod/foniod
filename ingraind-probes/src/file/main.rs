@@ -106,6 +106,10 @@ fn do_track_file_access(regs: Registers, access_type: AccessType) -> Result<(), 
 
 #[inline]
 fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
+    if dentry.is_null() {
+        return None;
+    }
+
     let mut path_list = PathList(
         [PathSegment {
             name: [0u8; PATH_SEGMENT_LEN],
@@ -114,9 +118,6 @@ fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
 
     let mut policy = None;
     for i in 0..PATH_LIST_LEN {
-        if dentry.is_null() {
-            break;
-        }
         let de = unsafe { &*dentry };
         let name = de.d_name();
         let inode = de.d_inode()?;
