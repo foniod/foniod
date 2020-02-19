@@ -10,6 +10,7 @@ kubectl apply -f ingraind.yaml
 i=0
 while [ $(( i+=1 )) -lt 30 ]; do
     POD=$(kubectl get pods -l app=ingraind |grep Running |cut -d\  -f1 | head -n1)
+    sleep 3
     [ -z "$POD" ] || break;
 done
 
