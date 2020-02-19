@@ -206,7 +206,6 @@ jobs:
       - image: ubuntu
     steps:
       - checkout
-
       - run:
           name: Install some deps
           command: |
@@ -319,7 +318,14 @@ jobs:
             docker images $DOCKER_IMAGE
             docker push $DOCKER_IMAGE
 
-  centos7:
+  build_rh_binary:
+    parameters:
+      yum_repo:
+        type: string
+      kernel_pkg:
+        type: string
+        default: kernel-devel
+
     working_directory: /build
     resource_class: large
     docker:
@@ -328,6 +334,13 @@ jobs:
       - checkout
       - attach_workspace:
           at: /build
+
+      - run:
+          name: Set up kernel for environment
+          command: |
+            yumdownloader --disablerepo=* --enablerepo=<< parameters.yum_repo >> << parameters.kernel_pkg >>
+            rpm --nodeps -i << parameters.kernel_pkg >>*.rpm
+            echo KERNEL_SOURCE=/usr/src/kernels/$(ls /usr/src/kernels |head -n1) >> $BASH_ENV
 
       - cargo_build:
           type: debug
@@ -382,13 +395,47 @@ workflows:
       - fedora:
           name: "fedora 31"
 
-  centos7_docker:
+  elrepo7_docker:
     jobs:
-      - centos7
+      - build_rh_binary:
+          name: build elrepo7
+          yum_repo: elrepo7
+          kernel_pkg: kernel-ml-devel
       - build_docker_image:
-          tags: latest-centos7 ${CIRCLE_SHA1:0:7}-centos7 ${CIRCLE_TAG/%/-centos7}
+          tags: latest-elrepo7 ${CIRCLE_SHA1:0:7}-elrepo7 ${CIRCLE_TAG/%/-elrepo7}
           requires:
-            - centos7
+            - build elrepo7
+
+  elrepo8_docker:
+    jobs:
+      - build_rh_binary:
+          name: build elrepo8
+          yum_repo: elrepo8
+          kernel_pkg: kernel-ml-devel
+      - build_docker_image:
+          tags: latest-elrepo8 ${CIRCLE_SHA1:0:7}-elrepo8 ${CIRCLE_TAG/%/-elrepo7}
+          requires:
+            - build elrepo8
+
+  amzn2_docker:
+    jobs:
+      - build_rh_binary:
+          name: build amzn2
+          yum_repo: amzn2-core
+      - build_docker_image:
+          tags: latest-amzn2 ${CIRCLE_SHA1:0:7}-amzn2 ${CIRCLE_TAG/%/-amzn2}
+          requires:
+            - build amzn2
+
+  fedora31_docker:
+    jobs:
+      - build_rh_binary:
+          name: build fedora31
+          yum_repo: fedora
+      - build_docker_image:
+          tags: latest-fedora31 ${CIRCLE_SHA1:0:7}-fedora31 ${CIRCLE_TAG/%/-fedora31}
+          requires:
+            - build fedora31
 
   gke_docker:
     jobs:
