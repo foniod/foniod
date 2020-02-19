@@ -85,7 +85,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "bpf-sys"
 version = "0.9.10"
-source = "git+https://github.com/redsift/redbpf#be002cf086766edad90e4bbf1122fdf1dab738c2"
+source = "git+https://github.com/redsift/redbpf#4b4b38e550ec0ddf8341cc7c3dd24aad7d8f546a"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -119,7 +119,7 @@ dependencies = [
 [[package]]
 name = "cargo-bpf"
 version = "0.9.10"
-source = "git+https://github.com/redsift/redbpf#be002cf086766edad90e4bbf1122fdf1dab738c2"
+source = "git+https://github.com/redsift/redbpf#4b4b38e550ec0ddf8341cc7c3dd24aad7d8f546a"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -380,10 +380,8 @@ dependencies = [
 name = "ingraind-probes"
 version = "0.1.0"
 dependencies = [
- "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cty 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "memoffset 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "redbpf 0.9.10 (git+https://github.com/redsift/redbpf)",
  "redbpf-macros 0.9.10 (git+https://github.com/redsift/redbpf)",
  "redbpf-probes 0.9.10 (git+https://github.com/redsift/redbpf)",
 ]
@@ -682,7 +680,7 @@ dependencies = [
 [[package]]
 name = "redbpf"
 version = "0.9.10"
-source = "git+https://github.com/redsift/redbpf#be002cf086766edad90e4bbf1122fdf1dab738c2"
+source = "git+https://github.com/redsift/redbpf#4b4b38e550ec0ddf8341cc7c3dd24aad7d8f546a"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "bpf-sys 0.9.10 (git+https://github.com/redsift/redbpf)",
@@ -703,7 +701,7 @@ dependencies = [
 [[package]]
 name = "redbpf-macros"
 version = "0.9.10"
-source = "git+https://github.com/redsift/redbpf#be002cf086766edad90e4bbf1122fdf1dab738c2"
+source = "git+https://github.com/redsift/redbpf#4b4b38e550ec0ddf8341cc7c3dd24aad7d8f546a"
 dependencies = [
  "proc-macro2 1.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -713,7 +711,7 @@ dependencies = [
 [[package]]
 name = "redbpf-probes"
 version = "0.9.10"
-source = "git+https://github.com/redsift/redbpf#be002cf086766edad90e4bbf1122fdf1dab738c2"
+source = "git+https://github.com/redsift/redbpf#4b4b38e550ec0ddf8341cc7c3dd24aad7d8f546a"
 dependencies = [
  "cargo-bpf 0.9.10 (git+https://github.com/redsift/redbpf)",
  "cty 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
