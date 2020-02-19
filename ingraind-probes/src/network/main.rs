@@ -88,7 +88,7 @@ fn trace_message(regs: Registers, direction: fn(Connection, u16) -> Message) {
 pub fn conn_details(_regs: Registers) -> Option<Connection> {
     let pid_tgid = bpf_get_current_pid_tgid();
     let socket = unsafe {
-        match task_to_socket.get(pid_tgid) {
+        match task_to_socket.get(&pid_tgid) {
             Some(s) => &**s,
             None => return None,
         }
@@ -138,7 +138,7 @@ pub fn conn_details(_regs: Registers) -> Option<Connection> {
     };
 
     unsafe {
-        task_to_socket.delete(pid_tgid);
+        task_to_socket.delete(&pid_tgid);
     }
 
     Some(Connection {

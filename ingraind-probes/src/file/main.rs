@@ -73,7 +73,7 @@ fn do_track_file_access(regs: Registers, access_type: AccessType) -> Result<(), 
     if size == 0 {
         return Ok(());
     }
-    let file = unsafe { &**files.get(tid).ok_or(())? };
+    let file = unsafe { &**files.get(&tid).ok_or(())? };
     let path = file.f_path();
     let inode = file.f_inode().ok_or(())?;
     let inode = unsafe { &*inode };
@@ -124,7 +124,7 @@ fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
 
         // a nested policy overrides a parent one, eg: you can watch /etc/passwd
         // but ignore everyting else in /etc
-        if let Some(p) = policy_for_inode(unsafe { &*inode }.i_ino()) {
+        if let Some(p) = policy_for_inode(&unsafe { &*inode }.i_ino()) {
             policy.get_or_insert(p);
         };
 
@@ -159,7 +159,7 @@ enum InodePolicy {
 }
 
 #[inline]
-fn policy_for_inode(inode: u64) -> Option<InodePolicy> {
+fn policy_for_inode(inode: &u64) -> Option<InodePolicy> {
     use InodePolicy::*;
 
     match unsafe { actionlist.get(inode) } {
