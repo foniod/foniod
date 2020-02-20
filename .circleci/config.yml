@@ -363,10 +363,6 @@ workflows:
     jobs:
       - terraform_arm:
           name: 'terraform - ubuntu/arm64'
-          filters:
-            branches:
-              only:
-                - master
 
       - terraform:
           name: 'terraform - ubuntu 18.04'
@@ -405,6 +401,11 @@ workflows:
           tags: latest-elrepo7 ${CIRCLE_SHA1:0:7}-elrepo7 ${CIRCLE_TAG/%/-elrepo7}
           requires:
             - build elrepo7
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
 
   elrepo8_docker:
     jobs:
@@ -416,6 +417,11 @@ workflows:
           tags: latest-elrepo8 ${CIRCLE_SHA1:0:7}-elrepo8 ${CIRCLE_TAG/%/-elrepo7}
           requires:
             - build elrepo8
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
 
   amzn2_docker:
     jobs:
@@ -426,6 +432,11 @@ workflows:
           tags: latest-amzn2 ${CIRCLE_SHA1:0:7}-amzn2 ${CIRCLE_TAG/%/-amzn2}
           requires:
             - build amzn2
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
 
   fedora31_docker:
     jobs:
@@ -436,6 +447,11 @@ workflows:
           tags: latest-fedora31 ${CIRCLE_SHA1:0:7}-fedora31 ${CIRCLE_TAG/%/-fedora31}
           requires:
             - build fedora31
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
 
   gke_docker:
     jobs:
@@ -448,3 +464,8 @@ workflows:
       - run_test_gke:
           requires:
             - build gke image
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
