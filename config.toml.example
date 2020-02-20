@@ -181,7 +181,7 @@ type = "AddSystemDetails"
 # need to match to execute the command (AND relationship)
 [[pipeline.s3.steps]]
 type = "Exec"
-arguments = ["kill", "-9", "{ process_id }"]
+command = ["kill", "-9", "{ process_id }"]
 only_if = [
   { key = "some_key", regex = "prefix.*" }
 ]
