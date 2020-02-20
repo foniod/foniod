@@ -1,4 +1,10 @@
-#!/bin/sh
+#!/bin/bash
+
+cleanup() {
+    kubectl delete -f ingraind.yaml
+    kubectl delete -f config.yaml
+}
+trap cleanup quit exit
 
 IMAGE=$1
 
@@ -17,11 +23,7 @@ done
 [ -z "$POD" ] && { echo "Failed to start InGRAINd container"; exit 1; }
 
 kubectl logs --pod-running-timeout=60s "$POD" > test-output
-kubectl delete -f ingraind.yaml
-kubectl delete -f config.yaml
-
 modules_loaded=$(<test-output awk -F': ' '/ingraind::grains::ebpf: Loaded/ { print $NF }' | sort)
-
 exec test "$modules_loaded" = "dns_queries, XDP
 tcp_recvmsg, Kprobe
 tcp_recvmsg, Kretprobe
