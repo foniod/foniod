@@ -51,15 +51,13 @@ impl Handler<Message> for Container {
 
 #[inline]
 fn get_docker_container_id(regex: &Regex, msg: &Measurement) -> Result<String, Error> {
-    let pid_tgid_str = msg
+    let pid_str = msg
         .tags
-        .get("task_id")
+        .get("process_id")
         .ok_or_else(|| format_err!("No pid"))?;
-    let pid_tgid = u64::from_str(&pid_tgid_str)?;
-    let tgid = pid_tgid >> 32;
-    let pid = pid_tgid as u32;
+    let pid = u32::from_str(&pid_str)?;
 
-    let cgroup = fs::read_to_string(format!("/proc/{}/task/{}/cgroup", tgid, pid))
+    let cgroup = fs::read_to_string(format!("/proc/{}/cgroup", pid))
         .or_else(|_| fs::read_to_string(format!("/proc/{}/cgroup", pid)))?;
 
     container_id(regex, &cgroup).ok_or_else(|| format_err!("No container"))
