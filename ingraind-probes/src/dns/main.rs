@@ -1,10 +1,6 @@
 #![no_std]
 #![no_main]
-use redbpf_macros::{map, program, xdp};
-use redbpf_probes::bindings::*;
-use redbpf_probes::net::NetworkBuffer;
-use redbpf_probes::xdp::{MapData, PerfMap, XdpResult, XdpAction, XdpContext};
-
+use redbpf_probes::xdp::prelude::*;
 use ingraind_probes::dns::Event;
 
 program!(0xFFFFFFFE, "GPL");

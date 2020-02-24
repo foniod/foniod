@@ -3,9 +3,7 @@
 use core::mem;
 use memoffset::offset_of;
 
-use redbpf_macros::{program, socket_filter};
-use redbpf_probes::bindings::*;
-use redbpf_probes::socket_filter::{SkBuff, SkBuffAction, SkBuffResult};
+use redbpf_probes::socket_filter::prelude::*;
 
 program!(0xFFFFFFFE, "GPL");
 

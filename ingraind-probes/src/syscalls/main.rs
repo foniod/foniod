@@ -1,14 +1,7 @@
 #![no_std]
 #![no_main]
-
-use cty::*;
-
+use redbpf_probes::kprobe::prelude::*;
 use ingraind_probes::syscalls::SyscallTracepoint;
-use redbpf_macros::{kprobe, map, program};
-use redbpf_probes::bindings::*;
-use redbpf_probes::helpers::*;
-use redbpf_probes::kprobe::Registers;
-use redbpf_probes::maps::*;
 
 program!(0xFFFFFFFE, "GPL");
 

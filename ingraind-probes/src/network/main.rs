@@ -1,17 +1,6 @@
 #![no_std]
 #![no_main]
-
-#[macro_use]
-extern crate redbpf_probes;
-
-use cty::*;
-
-use redbpf_macros::{kprobe, kretprobe, map, program};
-use redbpf_probes::bindings::*;
-use redbpf_probes::helpers::*;
-use redbpf_probes::kprobe::*;
-use redbpf_probes::maps::*;
-
+use redbpf_probes::kprobe::prelude::*;
 use ingraind_probes::network::{Connection, Message};
 
 program!(0xFFFFFFFE, "GPL");

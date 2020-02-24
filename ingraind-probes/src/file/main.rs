@@ -1,14 +1,6 @@
 #![no_std]
 #![no_main]
-
-use cty::*;
-
-use redbpf_macros::{kprobe, kretprobe, map, program};
-use redbpf_probes::bindings::*;
-use redbpf_probes::helpers::*;
-use redbpf_probes::kprobe::Registers;
-use redbpf_probes::maps::*;
-
+use redbpf_probes::kprobe::prelude::*;
 use ingraind_probes::file::{
     Access, FileAccess, PathList, PathSegment, PATH_LIST_LEN, PATH_SEGMENT_LEN,
 };
