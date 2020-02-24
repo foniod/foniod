@@ -37,5 +37,5 @@ pub fn syscall_enter(regs: Registers) {
         syscall_nr,
         comm: bpf_get_current_comm(),
     };
-    unsafe { syscall_event.insert(regs.ctx, data) };
+    unsafe { syscall_event.insert(regs.ctx, &data) };
 }

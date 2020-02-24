@@ -34,7 +34,7 @@ pub fn connect_enter(regs: Registers) {
 pub fn connect(regs: Registers) {
     if let Some(c) = conn_details(regs) {
         unsafe {
-            ip_connections.insert(regs.ctx, c);
+            ip_connections.insert(regs.ctx, &c);
         }
     }
 }
@@ -71,7 +71,7 @@ pub fn udp_rcv_enter(regs: Registers) {
 
 #[inline(always)]
 fn store_socket(regs: Registers) {
-    unsafe { task_to_socket.set(bpf_get_current_pid_tgid(), regs.parm1() as *const sock) };
+    unsafe { task_to_socket.set(&bpf_get_current_pid_tgid(), &(regs.parm1() as *const sock)) };
 }
 
 #[inline(always)]
@@ -79,7 +79,7 @@ fn trace_message(regs: Registers, direction: fn(Connection, u16) -> Message) {
     if let Some(c) = conn_details(regs) {
         let len = regs.parm3() as u16;
         unsafe {
-            ip_volumes.insert(regs.ctx, direction(c, len));
+            ip_volumes.insert(regs.ctx, &direction(c, len));
         }
     }
 }
@@ -96,7 +96,7 @@ pub fn conn_details(_regs: Registers) -> Option<Connection> {
 
     let pid = (pid_tgid >> 32) as u32;
     let ts = bpf_ktime_get_ns();
-    let family = socket.skc_family();
+    let family = socket.skc_family()?;
 
     let mut daddr = in6_addr {
         in6_u: in6_addr__bindgen_ty_1 {
@@ -110,11 +110,11 @@ pub fn conn_details(_regs: Registers) -> Option<Connection> {
     };
 
     if family as u32 == AF_INET6 {
-        daddr = socket.skc_v6_daddr();
-        saddr = socket.skc_v6_rcv_saddr();
+        daddr = socket.skc_v6_daddr()?;
+        saddr = socket.skc_v6_rcv_saddr()?;
     } else if family as u32 == AF_INET {
-        let dest = socket.skc_daddr();
-        let src = socket.skc_rcv_saddr();
+        let dest = socket.skc_daddr()?;
+        let src = socket.skc_rcv_saddr()?;
 
         daddr = in6_addr {
             in6_u: in6_addr__bindgen_ty_1 {
@@ -128,11 +128,11 @@ pub fn conn_details(_regs: Registers) -> Option<Connection> {
         };
     }
 
-    let dport = socket.skc_dport();
-    let sport = socket.skc_num();
+    let dport = socket.skc_dport()?;
+    let sport = socket.skc_num()?;
 
     let typ = {
-        let typ = bpf_probe_read!(&socket._bitfield_1 as *const _ as *const u32);
+        let typ = unsafe { bpf_probe_read(&socket._bitfield_1 as *const _ as *const u32) }.ok()?;
 
         (typ & SK_FL_PROTO_MASK) >> SK_FL_PROTO_SHIFT
     };

@@ -3,7 +3,7 @@
 use redbpf_macros::{map, program, xdp};
 use redbpf_probes::bindings::*;
 use redbpf_probes::net::NetworkBuffer;
-use redbpf_probes::xdp::{MapData, PerfMap, Result as XdpResult, XdpAction, XdpContext};
+use redbpf_probes::xdp::{MapData, PerfMap, XdpResult, XdpAction, XdpContext};
 
 use ingraind_probes::dns::Event;
 
@@ -35,7 +35,7 @@ pub fn probe(ctx: XdpContext) -> XdpResult {
     unsafe {
         events.insert(
             &ctx,
-            MapData::with_payload(event, data.offset() as u32, ctx.len() as u32),
+            &MapData::with_payload(event, data.offset() as u32, ctx.len() as u32),
         )
     };
 

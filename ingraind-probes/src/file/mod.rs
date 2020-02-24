@@ -1,7 +1,7 @@
 use cty::*;
 
-pub const PATH_SEGMENT_LEN: usize = 24;
-pub const PATH_LIST_LEN: usize = 8;
+pub const PATH_SEGMENT_LEN: usize = 32;
+pub const PATH_LIST_LEN: usize = 11;
 
 #[derive(Debug)]
 #[repr(u64)]

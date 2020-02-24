@@ -37,7 +37,7 @@ pub fn trace_read_entry(regs: Registers) {
     let tid = bpf_get_current_pid_tgid();
     unsafe {
         let f = regs.parm1() as *const file;
-        files.set(tid, f);
+        files.set(&tid, &f);
     }
 }
 
@@ -51,7 +51,7 @@ pub fn trace_write_entry(regs: Registers) {
     let tid = bpf_get_current_pid_tgid();
     unsafe {
         let f = regs.parm1() as *const file;
-        files.set(tid, f);
+        files.set(&tid, &f);
     }
 }
 
@@ -66,69 +66,67 @@ fn track_file_access(regs: Registers, access_type: AccessType) {
 }
 
 #[inline]
-fn do_track_file_access(regs: Registers, access_type: AccessType) -> Result<(), ()> {
+fn do_track_file_access(regs: Registers, access_type: AccessType) -> Option<()> {
     let tid = bpf_get_current_pid_tgid();
 
     let size = regs.rc() as usize;
     if size == 0 {
-        return Ok(());
+        return None;
     }
-    let file = unsafe { &**files.get(&tid).ok_or(())? };
-    let path = file.f_path();
-    let inode = file.f_inode().ok_or(())?;
+    let file = unsafe { &**files.get(&tid)? };
+    let path = file.f_path()?;
+    let inode = file.f_inode()?;
     let inode = unsafe { &*inode };
-    let i_no = inode.i_ino();
-    let mode = inode.i_mode();
+    let i_no = inode.i_ino()?;
+    let mode = inode.i_mode()?;
     if (mode & S_IFMT) != S_IFREG {
-        return Ok(());
+        return None;
     }
 
     let access = match access_type {
         AccessType::Read => Access::Read(size),
         AccessType::Write => Access::Write(size),
     };
-    let paths = dentry_to_path(path.dentry).ok_or(())?;
-    let event = FileAccess {
+    let mut event = FileAccess {
         tid: (tid >> 32) as u32,
         access,
         ts: bpf_ktime_get_ns(),
         comm: bpf_get_current_comm(),
         inode: i_no,
-        paths,
+        paths: PathList(
+            [PathSegment {
+                name: [0u8; PATH_SEGMENT_LEN],
+            }; PATH_LIST_LEN],
+        ),
     };
 
+    dentry_to_path(path.dentry, &mut event.paths)?;
     unsafe {
-        rw.insert(regs.ctx, event);
+        rw.insert(regs.ctx, &event);
     }
 
-    Ok(())
+    Some(())
 }
 
 #[inline]
-fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
+fn dentry_to_path(mut dentry: *mut dentry, path_list: &mut PathList) -> Option<InodePolicy> {
     if dentry.is_null() {
         return None;
     }
 
-    let mut path_list = PathList(
-        [PathSegment {
-            name: [0u8; PATH_SEGMENT_LEN],
-        }; PATH_LIST_LEN],
-    );
-
     let mut policy = None;
-    for i in 0..PATH_LIST_LEN {
+    for i in 0..8 {
         let de = unsafe { &*dentry };
-        let name = de.d_name();
-        let inode = de.d_inode()?;
 
         // a nested policy overrides a parent one, eg: you can watch /etc/passwd
         // but ignore everyting else in /etc
-        if let Some(p) = policy_for_inode(&unsafe { &*inode }.i_ino()) {
-            policy.get_or_insert(p);
-        };
+        let inode = de.d_inode()?;
+        if policy.is_none() {
+            policy = policy_for_inode(&unsafe { &*inode }.i_ino()?);
+        }
 
         let segment = &mut path_list.0[i];
+        let name = de.d_name()?;
         let read = unsafe {
             bpf_probe_read_str(
                 segment.name.as_mut_ptr() as *mut _,
@@ -137,20 +135,17 @@ fn dentry_to_path(mut dentry: *mut dentry) -> Option<PathList> {
             )
         };
         if read < 0 {
-            break;
+            return None;
         }
 
         let tmp = de.d_parent()?;
         if tmp == dentry {
-            break;
+            return policy;
         }
         dentry = tmp;
     }
 
-    match policy {
-        Some(InodePolicy::Record) => Some(path_list),
-        _ => None,
-    }
+    policy
 }
 
 enum InodePolicy {
