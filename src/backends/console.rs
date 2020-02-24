@@ -1,6 +1,6 @@
 use ::actix::prelude::*;
 use crate::backends::Message;
-use crate::backends::encoders::to_json;
+use crate::backends::encoders::measurement_to_json;
 
 #[derive(Default)]
 pub struct Console;
@@ -19,7 +19,7 @@ impl Handler<Message> for Console {
         };
 
 	for m in measurements.drain(..) {
-            println!("{}", String::from_utf8(to_json(&[m])).unwrap());
+            println!("{}", String::from_utf8(measurement_to_json(m)).unwrap());
 	}
     }
 }

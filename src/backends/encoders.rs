@@ -51,6 +51,10 @@ pub fn to_capnp(src: &[Measurement]) -> Vec<u8> {
     buffer.into_inner()
 }
 
+pub fn measurement_to_json(measurement: Measurement) -> Vec<u8> {
+    serde_json::to_vec(&SerializedMeasurement::from(&measurement)).unwrap()
+}
+
 pub fn to_json(measurements: &[Measurement]) -> Vec<u8> {
     serde_json::to_vec(&measurements.iter().map(SerializedMeasurement::from).collect::<Vec<_>>()).unwrap()
 }
