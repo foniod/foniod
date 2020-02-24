@@ -100,9 +100,10 @@ fn do_track_file_access(regs: Registers, access_type: AccessType) -> Option<()> 
         ),
     };
 
-    dentry_to_path(path.dentry, &mut event.paths)?;
-    unsafe {
-        rw.insert(regs.ctx, &event);
+    if let Some(InodePolicy::Record) = dentry_to_path(path.dentry, &mut event.paths) {
+        unsafe {
+            rw.insert(regs.ctx, &event);
+        }
     }
 
     Some(())
