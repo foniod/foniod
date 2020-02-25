@@ -406,10 +406,10 @@ dependencies = [
 
 [[package]]
 name = "cadence"
-version = "0.16.0"
+version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "crossbeam 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crossbeam-channel 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -589,11 +589,6 @@ dependencies = [
  "cast 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "crossbeam"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "crossbeam-channel"
@@ -1193,7 +1188,7 @@ version = "1.0.0"
 dependencies = [
  "actix 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
- "cadence 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cadence 0.19.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "capnp 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "capnpc 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "cargo-bpf 0.9.11 (git+https://github.com/redsift/redbpf)",
@@ -3051,7 +3046,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)" = "206fdffcfa2df7cbe15601ef46c813fce0965eb3286db6b56c583b814b51c81c"
 "checksum bytes 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "130aac562c0dd69c56b3b1cc8ffd2e17be31d0b6c25b61c96b76231aa23e39e1"
 "checksum c2-chacha 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "214238caa1bf3a496ec3392968969cab8549f96ff30652c9e56885329315f6bb"
-"checksum cadence 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3970b43fb5b4049ac086516d1ca06f929924aa0ed38566ba52d6cbb291892a40"
+"checksum cadence 0.19.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4cc8802110b3a8650896ab9ab0578b5b3057a112ccb0832b5c2ffebfccacc0db"
 "checksum capnp 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)" = "50bc40e18a764f679fd13673b61c12d2c45c1581a2c6c949ffa424d9f58716c7"
 "checksum capnpc 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)" = "097449bb52d9c96340c88e9726be5ad8dea78bd6ee4a27c7e5c3fbe0d6f60056"
 "checksum cargo-bpf 0.9.11 (git+https://github.com/redsift/redbpf)" = "<none>"
@@ -3070,7 +3065,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum copyless 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "6ff9c56c9fb2a49c05ef0e431485a22400af20d33226dc0764d891d09e724127"
 "checksum criterion 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1fc755679c12bda8e5523a71e4d654b6bf2e14bd838dfc48cde6559a05caf7d1"
 "checksum criterion-plot 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a01e15e0ea58e8234f96146b1f91fa9d0e4dd7a38da93ff7a75d42c0b9d3a545"
-"checksum crossbeam 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "24ce9782d4d5c53674646a6a4c1863a21a8fc0cb649b3c94dfc16e45071dea19"
 "checksum crossbeam-channel 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)" = "c8ec7fcd21571dc78f96cc96243cab8d8f035247c3efd16c687be154c3fa9efa"
 "checksum crossbeam-deque 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)" = "c3aa945d63861bfe624b55d153a39684da1e8c0bc8fba932f7ee3a3c16cea3ca"
 "checksum crossbeam-epoch 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "5064ebdbf05ce3cb95e45c8b086f72263f4166b29b97f6baff7ef7fe047b55ac"
