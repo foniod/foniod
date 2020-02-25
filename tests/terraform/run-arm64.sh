@@ -18,5 +18,5 @@ ssh_run -n grep -v Measurement /tmp/ingrain.log > test-output
 
 cat test-output
 
-modules_loaded=$(<test-output awk -F': ' '/ingraind::grains::ebpf\]  Loaded/ { print $NF }' | sort)
+modules_loaded=$(<test-output awk -F': ' '/ingraind::grains::ebpf\] Loaded/ { print $NF }' | sort)
 test "$modules_loaded" = "$EXPECTED_RESULT"
