@@ -27,6 +27,6 @@ cd /home/ubuntu/ingraind
 sed -i 's/eth0/enP2p4s0/' ../config.toml
 
 cargo build --release
-(env RUST_BACKTRACE=1 RUST_LOG=INFO cargo run --release ../config.toml 2> /tmp/ingrain.log) &
+(env RUST_LOG_STYLE=never RUST_BACKTRACE=1 RUST_LOG=INFO cargo run --release ../config.toml 2> /tmp/ingrain.log) &
 sleep 3
 kill -9 0

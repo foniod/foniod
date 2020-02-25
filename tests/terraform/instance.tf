@@ -62,7 +62,7 @@ resource "null_resource" "provision" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /tmp/ingraind",
-      "(sudo env RUST_BACKTRACE=1 RUST_LOG=INFO /tmp/ingraind /tmp/config.toml | grep -v Measurement) &",
+      "(sudo env RUST_LOG_STYLE=never RUST_BACKTRACE=1 RUST_LOG=INFO /tmp/ingraind /tmp/config.toml | grep -v Measurement) &",
       "sleep 3",
       "sudo pkill -9 ingraind",
     ]
