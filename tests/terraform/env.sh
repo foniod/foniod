@@ -5,6 +5,14 @@ cleanup() {
 }
 trap cleanup quit exit
 
+check_result() {
+    modules_loaded=$(<test-output awk -F': ' '/ingraind::grains::ebpf\] Loaded/ { print $NF }' | sort)
+    echo "Modules loaded:"
+    echo $modules_loaded
+
+    test "$modules_loaded" = "$EXPECTED_RESULT"
+}
+
 EXPECTED_RESULT="dns_queries, XDP
 tcp_recvmsg, Kprobe
 tcp_recvmsg, Kretprobe
