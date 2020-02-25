@@ -42,7 +42,7 @@ metrohash = "1"
 regex = "1.1"
 
 log = { version = "^0.4", features = ["serde"] }
-env_logger = "^0.5.13"
+env_logger = "^0.6.2"
 syslog = "^5.0"
 
 rayon = "1.2.1"
