@@ -48,7 +48,7 @@ syslog = "^5.0"
 rayon = "1.2.1"
 
 dns-parser = "0.8"
-hdrhistogram = { version = "6.3", default-features = false }
+hdrhistogram = { version = "7.0", default-features = false }
 ingraind-probes = { path = "ingraind-probes" }
 
 [dependencies.hyper]
