@@ -438,6 +438,21 @@ workflows:
             branches:
               ignore: /.*/
 
+  centos8_docker:
+    jobs:
+      - build_rh_binary:
+          name: build centos8
+          yum_repo: centos8
+      - build_docker_image:
+          tags: latest-centos8 ${CIRCLE_SHA1:0:7}-centos8 ${CIRCLE_TAG/%/-centos8}
+          requires:
+            - build centos8
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+
   fedora31_docker:
     jobs:
       - build_rh_binary:
