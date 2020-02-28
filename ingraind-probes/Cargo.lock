@@ -85,7 +85,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "bpf-sys"
 version = "0.9.11"
-source = "git+https://github.com/redsift/redbpf#e6090353372e2c1922a42e3219e7a50139c9091e"
+source = "git+https://github.com/redsift/redbpf#924d0f69d70811b4927d9ce5c76460c372c2ee20"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -119,7 +119,7 @@ dependencies = [
 [[package]]
 name = "cargo-bpf"
 version = "0.9.11"
-source = "git+https://github.com/redsift/redbpf#e6090353372e2c1922a42e3219e7a50139c9091e"
+source = "git+https://github.com/redsift/redbpf#924d0f69d70811b4927d9ce5c76460c372c2ee20"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -680,7 +680,7 @@ dependencies = [
 [[package]]
 name = "redbpf"
 version = "0.9.11"
-source = "git+https://github.com/redsift/redbpf#e6090353372e2c1922a42e3219e7a50139c9091e"
+source = "git+https://github.com/redsift/redbpf#924d0f69d70811b4927d9ce5c76460c372c2ee20"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "bpf-sys 0.9.11 (git+https://github.com/redsift/redbpf)",
@@ -701,7 +701,7 @@ dependencies = [
 [[package]]
 name = "redbpf-macros"
 version = "0.9.11"
-source = "git+https://github.com/redsift/redbpf#e6090353372e2c1922a42e3219e7a50139c9091e"
+source = "git+https://github.com/redsift/redbpf#924d0f69d70811b4927d9ce5c76460c372c2ee20"
 dependencies = [
  "proc-macro2 1.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -711,7 +711,7 @@ dependencies = [
 [[package]]
 name = "redbpf-probes"
 version = "0.9.11"
-source = "git+https://github.com/redsift/redbpf#e6090353372e2c1922a42e3219e7a50139c9091e"
+source = "git+https://github.com/redsift/redbpf#924d0f69d70811b4927d9ce5c76460c372c2ee20"
 dependencies = [
  "cargo-bpf 0.9.11 (git+https://github.com/redsift/redbpf)",
  "cty 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
