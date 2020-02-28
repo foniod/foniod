@@ -25,6 +25,12 @@ pipelines = ["test"]
 type = "TLS"
 interface = "eth0"
 
+[[probe]]
+pipelines = ["test"]
+[probe.config]
+type = "Syscall"
+monitor_syscalls = ["clone"]
+
 [pipeline.test.config]
 backend = "Console"
 
