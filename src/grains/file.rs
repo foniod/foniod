@@ -6,7 +6,7 @@ use std::fs::metadata;
 use std::os::raw::c_char;
 use std::os::unix::fs::MetadataExt;
 
-use redbpf::{Module, VoidPtr};
+use redbpf::{Module, HashMap};
 
 use crate::grains::*;
 
@@ -49,15 +49,12 @@ impl EBPFGrain<'static> for Files {
     }
 
     fn loaded(&mut self, module: &mut Module) {
-        let actionlist = find_map_by_name(module, "actionlist");
+        let actionlist = HashMap::<u64, u8>::new(find_map_by_name(module, "actionlist")).unwrap();
 
-        let mut record = ACTION_RECORD;
+        let record = ACTION_RECORD;
         for dir in self.0.monitor_dirs.iter() {
-            let mut ino = metadata(dir).unwrap().ino();
-            actionlist.set(
-                &mut ino as *mut ino_t as VoidPtr,
-                &mut record as *mut _ as VoidPtr,
-            );
+            let ino = metadata(dir).unwrap().ino();
+            actionlist.set(ino, record);
         }
     }
 

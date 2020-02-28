@@ -5,7 +5,7 @@ use std::fs;
 use crate::grains::*;
 
 use failure::Error;
-use redbpf::{Module, VoidPtr};
+use redbpf::{Module, HashMap as BPFHashMap};
 use redbpf::uname::get_kernel_internal_version;
 
 use ingraind_probes::syscalls::SyscallTracepoint;
@@ -55,10 +55,8 @@ impl EBPFGrain<'static> for Syscall {
 
         self.0.ksyms = Some(parse_symbol_map(&symfile).unwrap());
 
-        let map = find_map_by_name(module, "host_pid");
-        let mut pid = std::process::id();
-        map.set(&mut 1u8 as *mut u8 as VoidPtr,
-                &mut pid as *mut u32 as VoidPtr);
+        let map = BPFHashMap::<u8, u32>::new(find_map_by_name(module, "host_pid")).unwrap();
+        map.set(1u8, std::process::id());
     }
 
     fn get_handler(&self, _id: &str) -> EventCallback {
