@@ -55,8 +55,8 @@ impl EBPFGrain<'static> for Syscall {
 
         self.0.ksyms = Some(parse_symbol_map(&symfile).unwrap());
 
-        let map = BPFHashMap::<u8, u32>::new(find_map_by_name(module, "host_pid")).unwrap();
-        map.set(1u8, std::process::id());
+        let map = BPFHashMap::<u8, u64>::new(find_map_by_name(module, "host_pid")).unwrap();
+        map.set(1u8, std::process::id() as u64);
     }
 
     fn get_handler(&self, _id: &str) -> EventCallback {
