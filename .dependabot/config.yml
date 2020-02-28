@@ -1,0 +1,28 @@
+# This is an example with only required properties:
+version: 1
+update_configs:
+  - package_manager: "rust:cargo"
+    directory: "/"
+    update_schedule: "live"
+    ignored_updates:
+      - match:
+          dependency_name: "redbpf-probes"
+      - match:
+          dependency_name: "redbpf-macros"
+      - match:
+          dependency_name: "redbpf"
+      - match:
+          dependency_name: "cargo-bpf"
+
+  - package_manager: "rust:cargo"
+    directory: "/ingraind-probes"
+    update_schedule: "live"
+    ignored_updates:
+      - match:
+          dependency_name: "redbpf-probes"
+      - match:
+          dependency_name: "redbpf-macros"
+      - match:
+          dependency_name: "redbpf"
+      - match:
+          dependency_name: "cargo-bpf"
