@@ -6,4 +6,4 @@ cp /tmp/workspace/bin/ingraind-$OS_AMI ./ingraind
 terraform init -input=false
 terraform apply -target=null_resource.provision -input=false -auto-approve |tee test-output
 
-check_result
+check_result x64
