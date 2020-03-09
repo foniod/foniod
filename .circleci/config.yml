@@ -394,6 +394,7 @@ workflows:
   elrepo7_docker:
     jobs:
       - build_rh_binary:
+          context: org-global
           name: build elrepo7
           yum_repo: elrepo7
           kernel_pkg: kernel-ml-devel
@@ -410,6 +411,7 @@ workflows:
   elrepo8_docker:
     jobs:
       - build_rh_binary:
+          context: org-global
           name: build elrepo8
           yum_repo: elrepo8
           kernel_pkg: kernel-ml-devel
@@ -426,6 +428,7 @@ workflows:
   amzn2_docker:
     jobs:
       - build_rh_binary:
+          context: org-global
           name: build amzn2
           yum_repo: amzn2-core
       - build_docker_image:
@@ -441,6 +444,7 @@ workflows:
   centos8_docker:
     jobs:
       - build_rh_binary:
+          context: org-global
           name: build centos8
           yum_repo: centos8
       - build_docker_image:
@@ -456,6 +460,7 @@ workflows:
   fedora31_docker:
     jobs:
       - build_rh_binary:
+          context: org-global
           name: build fedora31
           yum_repo: fedora
       - build_docker_image:
