@@ -11,8 +11,8 @@ check_result() {
     echo "Modules loaded:"
     echo $modules_loaded
 
-    expected_result="__${arch}_sys_clone, Kprobe
-dns_queries, XDP
+    expected_result="dns_queries, XDP
+sys_clone, Kprobe
 tcp_recvmsg, Kprobe
 tcp_recvmsg, Kretprobe
 tcp_sendmsg, Kprobe
