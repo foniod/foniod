@@ -69,7 +69,7 @@ where
             .iter_mut()
             .filter(|p| p.kind == Kprobe || p.kind == Kretprobe)
         {
-            info!("Loaded: {}, {:?}", prog.name, prog.kind);
+            info!("Loaded: {}, {:?}", name.as_ref(), prog.kind);
             prog.attach_probe_to_name(name.as_ref()).unwrap();
         }
 
