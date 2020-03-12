@@ -28,10 +28,7 @@ impl EBPFProbe for Grain<TLS> {
 
 impl EBPFGrain<'static> for TLS {
     fn code() -> &'static [u8] {
-        include_bytes!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/ingraind-probes/target/release/bpf-programs/tls/tls.elf"
-        ))
+        include_bytes!(concat!(env!("OUT_DIR"), "/target/bpf/programs/tls/tls.elf"))
     }
 
     fn get_handler(&self, _id: &str) -> EventCallback {

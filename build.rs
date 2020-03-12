@@ -8,11 +8,12 @@ const CAPNP_SCHEMA: &'static str = "schema/ingraind.capnp";
 fn main() {
     let cargo = PathBuf::from(env::var("CARGO").unwrap());
 
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let probes = Path::new("ingraind-probes");
     cargo_bpf::build(
         &cargo,
         &probes,
-        &probes.join("target/release/bpf-programs"),
+        &out_dir.join("target"),
         Vec::new(),
     )
     .expect("couldn't compile ingraind-probes");

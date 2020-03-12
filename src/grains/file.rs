@@ -41,8 +41,8 @@ impl EBPFProbe for Grain<Files> {
 impl EBPFGrain<'static> for Files {
     fn code() -> &'static [u8] {
         include_bytes!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/ingraind-probes/target/release/bpf-programs/file/file.elf"
+            env!("OUT_DIR"),
+            "/target/bpf/programs/file/file.elf"
         ))
     }
 

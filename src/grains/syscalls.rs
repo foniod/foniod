@@ -42,7 +42,10 @@ impl EBPFProbe for Grain<Syscall> {
 
 impl EBPFGrain<'static> for Syscall {
     fn code() -> &'static [u8] {
-        include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/ingraind-probes/target/release/bpf-programs/syscalls/syscalls.elf"))
+        include_bytes!(concat!(
+            env!("OUT_DIR"),
+            "/target/bpf/programs/syscalls/syscalls.elf"
+        ))
     }
 
     fn loaded(&mut self, module: &mut Module) {

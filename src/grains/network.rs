@@ -16,8 +16,8 @@ impl EBPFProbe for Grain<Network> {
 impl EBPFGrain<'static> for Network {
     fn code() -> &'static [u8] {
         include_bytes!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/ingraind-probes/target/release/bpf-programs/network/network.elf"
+            env!("OUT_DIR"),
+            "/target/bpf/programs/network/network.elf"
         ))
     }
 

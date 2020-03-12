@@ -28,10 +28,7 @@ impl EBPFProbe for Grain<DNS> {
 
 impl EBPFGrain<'static> for DNS {
     fn code() -> &'static [u8] {
-        include_bytes!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/ingraind-probes/target/release/bpf-programs/dns/dns.elf"
-        ))
+        include_bytes!(concat!(env!("OUT_DIR"), "/target/bpf/programs/dns/dns.elf"))
     }
 
     fn get_handler(&self, _id: &str) -> EventCallback {
