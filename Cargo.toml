@@ -16,7 +16,7 @@ version = "^0.9.3"
 optional = true
 
 [dependencies]
-actix = "^0.8"
+actix = "^0.9"
 futures = "^0.1"
 tokio = "0.1"
 tokio-reactor = "0.1"
