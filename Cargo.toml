@@ -52,7 +52,7 @@ hdrhistogram = { version = "7.0", default-features = false }
 ingraind-probes = { path = "ingraind-probes" }
 
 [dependencies.hyper]
-version = "0.12"
+version = "0.13"
 optional = true
 
 [dependencies.hyper-rustls]
