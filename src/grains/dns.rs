@@ -6,15 +6,15 @@ use dns_parser::{rdata::RData, Packet, ResourceRecord};
 use metrohash::MetroHash64;
 use std::hash::Hasher;
 
-use redbpf::xdp::MapData;
 use ingraind_probes::dns::Event;
+use redbpf::xdp::MapData;
 
 pub struct DNS(pub DnsConfig);
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DnsConfig {
     interface: String,
     #[serde(default = "default_xdp_mode")]
-    xdp_mode: XdpMode
+    xdp_mode: XdpMode,
 }
 
 impl EBPFProbe for Grain<DNS> {
@@ -165,10 +165,10 @@ fn ip_to_tags(v: &ResourceRecord, id: &str) -> Tags {
         }
         TXT(_txt) => {
             tags.insert("record_type", "TXT");
-	    // ignore txt responses for now because of potential size
-	    // and encoding issues
+            // ignore txt responses for now because of potential size
+            // and encoding issues
         }
-	Unknown(_) => unreachable!()
+        Unknown(_) => unreachable!(),
     };
 
     tags

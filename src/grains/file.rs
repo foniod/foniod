@@ -1,4 +1,3 @@
-
 #![allow(non_camel_case_types)]
 
 use std::ffi::CStr;
@@ -6,7 +5,7 @@ use std::fs::metadata;
 use std::os::raw::c_char;
 use std::os::unix::fs::MetadataExt;
 
-use redbpf::{Module, HashMap};
+use redbpf::{HashMap, Module};
 
 use crate::grains::*;
 
@@ -35,7 +34,6 @@ pub struct FileAccess {
 
 impl EBPFProbe for Grain<Files> {
     fn attach(&mut self) -> MessageStreams {
-
         self.attach_kprobes()
     }
 }

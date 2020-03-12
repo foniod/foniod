@@ -1,12 +1,12 @@
-use std::os::raw::c_char;
 use std::collections::HashMap;
 use std::fs;
+use std::os::raw::c_char;
 
 use crate::grains::*;
 
 use failure::Error;
-use redbpf::{Module, HashMap as BPFHashMap};
 use redbpf::uname::get_kernel_internal_version;
+use redbpf::{HashMap as BPFHashMap, Module};
 
 use ingraind_probes::syscalls::SyscallTracepoint;
 
@@ -35,9 +35,7 @@ impl EBPFProbe for Grain<Syscall> {
         let bind_to = self.native.0.monitor_syscalls.clone();
         bind_to
             .iter()
-            .flat_map(|syscall| {
-                self.attach_kprobes_to_names(&format!("{}{}", prefix, syscall))
-            })
+            .flat_map(|syscall| self.attach_kprobes_to_names(&format!("{}{}", prefix, syscall)))
             .collect()
     }
 }
@@ -69,9 +67,10 @@ impl EBPFGrain<'static> for Syscall {
             tags.insert("syscall_str", syscall_name);
 
             tags.insert("process_id", data.id.to_string());
-            tags.insert("process_str", crate::grains::to_string(
-                unsafe { &*(&data.comm as *const [c_char]) }
-            ));
+            tags.insert(
+                "process_str",
+                crate::grains::to_string(unsafe { &*(&data.comm as *const [c_char]) }),
+            );
 
             Some(Message::Single(Measurement::new(
                 COUNTER | HISTOGRAM,
@@ -88,6 +87,11 @@ fn parse_symbol_map(path: &str) -> Result<KSyms, Error> {
     Ok(symmap
         .lines()
         .map(|l| l.splitn(4, ' ').collect::<Vec<&str>>())
-        .map(|tokens| (u64::from_str_radix(&tokens[0], 16).unwrap(), tokens[2].to_string()))
+        .map(|tokens| {
+            (
+                u64::from_str_radix(&tokens[0], 16).unwrap(),
+                tokens[2].to_string(),
+            )
+        })
         .collect())
 }

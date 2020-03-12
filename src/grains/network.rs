@@ -36,19 +36,19 @@ impl EBPFGrain<'static> for Network {
 
             "ip_volume" => Box::new(|raw| {
                 let event = unsafe { std::ptr::read(raw.as_ptr() as *const Message) };
-		let (name, conn, vol) = match event {
-		    Message::Send(conn, size) => ("volume.out", conn, size),
-		    Message::Receive(conn, size) => ("volume.in", conn, size)
-		};
+                let (name, conn, vol) = match event {
+                    Message::Send(conn, size) => ("volume.out", conn, size),
+                    Message::Receive(conn, size) => ("volume.in", conn, size),
+                };
 
-		let proto = match conn.typ {
-		    IPPROTO_TCP => "tcp",
-		    IPPROTO_UDP => "udp",
-		    _ => return None
-		};
+                let proto = match conn.typ {
+                    IPPROTO_TCP => "tcp",
+                    IPPROTO_UDP => "udp",
+                    _ => return None,
+                };
 
-		let mut tags = conn_tags(&conn);
-		tags.insert("proto", proto);
+                let mut tags = conn_tags(&conn);
+                tags.insert("proto", proto);
 
                 Some(grains::Message::Single(Measurement::new(
                     COUNTER | HISTOGRAM,
@@ -70,7 +70,7 @@ fn conn_tags(event: &Connection) -> Tags {
     tags.insert("s_ip", ip_to_string(&event.saddr));
     tags.insert("d_port", to_le(event.dport as u16).to_string());
     tags.insert("s_port", to_le(event.sport as u16).to_string());
-    
+
     tags
 }
 
@@ -78,7 +78,7 @@ fn ip_to_string(addr: &Ipv6Addr) -> String {
     let v6: &std::net::Ipv6Addr = unsafe { std::mem::transmute(addr) };
 
     match v6.to_ipv4() {
-	Some(v4) => v4.to_string(),
-	None => v6.to_string()
+        Some(v4) => v4.to_string(),
+        None => v6.to_string(),
     }
 }
