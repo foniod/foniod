@@ -18,7 +18,7 @@ optional = true
 [dependencies]
 actix = "^0.8"
 futures = "^0.1"
-tokio = "0.1"
+tokio = "0.2"
 tokio-reactor = "0.1"
 tokio-udp = "0.1"
 tokio-timer = "0.2.12"
