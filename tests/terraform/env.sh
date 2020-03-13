@@ -7,11 +7,17 @@ trap cleanup quit exit
 
 check_result() {
     arch=$1
+    kver=$(uname -r | sed -e "s/\.//g" -e "s/-.*//g")
+    if [ $kver -ge 41700 ]; then
+        clone="__${arch}_sys_clone"
+    else
+        clone="sys_clone"
+    fi
     modules_loaded=$(<test-output awk -F': ' '/ingraind::grains::ebpf\] Loaded/ { print $NF }' | sort)
     echo "Modules loaded:"
     echo $modules_loaded
 
-    expected_result="__${arch}_sys_clone, Kprobe
+    expected_result="$clone, Kprobe
 dns_queries, XDP
 tcp_recvmsg, Kprobe
 tcp_recvmsg, Kretprobe
