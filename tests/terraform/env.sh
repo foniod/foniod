@@ -8,6 +8,7 @@ trap cleanup quit exit
 check_result() {
     arch=$1
     kver=$(uname -r | sed -e "s/\.//g" -e "s/-.*//g")
+    echo "Kernel version: $kver"
     if [ $kver -ge 41700 ]; then
         clone="__${arch}_sys_clone"
     else
