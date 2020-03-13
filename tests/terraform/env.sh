@@ -33,6 +33,8 @@ vfs_read, Kretprobe
 vfs_write, Kprobe
 vfs_write, Kretprobe"
     expected_result=$(echo $expected_result | sort)
+    echo "Modules expected:"
+    echo $expected_result
 
     test "$modules_loaded" = "$expected_result"
 }
