@@ -7,9 +7,9 @@ cleanup() {
 
 check_result() {
     arch=$1
-    kver=$(uname -r | awk -F. '/.*/ {printf("%d%02d%02d\n", $1, $2, $3)}')
-    uname -a
-    echo "Kernel version: $kver"
+    uname_r=$2
+    kver=$(echo $uname_r | awk -F. '/.*/ {printf("%d%02d%02d\n", $1, $2, $3)}')
+    echo "Kernel version: $kver $uname_r"
     if [ $kver -ge 41700 ]; then
         clone="__${arch}_sys_clone"
     else
