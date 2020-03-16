@@ -3,11 +3,12 @@ set -e
 cleanup() {
     terraform destroy -input=false -auto-approve
 }
-trap cleanup quit exit
+#trap cleanup quit exit
 
 check_result() {
     arch=$1
     kver=$(uname -r | awk -F. '/.*/ {printf("%d%02d%02d\n", $1, $2, $3)}')
+    uname -a
     echo "Kernel version: $kver"
     if [ $kver -ge 41700 ]; then
         clone="__${arch}_sys_clone"
