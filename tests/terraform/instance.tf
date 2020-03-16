@@ -10,7 +10,7 @@ output "arm64_ip" {
   value = aws_instance.ingraind_arm64.public_ip
 }
 
-output = "ssh_user" {
+output "ssh_user" {
   value = lookup(local.ec2_user_map, var.ec2_os_ami)
 }
 
