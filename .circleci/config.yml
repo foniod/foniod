@@ -64,7 +64,7 @@ jobs:
       - checkout
       - attach_workspace:
           # Must be absolute path or relative path from working_directory
-          at: /tmp/workspace
+          at: /build
       - run:
           name: Deploy
           command: |
@@ -83,7 +83,7 @@ jobs:
       - checkout
       - attach_workspace:
           # Must be absolute path or relative path from working_directory
-          at: /tmp/workspace
+          at: /build
       - run:
           name: Deploy
           command: |
@@ -104,9 +104,6 @@ jobs:
       - image: quay.io/redsift/ingraind-build:18.04
     steps:
       - checkout
-      - attach_workspace:
-          at: /build
-
       - cargo_build:
           type: release
           # only do release builds for terraform workflows
@@ -126,9 +123,6 @@ jobs:
       - image: fedora:31
     steps:
       - checkout
-      - attach_workspace:
-          at: /build
-
       - run:
           name: Install deps
           command: |
