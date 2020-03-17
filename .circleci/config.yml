@@ -330,7 +330,7 @@ jobs:
     working_directory: /build
     resource_class: large
     docker:
-      - image: quay.io/redsift/ingraind-build:latest
+      - image: quay.io/redsift/ingraind-build:19.10
     steps:
       - checkout
       - attach_workspace:
