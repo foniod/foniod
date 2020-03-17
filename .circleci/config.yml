@@ -344,11 +344,6 @@ jobs:
             echo KERNEL_SOURCE=/usr/src/kernels/$(ls /usr/src/kernels |head -n1) >> $BASH_ENV
 
       - cargo_build:
-          type: debug
-          flags: --target=x86_64-unknown-linux-musl
-          binary: target/x86_64-unknown-linux-musl/debug/ingraind
-      
-      - cargo_build:
           type: release
           flags: --target=x86_64-unknown-linux-musl
           binary: target/x86_64-unknown-linux-musl/release/ingraind
