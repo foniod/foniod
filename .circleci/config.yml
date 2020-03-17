@@ -46,6 +46,7 @@ commands:
                 cp << parameters.binary >> /build/binaries/ingraind-debug
                 sha256sum /build/binaries/ingraind-debug
               fi
+              sccache -s || true
       - store_artifacts:
           path: /build/binaries
           destination: ingraind-binaries
