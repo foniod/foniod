@@ -57,6 +57,9 @@ jobs:
       ami:
         type: string
         default: "latest"
+      binary:
+        type: string
+        default: "target/x86_64-unknown-linux-musl/release/ingraind"
     working_directory: /build
     docker:
       - image: hashicorp/terraform:light
@@ -69,6 +72,7 @@ jobs:
           name: Deploy
           command: |
             cd tests/terraform
+            cp /build/<< parameters.binary >> ./ingraind
             ./run-amd64.sh << parameters.ami >>
 
   terraform_arm:
@@ -324,6 +328,7 @@ workflows:
       - terraform:
           name: 'terraform - fedora 31'
           ami: 'fedora-31'
+          binary: 'target/release/ingraind'
           requires:
             - fedora 31
           filters:

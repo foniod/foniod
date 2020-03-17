@@ -1,7 +1,6 @@
 #!/bin/sh
 
 . ./env.sh
-cp /build/target/x86_64-unknown-linux-musl/release/ingraind .
 
 terraform init -input=false
 terraform apply -target=null_resource.provision -input=false -auto-approve |tee test-output
