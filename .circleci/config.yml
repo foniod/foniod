@@ -101,36 +101,11 @@ jobs:
     working_directory: /build
     resource_class: large
     docker:
-      - image: ubuntu:<< parameters.tag >>
+      - image: quay.io/redsift/ingraind-build:18.04
     steps:
       - checkout
       - attach_workspace:
           at: /build
-
-      - run:
-          name: Install some deps
-          command: |
-            apt-get update
-            apt-get install -y curl wget gnupg2 software-properties-common lsb-release
-
-      - run:
-          name: Configure llvm 9 repo
-          command: |
-            curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-            add-apt-repository 'deb http://apt.llvm.org/bionic/   llvm-toolchain-bionic-9  main'
-
-      - run:
-          name: Install more deps
-          command: |
-            apt-get update
-            apt-get install -y clang llvm llvm-9 musl-tools capnproto libelf-dev linux-headers-<< parameters.kernel_version >> ca-certificates{,-java}
-
-      - install_rust
-
-      - cargo_build:
-          type: debug
-          flags: --target=x86_64-unknown-linux-musl
-          binary: target/x86_64-unknown-linux-musl/debug/ingraind
 
       - cargo_build:
           type: release
@@ -139,19 +114,10 @@ jobs:
           flags: --target=x86_64-unknown-linux-musl
           binary: target/x86_64-unknown-linux-musl/release/ingraind
 
-      - run:
-          name: Persist binaries
-          command: |
-            mkdir -p /tmp/workspace/bin
-            if [ ${CIRCLE_BRANCH} = "master" ]; then
-              cp target/x86_64-unknown-linux-musl/release/ingraind \
-                /tmp/workspace/bin/ingraind-ubuntu-$(echo "<< parameters.tag >>" | sed 's/\.//')
-            fi
-
       - persist_to_workspace:
-          root: /tmp/workspace
+          root: "./"
           paths:
-            - bin
+            - "target/x86_64-unknown-linux-musl/release/ingraind"
 
   fedora:
     working_directory: /build
@@ -186,19 +152,10 @@ jobs:
           condition: "[ -n \"$AWS_EC2_SSH_KEY_ID\" ]"
           binary: target/release/ingraind
 
-      - run:
-          name: Persist binaries
-          command: |
-            mkdir -p /tmp/workspace/bin
-            if [ ${CIRCLE_BRANCH} = "master" ]; then
-              cp target/release/ingraind \
-                /tmp/workspace/bin/ingraind-fedora-31
-            fi
-
       - persist_to_workspace:
-          root: /tmp/workspace
+          root: "./"
           paths:
-            - bin
+            - "target/x86_64-unknown-linux-musl/release/ingraind"
 
   gke:
     working_directory: /build
