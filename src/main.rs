@@ -72,7 +72,9 @@ fn main() {
                 .map(|p| {
                     backends
                         .get(p)
-                        .unwrap_or_else(|| panic!("Invalid configuration: pipeline {} not found!", p))
+                        .unwrap_or_else(|| {
+                            panic!("Invalid configuration: pipeline {} not found!", p)
+                        })
                         .clone()
                 })
                 .collect::<Vec<Recipient<Message>>>();

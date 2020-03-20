@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion, BatchSize};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use ingraind::aggregations::buffer::Aggregator;
 use ingraind::metrics::{kind, Measurement, Tags, Unit};
 

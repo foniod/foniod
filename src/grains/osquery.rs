@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use actix::{Actor, AsyncContext, Context, Recipient};
 
-use crate::grains::SendToManyRecipients;
 use crate::backends::Message;
+use crate::grains::SendToManyRecipients;
 use crate::metrics::{kind, Measurement, Tags, Unit};
 
 fn default_osqueryi() -> String {

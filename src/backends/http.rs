@@ -15,7 +15,7 @@ pub struct HTTP {
     client: Client<HttpsConnector<HttpConnector>>,
     encoding: Encoding,
     content_type: String,
-    parallel_chunk_size: usize
+    parallel_chunk_size: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -62,7 +62,7 @@ impl HTTP {
             uri,
             encoding,
             content_type,
-            parallel_chunk_size
+            parallel_chunk_size,
         }
     }
 }

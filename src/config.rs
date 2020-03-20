@@ -116,7 +116,7 @@ pub enum ProbeActor {
     EBPF(EBPFActor),
     StatsD(grains::statsd::Statsd),
     Osquery(osquery::Osquery),
-    Test(grains::test::TestProbe)
+    Test(grains::test::TestProbe),
 }
 
 impl ProbeActor {

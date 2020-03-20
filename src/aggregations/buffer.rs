@@ -338,7 +338,6 @@ impl Aggregator {
     pub fn uniques(&self, key: &MeasurementKey) -> Option<usize> {
         self.sets.get(key).map(|am| am.value.len())
     }
-
 }
 
 #[cfg(test)]

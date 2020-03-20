@@ -4,12 +4,12 @@ mod protocol;
 
 pub mod dns;
 pub mod file;
+pub mod network;
 pub mod osquery;
 pub mod statsd;
 pub mod syscalls;
-pub mod tls;
-pub mod network;
 pub mod test;
+pub mod tls;
 
 use actix::Recipient;
 
@@ -22,7 +22,7 @@ pub use crate::metrics::{Measurement, Tags, ToTags, Unit};
 pub use std::net::Ipv4Addr;
 
 use redbpf::{Map, Module};
-use std::{os::raw::c_char, mem::transmute };
+use std::{mem::transmute, os::raw::c_char};
 trait SendToManyRecipients {
     fn do_send(&self, message: Message) {
         let recipients = self.recipients();
@@ -43,7 +43,6 @@ impl SendToManyRecipients for Vec<Recipient<Message>> {
         self
     }
 }
-
 
 pub fn to_le(i: u16) -> u16 {
     (i >> 8) | (i << 8)

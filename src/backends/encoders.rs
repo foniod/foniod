@@ -16,7 +16,7 @@ impl Encoding {
         match self {
             Encoding::JSON => to_json(measurements),
             #[cfg(feature = "capnp")]
-            Encoding::Capnp => to_capnp(measurements)
+            Encoding::Capnp => to_capnp(measurements),
         }
     }
 }
@@ -56,7 +56,13 @@ pub fn measurement_to_json(measurement: Measurement) -> Vec<u8> {
 }
 
 pub fn to_json(measurements: &[Measurement]) -> Vec<u8> {
-    serde_json::to_vec(&measurements.iter().map(SerializedMeasurement::from).collect::<Vec<_>>()).unwrap()
+    serde_json::to_vec(
+        &measurements
+            .iter()
+            .map(SerializedMeasurement::from)
+            .collect::<Vec<_>>(),
+    )
+    .unwrap()
 }
 
 fn serialized_name(msg: &Measurement) -> String {

@@ -1,16 +1,16 @@
 use crate::backends::Message;
-use crate::grains::SendToManyRecipients;
 use crate::grains::ebpf_io::{
-    MessageStream, MessageStreams, PerfMessageStream, SocketMessageStream
+    MessageStream, MessageStreams, PerfMessageStream, SocketMessageStream,
 };
+use crate::grains::SendToManyRecipients;
 
 use redbpf::{cpus, xdp, Module, PerfMap, Result};
 
 use actix::{Actor, AsyncContext, Context, Recipient, Running, StreamHandler};
 use lazy_socket::raw::Socket;
+use std::convert::Into;
 use std::io;
 use std::os::unix::io::FromRawFd;
-use std::convert::Into;
 
 pub struct Grain<T> {
     module: Module,
@@ -197,13 +197,13 @@ pub enum XdpMode {
     Auto,
     Skb,
     Driver,
-    Hardware
+    Hardware,
 }
 
 impl Into<xdp::Flags> for XdpMode {
     fn into(self) -> xdp::Flags {
-        use XdpMode::*;
         use xdp::Flags::*;
+        use XdpMode::*;
         match self {
             Auto => xdp::Flags::default(),
             Skb => SkbMode,

@@ -1,7 +1,7 @@
+use std::hash::Hash;
 use std::ops::RangeBounds;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec::Drain;
-use std::hash::Hash;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Tags(pub Vec<(String, String)>);
@@ -40,13 +40,9 @@ impl Tags {
 
     pub fn get(&self, k: impl Into<String>) -> Option<&str> {
         let ks = k.into();
-        self.0.iter().find_map(|(tk, tv)| {
-            if tk == &ks {
-                Some(tv.as_str())
-            } else {
-                None
-            }
-        })
+        self.0
+            .iter()
+            .find_map(|(tk, tv)| if tk == &ks { Some(tv.as_str()) } else { None })
     }
 }
 
@@ -81,7 +77,7 @@ pub mod kind {
             "SET" => SET,
             "SET_UNIQUES" => SET_UNIQUES,
             "PERCENTILE" => PERCENTILE,
-            _ => return Err(())
+            _ => return Err(()),
         };
 
         Ok(k)
@@ -97,14 +93,14 @@ pub enum Unit {
     #[serde(rename = "count")]
     Count(u64),
     #[serde(rename = "string")]
-    Str(String)
+    Str(String),
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum UnitType {
     Byte,
     Count,
-    Str
+    Str,
 }
 
 impl UnitType {
@@ -114,7 +110,7 @@ impl UnitType {
         match self {
             Byte => Unit::Byte(val),
             Count => Unit::Count(val),
-            _ => panic!("Invalid conversion")
+            _ => panic!("Invalid conversion"),
         }
     }
 
@@ -129,7 +125,7 @@ impl Unit {
 
         match *self {
             Byte(x) | Count(x) => x,
-            Str(_) =>  {
+            Str(_) => {
                 debug!("get() called on string metric");
                 0
             }
@@ -152,7 +148,7 @@ impl Unit {
         let u = match s.to_uppercase().as_str() {
             "BYTE" => Byte(val),
             "COUNT" => Count(val),
-            _ => return Err(())
+            _ => return Err(()),
         };
 
         Ok(u)
@@ -172,10 +168,16 @@ pub struct Measurement {
 
 impl Measurement {
     pub fn new(kind: Kind, name: String, value: Unit, tags: Tags) -> Self {
-	Self::with_timestamp(timestamp_now(), kind, name, value, tags)
+        Self::with_timestamp(timestamp_now(), kind, name, value, tags)
     }
 
-    pub fn with_timestamp(timestamp: u64, kind: Kind, name: String, value: Unit, tags: Tags) -> Self {
+    pub fn with_timestamp(
+        timestamp: u64,
+        kind: Kind,
+        name: String,
+        value: Unit,
+        tags: Tags,
+    ) -> Self {
         Self {
             timestamp,
             kind,

@@ -38,9 +38,9 @@ impl Handler<Message> for S3 {
 
     fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
         let body = match msg {
-	    Message::Single(m) => super::encoders::to_json(&vec![m]).into(),
-	    Message::List(ref ms) => super::encoders::to_json(ms).into(),
-	};
+            Message::Single(m) => super::encoders::to_json(&vec![m]).into(),
+            Message::List(ref ms) => super::encoders::to_json(ms).into(),
+        };
 
         ::actix::spawn(
             self.client
@@ -49,7 +49,8 @@ impl Handler<Message> for S3 {
                     key: format!("{}_{}", &self.hostname, timestamp_now()),
                     body: Some(body),
                     ..Default::default()
-                }).and_then(|_| Ok(()))
+                })
+                .and_then(|_| Ok(()))
                 .or_else(|_| Ok(())),
         );
     }

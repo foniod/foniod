@@ -8,8 +8,8 @@ use bytes::BytesMut;
 use tokio::codec;
 use tokio_udp::{UdpFramed, UdpSocket};
 
-use crate::grains::SendToManyRecipients;
 use crate::backends::Message;
+use crate::grains::SendToManyRecipients;
 use crate::metrics::{kind, Measurement, Tags, Unit};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -218,8 +218,8 @@ impl Into<Message> for Vec<Metric> {
 
 impl Into<Measurement> for Metric {
     fn into(self) -> Measurement {
-        use MetricValue::*;
         use kind::*;
+        use MetricValue::*;
         use Unit::*;
 
         let mut reset = false;
@@ -231,7 +231,7 @@ impl Into<Measurement> for Metric {
             }
             Timing(t) => (TIMER, Count(t as u64)),
             Set(v) => (SET, Str(v)),
-            Histogram(v) => (HISTOGRAM, Count(v))
+            Histogram(v) => (HISTOGRAM, Count(v)),
         };
 
         let mut m = Measurement::new(k, self.key, v, self.tags);

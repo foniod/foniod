@@ -27,9 +27,8 @@ impl Statsd {
             env::var("STATSD_PORT").expect("The STATSD_PORT environment variable has to be set!");
         let port = u16::from_str(&port).expect("STATSD_PORT has to be a valid port number");
 
-        let udp_sink = BufferedUdpMetricSink::from((host.as_str(), port), helper_socket).unwrap_or_else(|_|
-            panic!("Invalid statsd server settings: {}:{}", host, port)
-        );
+        let udp_sink = BufferedUdpMetricSink::from((host.as_str(), port), helper_socket)
+            .unwrap_or_else(|_| panic!("Invalid statsd server settings: {}:{}", host, port));
         let queuing_sink = QueuingMetricSink::from(udp_sink);
         let client = StatsdClient::from_sink("ingraind.metrics", queuing_sink);
 
@@ -57,9 +56,11 @@ impl Handler<Message> for Statsd {
 
     fn handle(&mut self, msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
         match msg {
-            Message::List(ref ms) => for m in ms {
-                self.count_with_tags(&m);
-            },
+            Message::List(ref ms) => {
+                for m in ms {
+                    self.count_with_tags(&m);
+                }
+            }
             Message::Single(ref m) => self.count_with_tags(m),
         }
     }

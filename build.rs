@@ -10,13 +10,8 @@ fn main() {
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     let probes = Path::new("ingraind-probes");
-    cargo_bpf::build(
-        &cargo,
-        &probes,
-        &out_dir.join("target"),
-        Vec::new(),
-    )
-    .expect("couldn't compile ingraind-probes");
+    cargo_bpf::build(&cargo, &probes, &out_dir.join("target"), Vec::new())
+        .expect("couldn't compile ingraind-probes");
 
     build_capnp();
 
