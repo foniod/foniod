@@ -1,16 +1,16 @@
 use crate::backends::Message;
-use crate::grains::SendToManyRecipients;
 use crate::grains::ebpf_io::{
-    MessageStream, MessageStreams, PerfMessageStream, SocketMessageStream
+    MessageStream, MessageStreams, PerfMessageStream, SocketMessageStream,
 };
+use crate::grains::SendToManyRecipients;
 
 use redbpf::{cpus, xdp, Module, PerfMap, Result};
 
 use actix::{Actor, AsyncContext, Context, Recipient, Running, StreamHandler};
 use lazy_socket::raw::Socket;
+use std::convert::Into;
 use std::io;
 use std::os::unix::io::FromRawFd;
-use std::convert::Into;
 
 pub struct Grain<T> {
     module: Module,
@@ -46,40 +46,26 @@ where
     T: EBPFGrain<'code>,
 {
     pub fn attach_kprobes(&mut self) -> MessageStreams {
-        use redbpf::ProgramKind::*;
-        for prog in self
-            .module
-            .programs
-            .iter_mut()
-            .filter(|p| p.kind == Kprobe || p.kind == Kretprobe)
-        {
-            prog.attach_probe()
-                .expect(&format!("Failed to attach kprobe {}", prog.name));
-            info!("Loaded: {}, {:?}", prog.name, prog.kind);
+        for prog in self.module.kprobes_mut() {
+            info!("Loaded: {}, {}", prog.name(), prog.attach_type_str());
+            prog.attach_kprobe(&prog.name(), 0).unwrap();
         }
 
         self.bind_perf()
     }
 
-    pub fn attach_kprobes_to_names(&mut self, name: impl AsRef<str>) -> MessageStreams {
-        use redbpf::ProgramKind::*;
-        for prog in self
-            .module
-            .programs
-            .iter_mut()
-            .filter(|p| p.kind == Kprobe || p.kind == Kretprobe)
-        {
-            info!("Loaded: {}, {:?}", name.as_ref(), prog.kind);
-            prog.attach_probe_to_name(name.as_ref()).unwrap();
+    pub fn attach_kprobes_to_name(&mut self, name: &str) -> MessageStreams {
+        for prog in self.module.kprobes_mut() {
+            info!("Loaded: {}, {}", name, prog.attach_type_str());
+            prog.attach_kprobe(name, 0).unwrap();
         }
 
         self.bind_perf()
     }
 
     pub fn attach_xdps(&mut self, iface: &str, flags: xdp::Flags) -> MessageStreams {
-        use redbpf::ProgramKind::*;
-        for prog in self.module.programs.iter_mut().filter(|p| p.kind == XDP) {
-            info!("Loaded: {}, {:?}", prog.name, prog.kind);
+        for prog in self.module.xdps_mut() {
+            info!("Loaded: {}, XDP", prog.name());
             prog.attach_xdp(iface, flags).unwrap();
         }
 
@@ -87,15 +73,9 @@ where
     }
 
     pub fn attach_tracepoints(&mut self, category: &str, name: &str) -> MessageStreams {
-        use redbpf::ProgramKind::*;
-        for prog in self
-            .module
-            .programs
-            .iter_mut()
-            .filter(|p| p.kind == Tracepoint)
-        {
-            info!("Attached: {}, {:?}", prog.name, prog.kind);
-            prog.attach_tracepoint(category, name).unwrap();
+        for prog in self.module.trace_points_mut() {
+            info!("Attached: {}, Tracepoint", name);
+            prog.attach_trace_point(category, name).unwrap();
         }
 
         self.bind_perf()
@@ -120,33 +100,26 @@ where
     }
 
     pub fn attach_socketfilters(&mut self, iface: &str) -> MessageStreams {
-        use redbpf::ProgramKind::*;
         let socket_fds = self
             .module
-            .programs
-            .iter_mut()
-            .filter(|p| p.kind == SocketFilter)
+            .socket_filters_mut()
             .map(|prog| {
-                info!("Attached: {}, {:?}", prog.name, prog.kind);
-                prog.attach_socketfilter(iface).unwrap()
+                info!("Attached: {}, SocketFilter", prog.name());
+                prog.attach_socket_filter(iface).unwrap()
             })
             .collect::<Vec<_>>();
 
         // we need to get out of mutable borrow land to continue.
         // this is because we cannot simultaneously borrow the `native` as
         // immutable and `programs ` as mutable
-        // Therefore it is needed to refilter, but after that ordering should be
-        // the same
         self.module
-            .programs
-            .iter()
-            .filter(|p| p.kind == SocketFilter)
+            .socket_filters()
             .zip(&socket_fds)
             .map(|(prog, fd)| {
                 Box::new(SocketMessageStream::new(
-                    prog.name.clone(),
+                    &prog.name(),
                     unsafe { Socket::from_raw_fd(*fd) },
-                    self.native.get_handler(prog.name.as_str()),
+                    self.native.get_handler(&prog.name()),
                 )) as Box<MessageStream>
             })
             .collect()
@@ -197,13 +170,13 @@ pub enum XdpMode {
     Auto,
     Skb,
     Driver,
-    Hardware
+    Hardware,
 }
 
 impl Into<xdp::Flags> for XdpMode {
     fn into(self) -> xdp::Flags {
-        use XdpMode::*;
         use xdp::Flags::*;
+        use XdpMode::*;
         match self {
             Auto => xdp::Flags::default(),
             Skb => SkbMode,

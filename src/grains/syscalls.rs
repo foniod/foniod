@@ -35,7 +35,7 @@ impl EBPFProbe for Grain<Syscall> {
         let bind_to = self.native.0.monitor_syscalls.clone();
         bind_to
             .iter()
-            .flat_map(|syscall| self.attach_kprobes_to_names(&format!("{}{}", prefix, syscall)))
+            .flat_map(|syscall| self.attach_kprobes_to_name(&format!("{}{}", prefix, syscall)))
             .collect()
     }
 }

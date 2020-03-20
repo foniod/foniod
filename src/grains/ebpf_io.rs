@@ -112,7 +112,7 @@ pub struct SocketMessageStream {
 }
 
 impl SocketMessageStream {
-    pub fn new(_name: String, socket: Socket, callback: EventCallback) -> Self {
+    pub fn new(_name: &str, socket: Socket, callback: EventCallback) -> Self {
         let io = GrainIo(socket.as_raw_fd());
         let poll = PollEvented2::new_with_handle(io, &Handle::default()).unwrap();
         SocketMessageStream {
