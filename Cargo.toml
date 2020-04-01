@@ -56,7 +56,7 @@ version = "0.12"
 optional = true
 
 [dependencies.hyper-rustls]
-version = "0.17"
+version = "0.20"
 optional = true
 
 [dependencies.cadence]
