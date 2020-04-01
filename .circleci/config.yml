@@ -339,6 +339,11 @@ workflows:
       - ubuntu:
           name: "ubuntu 18.04"
           tag: "18.04"
+      - build_docker_image:
+          name: build ubuntu 18.04 image
+          tags: latest-ubuntu-18.04 ${CIRCLE_SHA1:0:7}-ubuntu-18.04 ${CIRCLE_TAG/%/-ubuntu-18.04}
+          requires:
+            - ubuntu 18.04
 
       - fedora:
           name: "fedora 31"
