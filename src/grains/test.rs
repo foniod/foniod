@@ -1,8 +1,10 @@
 use actix::{Actor, AsyncContext, Context, Recipient, StreamHandler};
-use futures::{Async, Poll, Stream};
 use std::cmp;
+use futures::stream::Stream;
+use std::pin::Pin;
+use std::task::{self, Poll};
 use std::time::Duration;
-use tokio_timer::Interval;
+use tokio::time::{interval, Interval};
 
 use crate::backends::Message;
 use crate::grains::SendToManyRecipients;
@@ -45,7 +47,7 @@ impl Actor for TestProbe {
     }
 }
 
-impl StreamHandler<Message, ()> for TestProbe {
+impl StreamHandler<Message> for TestProbe {
     fn handle(&mut self, message: Message, _ctx: &mut Context<TestProbe>) {
         self.recipients.do_send(message);
     }
@@ -79,17 +81,16 @@ impl MeasurementStream {
             message_len,
             ms_per_second,
             ms_sent: 0,
-            interval: Interval::new_interval(Duration::from_secs(1)),
+            interval: interval(Duration::from_secs(1)),
         }
     }
 }
 
 impl Stream for MeasurementStream {
     type Item = Message;
-    type Error = ();
 
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        if let Ok(Async::Ready(_)) = self.interval.poll() {
+    fn poll_next(mut self: Pin<&mut Self>, ctx: &mut task::Context) -> Poll<Option<Self::Item>> {
+        if let Poll::Ready(_) = self.interval.poll_tick(ctx) {
             self.ms_sent = 0;
         }
         if self.ms_sent < self.ms_per_second {
@@ -109,9 +110,9 @@ impl Stream for MeasurementStream {
                 })
                 .collect();
             let message = Message::List(measurements);
-            return Ok(Async::Ready(Some(message)));
+            return Poll::Ready(Some(message));
         }
-        Ok(Async::NotReady)
+        Poll::Pending
     }
 }
 

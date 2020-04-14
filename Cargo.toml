@@ -16,12 +16,9 @@ version = "^0.9.3"
 optional = true
 
 [dependencies]
-actix = "^0.8"
-futures = "^0.1"
-tokio = "0.1"
-tokio-reactor = "0.1"
-tokio-udp = "0.1"
-tokio-timer = "0.2.12"
+actix = "0.9"
+futures = "0.3"
+tokio = { version = "0.2", features = ["udp", "time", "stream"]}
 bytes = "0.4"
 mio = "0.6"
 
@@ -52,11 +49,11 @@ hdrhistogram = { version = "7.0", default-features = false }
 ingraind-probes = { path = "ingraind-probes" }
 
 [dependencies.hyper]
-version = "0.12"
+version = "0.13"
 optional = true
 
 [dependencies.hyper-rustls]
-version = "0.17"
+version = "0.20"
 optional = true
 
 [dependencies.cadence]
