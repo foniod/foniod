@@ -3,18 +3,10 @@ use std::str::FromStr;
 
 use actix::prelude::*;
 use failure::{format_err, Error};
-use lazy_static::lazy_static;
 use rayon::prelude::*;
-use regex::Regex;
 
 use crate::backends::Message;
 use crate::metrics::Measurement;
-
-lazy_static! {
-    // this pattern actually matches the Docker id from both
-    // Kubernetes and Docker-created containers
-    static ref DOCKER_PATTERN: Regex = Regex::new(r#"(?m):/.*/([a-z0-9]{64})$"#).unwrap();
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ContainerConfig;
@@ -31,7 +23,7 @@ impl Container {
 }
 
 fn add_tags(msg: &mut Measurement) {
-    if let Ok(cid) = get_docker_container_id(&DOCKER_PATTERN, msg) {
+    if let Ok(cid) = get_docker_container_id(msg) {
         msg.tags.insert("docker_id", cid);
     }
 }
@@ -50,7 +42,7 @@ impl Handler<Message> for Container {
 }
 
 #[inline]
-fn get_docker_container_id(regex: &Regex, msg: &Measurement) -> Result<String, Error> {
+fn get_docker_container_id(msg: &Measurement) -> Result<String, Error> {
     let pid_str = msg
         .tags
         .get("process_id")
@@ -60,13 +52,18 @@ fn get_docker_container_id(regex: &Regex, msg: &Measurement) -> Result<String, E
     let cgroup = fs::read_to_string(format!("/proc/{}/cgroup", pid))
         .or_else(|_| fs::read_to_string(format!("/proc/{}/cgroup", pid)))?;
 
-    container_id(regex, &cgroup).ok_or_else(|| format_err!("No container"))
+    container_id(&cgroup).ok_or_else(|| format_err!("No container"))
 }
 
 #[inline]
-fn container_id(re: &Regex, cgroup: &str) -> Option<String> {
-    if let Some(container) = re.captures_iter(cgroup).next() {
-        return container.get(1).map(|m| m.as_str().to_string());
+fn container_id(cgroup: &str) -> Option<String> {
+    for line in cgroup.lines() {
+        let path = line.split(":").last()?;
+        if !path.starts_with("/docker") && !path.starts_with("/kube") {
+            continue;
+        }
+
+        return Some(path[path.rfind("/").unwrap() + 1..].to_string());
     }
 
     None
@@ -76,7 +73,6 @@ mod test {
     #[test]
     fn regex_can_match_docker() {
         use crate::aggregations::container::container_id;
-        use crate::aggregations::container::DOCKER_PATTERN;
 
         let cgroup = r#"
 10:cpuset:/docker/a844b8599d5e23c620c646b69c6d93c4014247cd0be9ec142c44219b6467e07f
@@ -93,7 +89,7 @@ mod test {
 "#;
 
         assert_eq!(
-            container_id(&DOCKER_PATTERN, cgroup),
+            container_id(cgroup),
             Some("a844b8599d5e23c620c646b69c6d93c4014247cd0be9ec142c44219b6467e07f".to_string())
         );
     }
@@ -101,7 +97,6 @@ mod test {
     #[test]
     fn regex_can_match_kube() {
         use crate::aggregations::container::container_id;
-        use crate::aggregations::container::DOCKER_PATTERN;
 
         let cgroup = r#"
 12:hugetlb:/kubepods/besteffort/poda21e738c-d6b6-11e8-82df-002590deaca4/a844b8599d5e23c620c646b69c6d93c4014247cd0be9ec142c44219b6467e07f
@@ -130,7 +125,7 @@ mod test {
 "#;
 
         assert_eq!(
-            container_id(&DOCKER_PATTERN, cgroup),
+            container_id(cgroup),
             Some("a844b8599d5e23c620c646b69c6d93c4014247cd0be9ec142c44219b6467e07f".to_string())
         );
     }
@@ -138,7 +133,6 @@ mod test {
     #[test]
     fn regex_no_match_no_cgroup() {
         use crate::aggregations::container::container_id;
-        use crate::aggregations::container::DOCKER_PATTERN;
 
         let cgroup = r#"
 10:cpuset:/
@@ -154,13 +148,12 @@ mod test {
 0::/
 "#;
 
-        assert_eq!(container_id(&DOCKER_PATTERN, cgroup), None);
+        assert_eq!(container_id(cgroup), None);
     }
 
     #[test]
     fn regex_no_match_systemd() {
         use crate::aggregations::container::container_id;
-        use crate::aggregations::container::DOCKER_PATTERN;
 
         let cgroup = r#"
 10:cpuset:/
@@ -176,6 +169,6 @@ mod test {
 0::/user.slice/user-1000.slice/session-c1.scope
 "#;
 
-        assert_eq!(container_id(&DOCKER_PATTERN, cgroup), None);
+        assert_eq!(container_id(cgroup), None);
     }
 }
