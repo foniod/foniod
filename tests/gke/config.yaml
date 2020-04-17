@@ -67,6 +67,10 @@ data:
     backend = "Console"
 
     [[pipeline.staging.steps]]
+    type = "Container"
+    system = "Kubernetes"
+
+    [[pipeline.staging.steps]]
     type = "AddSystemDetails"
 
     [[pipeline.staging.steps]]

@@ -1,30 +1,139 @@
+use actix::fut::wrap_future;
+use actix::prelude::*;
+use actix::AsyncContext;
+use bollard::{
+    container::ListContainersOptions,
+    system::{EventsOptions, EventsResults},
+    Docker,
+};
+use chrono::{Duration, Utc};
+use failure::{format_err, Error};
+use futures::prelude::*;
+use k8s_openapi::api::core::v1::Pod;
+use kube::{
+    api::{Api, ListParams, Meta, WatchEvent},
+    Client,
+};
+use rayon::prelude::*;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::str::FromStr;
-
-use actix::prelude::*;
-use failure::{format_err, Error};
-use rayon::prelude::*;
+use std::sync::{Arc, RwLock};
 
 use crate::backends::Message;
 use crate::metrics::Measurement;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ContainerConfig;
-pub struct Container(ContainerConfig, Recipient<Message>);
+#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
+pub enum ContainerSystem {
+    Kubernetes,
+    Docker,
+}
 
-impl Actor for Container {
-    type Context = Context<Self>;
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ContainerConfig {
+    system: ContainerSystem,
+}
+pub struct Container {
+    config: ContainerConfig,
+    upstream: Recipient<Message>,
+    state: Arc<RwLock<State>>,
+}
+
+struct State {
+    pods: HashMap<String, Pod>,
+    containers: HashMap<String, ContainerInfo>,
+}
+
+impl State {
+    fn new() -> Self {
+        Self {
+            pods: HashMap::new(),
+            containers: HashMap::new(),
+        }
+    }
 }
 
 impl Container {
     pub fn launch(config: ContainerConfig, upstream: Recipient<Message>) -> Recipient<Message> {
-        Container(config, upstream).start().recipient()
+        Container {
+            config,
+            upstream,
+            state: Arc::new(RwLock::new(State::new())),
+        }
+        .start()
+        .recipient()
+    }
+
+    fn watch_kubernetes(&mut self, ctx: &mut <Self as Actor>::Context) {
+        let fut = wrap_future::<_, Self>(async {
+            let client = Client::try_default().await?;
+            let pods: Api<Pod> = Api::namespaced(client, "default");
+            let lp = ListParams::default();
+            let stream = pods.watch(&lp, "0").await?.boxed();
+            Ok::<_, kube::Error>(stream)
+        });
+        ctx.spawn(fut.map(|stream, _actor, ctx| match stream {
+            Ok(stream) => {
+                ctx.add_stream(stream);
+            }
+            Err(e) => {
+                panic!("error retrieving kubernetes pods: {}", e);
+            }
+        }));
+    }
+
+    fn watch_docker(&mut self, ctx: &mut <Self as Actor>::Context) {
+        let docker = Docker::connect_with_unix_defaults()
+            .or_else(|_| Docker::connect_with_http_defaults())
+            .expect("couldn't connect to docker daemon");
+
+        let start = Utc::now();
+
+        let client = docker.clone();
+        let fut = wrap_future::<_, Self>(async move {
+            let options = Some(ListContainersOptions::<String> {
+                all: true,
+                ..Default::default()
+            });
+            client.list_containers(options).await
+        });
+
+        let client = docker.clone();
+        ctx.spawn(fut.map(move |containers, actor, ctx| match containers {
+            Ok(containers) => {
+                let mut state = actor.state.write().unwrap();
+                for container in containers {
+                    let mut info = ContainerInfo::new();
+                    info.names.extend(container.names.iter().cloned());
+                    state.containers.insert(container.id.clone(), info);
+                }
+
+                let mut filters = HashMap::new();
+                filters.insert("type".to_string(), vec!["container".to_string()]);
+                let options = EventsOptions::<String> {
+                    since: start,
+                    until: Utc::now() + Duration::weeks(52 * 100),
+                    filters,
+                };
+                let events = client.events(Some(options));
+                ctx.add_stream(events);
+            }
+            Err(e) => {
+                panic!("error retrieving docker containers: {}", e);
+            }
+        }));
     }
 }
 
-fn add_tags(msg: &mut Measurement) {
-    if let Ok(cid) = get_docker_container_id(msg) {
-        msg.tags.insert("docker_id", cid);
+impl Actor for Container {
+    type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        use ContainerSystem::*;
+        match self.config.system {
+            Kubernetes => self.watch_kubernetes(ctx),
+            Docker => self.watch_docker(ctx),
+        };
     }
 }
 
@@ -32,17 +141,159 @@ impl Handler<Message> for Container {
     type Result = ();
 
     fn handle(&mut self, mut msg: Message, _ctx: &mut Context<Self>) -> Self::Result {
+        let system = self.config.system;
+        let state = self.state.clone();
         match msg {
-            Message::List(ref mut ms) => ms.par_iter_mut().for_each(move |m| add_tags(m)),
-            Message::Single(ref mut m) => add_tags(m),
+            Message::List(ref mut ms) => ms
+                .par_iter_mut()
+                .for_each(move |m| add_tags(system, state.clone(), m)),
+            Message::Single(ref mut m) => add_tags(system, state, m),
         }
 
-        self.1.do_send(msg).unwrap();
+        self.upstream.do_send(msg).unwrap();
+    }
+}
+
+impl StreamHandler<Result<WatchEvent<Pod>, kube::Error>> for Container {
+    fn handle(&mut self, event: Result<WatchEvent<Pod>, kube::Error>, _ctx: &mut Context<Self>) {
+        let event = match event {
+            Ok(e) => e,
+            Err(e) => {
+                error!("error watching kubernetes pods: {}", e);
+                return;
+            }
+        };
+
+        let mut state = self.state.write().unwrap();
+        match event {
+            WatchEvent::Added(pod) => {
+                let name = Meta::name(&pod);
+                debug!("added pod {}", name);
+                state.pods.insert(name, pod.clone());
+            }
+            WatchEvent::Modified(pod) => {
+                let name = Meta::name(&pod);
+                debug!("modified pod: {}", name);
+                state.pods.insert(name, pod.clone()).unwrap();
+            }
+            WatchEvent::Deleted(pod) => {
+                let name = Meta::name(&pod);
+                debug!("deleted pod: {}", name);
+                state.pods.remove(&name).unwrap();
+            }
+            WatchEvent::Bookmark(_pod) => {}
+            WatchEvent::Error(e) => println!("pod error: {}", e),
+        }
+    }
+}
+
+impl StreamHandler<Result<EventsResults, bollard::errors::Error>> for Container {
+    fn handle(
+        &mut self,
+        event: Result<EventsResults, bollard::errors::Error>,
+        _ctx: &mut Context<Self>,
+    ) {
+        let event = match event {
+            Ok(e) => e,
+            Err(e) => {
+                error!("error watching docker events: {}", e);
+                return;
+            }
+        };
+
+        assert!(event.type_ == "container");
+
+        let mut state = self.state.write().unwrap();
+        let containers = &mut state.containers;
+        let id = event.actor.id.clone();
+        let attrs = &event.actor.attributes;
+
+        match event.action.as_str() {
+            "create" => {
+                let mut info = ContainerInfo::new();
+                info.names.insert(attrs.get("name").unwrap().clone());
+                containers.insert(id, info);
+            }
+            "rename" => {
+                let info = containers.entry(id).or_insert_with(|| {
+                    warn!("received update container event for unknown container");
+                    ContainerInfo::new()
+                });
+                if let Some(name) = attrs.get("oldName") {
+                    info.names.remove(name);
+                    info.names.insert(attrs.get("name").unwrap().clone());
+                }
+            }
+            "destroy" => {
+                containers.remove(&id);
+            }
+            _ => (),
+        };
+    }
+}
+
+fn pod_from_container_id<'a>(containers: &'a HashMap<String, Pod>, id: &str) -> Option<&'a Pod> {
+    containers.values().find(|pod| {
+        if let Some(status) = &pod.status {
+            if let Some(statuses) = &status.container_statuses {
+                return statuses
+                    .iter()
+                    .find(|status| {
+                        if let Some(c_id) = &status.container_id {
+                            return &c_id["docker://".len()..] == id;
+                        }
+                        false
+                    })
+                    .is_some();
+            }
+        }
+        false
+    })
+}
+
+fn container_name_from_container_id<'a>(
+    containers: &'a HashMap<String, ContainerInfo>,
+    id: &str,
+) -> Option<&'a String> {
+    containers.get(id).and_then(|info| info.names.iter().next())
+}
+
+#[derive(Debug)]
+struct ContainerInfo {
+    names: HashSet<String>,
+}
+
+impl ContainerInfo {
+    fn new() -> Self {
+        Self {
+            names: HashSet::new(),
+        }
+    }
+}
+
+fn add_tags(system: ContainerSystem, state: Arc<RwLock<State>>, msg: &mut Measurement) {
+    if let Ok(id) = container_id_from_measurement(msg) {
+        let state = state.read().unwrap();
+        use ContainerSystem::*;
+        match system {
+            Kubernetes => {
+                if let Some(pod) = pod_from_container_id(&state.pods, &id) {
+                    msg.tags.insert("kubernetes_pod", Meta::name(pod));
+                }
+            }
+            Docker => {
+                if let Some(name) = container_name_from_container_id(&state.containers, &id) {
+                    msg.tags.insert("docker_name", name.clone());
+                }
+            }
+        }
+
+        msg.tags.insert("docker_id", id);
     }
 }
 
 #[inline]
-fn get_docker_container_id(msg: &Measurement) -> Result<String, Error> {
+fn container_id_from_measurement(msg: &Measurement) -> Result<String, Error> {
     let pid_str = msg
         .tags
         .get("process_id")

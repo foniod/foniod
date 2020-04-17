@@ -206,6 +206,7 @@ use_tags = true
 
 [[pipeline.statsd.steps]]
 type = "Container"
+system = "Kubernetes"
 
 [[pipeline.statsd.steps]]
 type = "Whitelist"
