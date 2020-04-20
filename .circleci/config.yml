@@ -331,7 +331,7 @@ jobs:
       - run:
           name: Upload artifact
           command: |
-            k_pkg=<< parameters.kernel_pkg >>
+            k_pkg=<< parameters.kernel_version >>
             binary=ingraind-${CIRCLE_SHA1:0:7}-${k_pkg#*-*-}
             mv target/x86_64-unknown-linux-musl/release/ingraind $binary
             echo $RSIGN_SK |sed "s/|/\n/g" >/tmp/rsign_sk
