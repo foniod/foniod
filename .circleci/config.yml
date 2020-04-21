@@ -335,10 +335,10 @@ jobs:
             binary=ingraind-${CIRCLE_SHA1:0:7}-${k_pkg#*-*-}
             mv target/x86_64-unknown-linux-musl/release/ingraind $binary
             echo $RSIGN_SK |sed "s/|/\n/g" >/tmp/rsign_sk
-            rsign sign -s /tmp/rsign_sk $binary > $binary.minisign
+            rsign sign -s /tmp/rsign_sk $binary
 
             s3cmd put --acl-public --guess-mime-type $binary s3://redsift-ops/ingrain/$binary
-            s3cmd put --acl-public --guess-mime-type $binary.minisign s3://redsift-ops/ingrain/$binary.minisign
+            s3cmd put --acl-public --guess-mime-type $binary.minisig s3://redsift-ops/ingrain/$binary.minisig
 
 workflows:
   version: 2.1
