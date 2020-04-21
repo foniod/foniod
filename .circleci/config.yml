@@ -308,50 +308,6 @@ jobs:
           paths:
             - "target"
 
-  build_for_archive_kernel:
-    parameters:
-      kernel_version:
-        type: string
-      kernel_pkg:
-        type: kernel-ml
-      distro:
-        type: string
-        default: el7
-
-    working_directory: /build
-    resource_class: large
-    docker:
-      - image: quay.io/redsift/ingraind-build:19.10
-    steps:
-      - checkout
-      - attach_workspace:
-          at: /build
-
-      - run:
-          name: Set up kernel for environment
-          command: |
-            apt-get -y install s3cmd
-            pkg=<< parameters.kernel_pkg >>-headers-<< parameters.kernel_version >>.rpm
-            s3cmd get s3://redsift-ops/kernels/<< parameters.distro >>/$pkg $pkg
-            rpm --nodeps -i $pkg
-            echo KERNEL_SOURCE=/usr/src/kernels/$(ls /usr/src/kernels |head -n1) >> $BASH_ENV
-
-      - cargo_build:
-          type: release
-          flags: --target=x86_64-unknown-linux-musl
-          binary: target/x86_64-unknown-linux-musl/release/ingraind
-
-      - run:
-          name: Upload artifact
-          command: |
-            k_pkg=<< parameters.kernel_pkg >>
-            binary=ingraind-${CIRCLE_SHA1:0:7}-${k_pkg#*-*-}
-            mv target/x86_64-unknown-linux-musl/release/ingraind $binary
-            rsign -P $RSIGN_SK $binary > $binary.minisign
-
-            s3cmd put --acl-public --guess-mime-type $binary s3://ingrain-public/$binary
-            s3cmd put --acl-public --guess-mime-type $binary.minisign s3://ingrain-public/$binary.minisign
-
 workflows:
   version: 2.1
   build:
@@ -391,52 +347,6 @@ workflows:
 
       - fedora:
           name: "fedora 31"
-
-
-  build_for_el7:
-    jobs:
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 4.16.4-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 4.17.2-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 5.0.7-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 5.3.6-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 5.3.7-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 5.4.7-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 5.5.6-2.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 5.5.8-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 4.16.12-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 4.17.8-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 4.20.12-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 5.3.5-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 5.3.8-1.el7.elrepo.x86_64
-      - build_for_archive_kernel:
-          context: org-global
-          kernel_version: 5.5.5-1.el7.elrepo.x86_64
 
   elrepo7_docker:
     jobs:
