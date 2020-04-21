@@ -13,16 +13,6 @@ update_configs:
           dependency_name: "redbpf"
       - match:
           dependency_name: "cargo-bpf"
-      - match:
-          dependency_name: "actix"
-      - match:
-          dependency_name: "mio"
-      - match:
-          dependency_name: "hyper"
-      - match:
-          dependency_name: "tokio"
-      - match:
-          dependency_name: "futures"
 
   - package_manager: "rust:cargo"
     directory: "/ingraind-probes"
