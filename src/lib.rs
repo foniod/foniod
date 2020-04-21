@@ -1,6 +1,5 @@
 #![deny(clippy::all)]
 
-#[macro_use]
 extern crate actix;
 #[macro_use]
 extern crate serde_derive;

@@ -6,10 +6,9 @@ use crate::grains::SendToManyRecipients;
 
 use redbpf::{cpus, xdp, Module, PerfMap, Result};
 
-use actix::{Actor, AsyncContext, Context, Recipient, Running, StreamHandler};
+use actix::{Actor, AsyncContext, Context, Recipient, StreamHandler};
 use lazy_socket::raw::Socket;
 use std::convert::Into;
-use std::io;
 use std::os::unix::io::FromRawFd;
 
 pub struct Grain<T> {
@@ -152,16 +151,11 @@ impl Actor for EBPFActor {
     }
 }
 
-impl StreamHandler<Vec<Message>, io::Error> for EBPFActor {
+impl StreamHandler<Vec<Message>> for EBPFActor {
     fn handle(&mut self, mut messages: Vec<Message>, _ctx: &mut Context<Self>) {
         for message in messages.drain(..) {
             self.recipients.do_send(message);
         }
-    }
-
-    fn error(&mut self, err: io::Error, _ctx: &mut Self::Context) -> Running {
-        error!("probe error: {}", err);
-        Running::Continue
     }
 }
 

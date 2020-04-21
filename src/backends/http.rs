@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use actix::prelude::*;
-use futures::{finished, Future};
+use futures::prelude::*;
 use hyper::{client::HttpConnector, header, Body, Client, HeaderMap, Method, Request, Uri};
 use hyper_rustls::HttpsConnector;
 use rayon::prelude::*;
@@ -15,7 +15,7 @@ pub struct HTTP {
     client: Client<HttpsConnector<HttpConnector>>,
     encoding: Encoding,
     content_type: String,
-    parallel_chunk_size: usize
+    parallel_chunk_size: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -30,8 +30,8 @@ pub struct HTTPConfig {
 impl HTTP {
     pub fn new(config: HTTPConfig) -> HTTP {
         let client = Client::builder()
-            .keep_alive(false)
-            .build(HttpsConnector::new(config.threads.unwrap_or(4)));
+            .pool_max_idle_per_host(0)
+            .build(HttpsConnector::new());
         let uri = config.uri.parse().unwrap();
 
         let headers = {
@@ -62,7 +62,7 @@ impl HTTP {
             uri,
             encoding,
             content_type,
-            parallel_chunk_size
+            parallel_chunk_size,
         }
     }
 }
@@ -99,12 +99,7 @@ impl Handler<Message> for HTTP {
             req.headers_mut()
                 .insert(header::CONTENT_TYPE, self.content_type.parse().unwrap());
 
-            actix::spawn(
-                self.client
-                    .request(req)
-                    .and_then(|_| finished(()))
-                    .or_else(|_| finished(())),
-            );
+            actix::spawn(self.client.request(req).map(|_| ()));
         }
     }
 }

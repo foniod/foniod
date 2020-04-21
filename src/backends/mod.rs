@@ -12,12 +12,12 @@ mod encoders;
 
 use crate::metrics::{kind::Kind, Measurement, Unit};
 
-impl actix::Message for Measurement {
-    type Result = ();
-}
-
-#[derive(Debug, Clone, Message)]
+#[derive(Debug, Clone)]
 pub enum Message {
     Single(Measurement),
     List(Vec<Measurement>),
+}
+
+impl actix::Message for Message {
+    type Result = ();
 }

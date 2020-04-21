@@ -2,14 +2,15 @@ use std::convert::From;
 use std::io;
 use std::net::SocketAddr;
 use std::str;
+use std::task::Poll;
 
-use actix::{Actor, AsyncContext, Context, Recipient, Running, StreamHandler};
-use bytes::BytesMut;
-use tokio::codec;
-use tokio_udp::{UdpFramed, UdpSocket};
+use actix::{Actor, AsyncContext, Context, Recipient, StreamHandler};
+use futures::prelude::*;
+use futures::{pin_mut, ready};
+use tokio::net::UdpSocket;
 
-use crate::grains::SendToManyRecipients;
 use crate::backends::Message;
+use crate::grains::SendToManyRecipients;
 use crate::metrics::{kind, Measurement, Tags, Unit};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -37,8 +38,6 @@ pub enum MetricError {
     SampleRateError,
     TagError,
 }
-
-struct Decoder;
 
 #[derive(Debug)]
 enum DecoderError {
@@ -120,22 +119,6 @@ fn parse_metrics(input: &str) -> Result<Vec<Metric>, MetricError> {
     Ok(metrics)
 }
 
-impl codec::Decoder for Decoder {
-    type Item = Vec<Metric>;
-    type Error = DecoderError;
-
-    fn decode(&mut self, input: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if input.is_empty() {
-            return Ok(None);
-        }
-
-        let bytes = input.take();
-        let input = str::from_utf8(&bytes).map_err(|_| MetricError::Error)?;
-        let metrics = parse_metrics(input)?;
-        Ok(Some(metrics))
-    }
-}
-
 pub struct Statsd {
     bind_address: SocketAddr,
     recipients: Vec<Recipient<Message>>,
@@ -162,9 +145,36 @@ impl Actor for Statsd {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         info!("statsd daemon started {}", self.bind_address);
-        let socket = UdpSocket::bind(&self.bind_address).unwrap();
-        let metrics = UdpFramed::new(socket, Decoder);
-        ctx.add_stream(metrics);
+        let mut socket =
+            UdpSocket::from_std(std::net::UdpSocket::bind(self.bind_address).unwrap()).unwrap();
+        let stream = stream::poll_fn(move |ctx| {
+            let mut buf = [0u8; 65527];
+            let size = {
+                let fut = socket.recv(&mut buf);
+                pin_mut!(fut);
+                let size = match ready!(fut.poll(ctx)) {
+                    Ok(size) => size,
+                    Err(e) => {
+                        error!("UdpSocket::recv failed: {}", e);
+                        return Poll::Pending;
+                    }
+                };
+                size
+            };
+            let metrics = match str::from_utf8(&buf[..size])
+                .or(Err(MetricError::Error))
+                .and_then(parse_metrics)
+            {
+                Ok(m) => m,
+                Err(e) => {
+                    error!("error parsing metrics: {:?}", e);
+                    return Poll::Pending;
+                }
+            };
+
+            Poll::Ready(Some(metrics))
+        });
+        ctx.add_stream(stream);
     }
 
     fn stopped(&mut self, _ctx: &mut Self::Context) {
@@ -172,19 +182,10 @@ impl Actor for Statsd {
     }
 }
 
-impl StreamHandler<(Vec<Metric>, SocketAddr), DecoderError> for Statsd {
-    fn handle(
-        &mut self,
-        (metrics, _src_addr): (Vec<Metric>, SocketAddr),
-        _ctx: &mut Context<Statsd>,
-    ) {
+impl StreamHandler<Vec<Metric>> for Statsd {
+    fn handle(&mut self, metrics: Vec<Metric>, _ctx: &mut Context<Statsd>) {
         let message: Message = metrics.into();
         self.recipients.do_send(message);
-    }
-
-    fn error(&mut self, err: DecoderError, _ctx: &mut Self::Context) -> Running {
-        error!("error parsing metrics {:?}", err);
-        Running::Continue
     }
 }
 
@@ -218,8 +219,8 @@ impl Into<Message> for Vec<Metric> {
 
 impl Into<Measurement> for Metric {
     fn into(self) -> Measurement {
-        use MetricValue::*;
         use kind::*;
+        use MetricValue::*;
         use Unit::*;
 
         let mut reset = false;
@@ -231,7 +232,7 @@ impl Into<Measurement> for Metric {
             }
             Timing(t) => (TIMER, Count(t as u64)),
             Set(v) => (SET, Str(v)),
-            Histogram(v) => (HISTOGRAM, Count(v))
+            Histogram(v) => (HISTOGRAM, Count(v)),
         };
 
         let mut m = Measurement::new(k, self.key, v, self.tags);
