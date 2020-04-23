@@ -17,7 +17,7 @@ spec:
       hostNetwork: true
       hostPID: true
       containers:
-      - image: quay.io/redsift/ingraind:latest
+      - image: quay.io/redsift/ingraind:latest-gke
         name: ingraind
         terminationMessagePath: /dev/termination-log
         env:
