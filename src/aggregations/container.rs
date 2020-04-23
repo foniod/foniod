@@ -40,7 +40,7 @@ pub struct Container {
 }
 
 struct State {
-    pods: HashMap<String, Pod>,
+    pods: HashMap<(Option<String>, String), Pod>,
     containers: HashMap<String, ContainerInfo>,
 }
 
@@ -67,7 +67,7 @@ impl Container {
     fn watch_kubernetes(&mut self, ctx: &mut <Self as Actor>::Context) {
         let fut = wrap_future::<_, Self>(async {
             let client = Client::try_default().await?;
-            let pods: Api<Pod> = Api::namespaced(client, "default");
+            let pods: Api<Pod> = Api::all(client);
             let lp = ListParams::default();
             let stream = pods.watch(&lp, "0").await?.boxed();
             Ok::<_, kube::Error>(stream)
@@ -165,21 +165,22 @@ impl StreamHandler<Result<WatchEvent<Pod>, kube::Error>> for Container {
         };
 
         let mut state = self.state.write().unwrap();
+        let key = |pod| (Meta::namespace(pod), Meta::name(pod));
         match event {
             WatchEvent::Added(pod) => {
                 let name = Meta::name(&pod);
                 debug!("added pod {}", name);
-                state.pods.insert(name, pod.clone());
+                state.pods.insert(key(&pod), pod.clone());
             }
             WatchEvent::Modified(pod) => {
                 let name = Meta::name(&pod);
                 debug!("modified pod: {}", name);
-                state.pods.insert(name, pod.clone()).unwrap();
+                state.pods.insert(key(&pod), pod.clone()).unwrap();
             }
             WatchEvent::Deleted(pod) => {
                 let name = Meta::name(&pod);
                 debug!("deleted pod: {}", name);
-                state.pods.remove(&name).unwrap();
+                state.pods.remove(&key(&pod)).unwrap();
             }
             WatchEvent::Bookmark(_pod) => {}
             WatchEvent::Error(e) => println!("pod error: {}", e),
@@ -232,7 +233,10 @@ impl StreamHandler<Result<EventsResults, bollard::errors::Error>> for Container 
     }
 }
 
-fn pod_from_container_id<'a>(containers: &'a HashMap<String, Pod>, id: &str) -> Option<&'a Pod> {
+fn pod_from_container_id<'a>(
+    containers: &'a HashMap<(Option<String>, String), Pod>,
+    id: &str,
+) -> Option<&'a Pod> {
     containers.values().find(|pod| {
         if let Some(status) = &pod.status {
             if let Some(statuses) = &status.container_statuses {
@@ -278,7 +282,10 @@ fn add_tags(system: ContainerSystem, state: Arc<RwLock<State>>, msg: &mut Measur
         match system {
             Kubernetes => {
                 if let Some(pod) = pod_from_container_id(&state.pods, &id) {
-                    msg.tags.insert("kubernetes_pod", Meta::name(pod));
+                    msg.tags.insert("kubernetes_pod_name", Meta::name(pod));
+                    if let Some(n) = Meta::namespace(pod) {
+                        msg.tags.insert("kubernetes_namespace", n);
+                    }
                 }
             }
             Docker => {
