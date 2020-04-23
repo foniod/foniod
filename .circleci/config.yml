@@ -167,7 +167,7 @@ jobs:
           name: Install deps
           command: |
             apt-get update
-            apt-get install -y build-essential bc kmod cpio libncurses5-dev
+            apt-get install -y build-essential bc kmod cpio libncurses5-dev gcc-8
 
       - run:
           name: Configure kernel tree
@@ -177,7 +177,7 @@ jobs:
             tar -xf kernel.tgz
             zcat /build/tests/gke/config-gke-4.14.138+.gz > .config
             make olddefconfig
-            make prepare
+            make prepare CC=gcc-8
             echo export KERNEL_SOURCE=/build/cos-kernel >> $BASH_ENV
             cd ..
 
