@@ -10,7 +10,7 @@ commands:
             ./rustup.sh -y
             . /root/.cargo/env
             cat /root/.cargo/env >> $BASH_ENV
-            rustup default nightly
+            rustup default stable
             rustup target add x86_64-unknown-linux-musl
             rustup component add rustfmt
   cargo_build:
@@ -130,7 +130,7 @@ jobs:
       - run:
           name: Install deps
           command: |
-            yum install -y clang-9.0.0 llvm-9.0.0 llvm-libs-9.0.0 llvm-devel-9.0.0 llvm-static-9.0.0 capnproto kernel kernel-devel elfutils-libelf-devel ca-certificates
+            yum install -y clang-9.0.0 llvm-9.0.0 llvm-libs-9.0.0 llvm-devel-9.0.0 llvm-static-9.0.0 capnproto kernel kernel-devel elfutils-libelf-devel ca-certificates openssl-devel
 
       - install_rust
 
@@ -159,27 +159,15 @@ jobs:
     working_directory: /build
     resource_class: large
     docker:
-      - image: ubuntu
+      - image: quay.io/redsift/ingraind-build:19.10
     steps:
       - checkout
-      - run:
-          name: Install some deps
-          command: |
-            apt-get update
-            apt-get install -y curl wget gnupg2 software-properties-common lsb-release
 
       - run:
-          name: Configure llvm 9 repo
-          command: |
-            curl https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-            add-apt-repository 'deb http://apt.llvm.org/bionic/   llvm-toolchain-bionic-9  main'
-
-      - run:
-          name: Install more deps
+          name: Install deps
           command: |
             apt-get update
-            apt-get install -y build-essential bc kmod cpio flex cpio libncurses5-dev
-            apt-get install -y clang llvm llvm-9 musl-tools capnproto libelf-dev ca-certificates{,-java}
+            apt-get install -y build-essential bc kmod cpio libncurses5-dev gcc-8
 
       - run:
           name: Configure kernel tree
@@ -189,11 +177,9 @@ jobs:
             tar -xf kernel.tgz
             zcat /build/tests/gke/config-gke-4.14.138+.gz > .config
             make olddefconfig
-            make prepare
+            make prepare CC=gcc-8
             echo export KERNEL_SOURCE=/build/cos-kernel >> $BASH_ENV
             cd ..
-
-      - install_rust
 
       - cargo_build:
           type: debug

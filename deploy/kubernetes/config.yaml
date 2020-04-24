@@ -70,6 +70,10 @@ data:
     type = "AddSystemDetails"
 
     [[pipeline.staging.steps]]
+    type = "Container"
+    system = "Kubernetes"
+
+    [[pipeline.staging.steps]]
     type = "Regex"
     patterns = [{ key = "process_str", regex = "conn\\d+", replace_with = "docker_proxy"}]
 

@@ -206,8 +206,13 @@ patterns = [
 
 # The Container filter will parse the Docker container ID from the
 # `/proc/<pid>/cgroup` file, and add a `docker_id` tag to the measurement.
+#
+# Supports an optional `system` key. When set to `Kubernetes`, it will add the
+# `kubernetes_namespace` and `kubernetes_pod_name` tags. When set to `Docker`
+# it will add the `docker_name` tag.
 [[pipeline.s3.steps]]
 type = "Container"
+system = "Kubernetes"
 
 # The Buffer aggregation will gather data for `interval_` seconds, and releases
 # it to the next step only after.
