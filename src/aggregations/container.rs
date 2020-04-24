@@ -25,12 +25,18 @@ use crate::metrics::Measurement;
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum ContainerSystem {
+    Unset,
     Kubernetes,
     Docker,
 }
 
+fn default_system() -> ContainerSystem {
+    ContainerSystem::Unset
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ContainerConfig {
+    #[serde(default = "default_system")]
     system: ContainerSystem,
 }
 pub struct Container {
@@ -131,6 +137,7 @@ impl Actor for Container {
     fn started(&mut self, ctx: &mut Self::Context) {
         use ContainerSystem::*;
         match self.config.system {
+            Unset => (),
             Kubernetes => self.watch_kubernetes(ctx),
             Docker => self.watch_docker(ctx),
         };
@@ -280,19 +287,20 @@ fn add_tags(system: ContainerSystem, state: Arc<RwLock<State>>, msg: &mut Measur
         let state = state.read().unwrap();
         use ContainerSystem::*;
         match system {
-            Kubernetes => {
-                if let Some(pod) = pod_from_container_id(&state.pods, &id) {
+            Unset => (),
+            Kubernetes => match pod_from_container_id(&state.pods, &id) {
+                Some(pod) => {
                     msg.tags.insert("kubernetes_pod_name", Meta::name(pod));
                     if let Some(n) = Meta::namespace(pod) {
                         msg.tags.insert("kubernetes_namespace", n);
                     }
                 }
-            }
-            Docker => {
-                if let Some(name) = container_name_from_container_id(&state.containers, &id) {
-                    msg.tags.insert("docker_name", name.clone());
-                }
-            }
+                None => warn!("couldn't find kube pod for container {}", id),
+            },
+            Docker => match container_name_from_container_id(&state.containers, &id) {
+                Some(name) => msg.tags.insert("docker_name", name.clone()),
+                None => warn!("couldn't find docker name for container {}", id),
+            },
         }
 
         msg.tags.insert("docker_id", id);
