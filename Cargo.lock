@@ -453,11 +453,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "capnp"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "capnpc"
-version = "0.9.5"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "capnp 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "capnp 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1212,7 +1217,7 @@ dependencies = [
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "cadence 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "capnp 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "capnpc 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "capnpc 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cargo-bpf 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "criterion 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3027,8 +3032,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)" = "206fdffcfa2df7cbe15601ef46c813fce0965eb3286db6b56c583b814b51c81c"
 "checksum bytes 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "130aac562c0dd69c56b3b1cc8ffd2e17be31d0b6c25b61c96b76231aa23e39e1"
 "checksum cadence 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1c57523ff87f22fc96f07f5f379af387fdd86009242a17d805a3278540cde94a"
+"checksum capnp 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e12c88f0850bda4b226c3365912fa6740a3bfb26065953602ad9daa54172a368"
 "checksum capnp 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)" = "50bc40e18a764f679fd13673b61c12d2c45c1581a2c6c949ffa424d9f58716c7"
-"checksum capnpc 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)" = "097449bb52d9c96340c88e9726be5ad8dea78bd6ee4a27c7e5c3fbe0d6f60056"
+"checksum capnpc 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e743c780bd50b5462f26cdb59a7754c655e11e3e333cedc5329c145e1f3fc3f3"
 "checksum cargo-bpf 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7cda15eb8723afe7e824a4f425aac2e0f23569d9b825478f6ba5dfe88b0b657c"
 "checksum cast 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "4b9434b9a5aa1450faa3f9cb14ea0e8c53bb5d2b3c1bfd1ab4fc03e9f33fbfb0"
 "checksum cc 1.0.50 (registry+https://github.com/rust-lang/crates.io-index)" = "95e28fa049fda1c330bcf9d723be7663a899c4679724b34c81e9f5a326aab8cd"
