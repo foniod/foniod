@@ -68,7 +68,7 @@ version =  "0.20"
 optional = true
 
 [dependencies.capnp]
-version = "0.9"
+version = "0.12"
 optional = true
 
 [dependencies.rusoto_core]
