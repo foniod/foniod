@@ -30,10 +30,9 @@ fn main() {
 
 #[cfg(feature = "capnp-encoding")]
 fn build_capnp() {
-    use capnpc::{CompilerCommand, RustEdition};
+    use capnpc::CompilerCommand;
     CompilerCommand::new()
         .file(CAPNP_SCHEMA)
-        .edition(RustEdition::Rust2018)
         .run()
         .expect("capnp schema generation failed");
 }
