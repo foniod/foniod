@@ -1356,7 +1356,7 @@ dependencies = [
  "hyper",
  "hyper-rustls",
  "ingraind-probes",
- "k8s-openapi",
+ "k8s-openapi 0.7.1",
  "kube",
  "lazy-socket",
  "lazy_static",
@@ -1451,6 +1451,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "k8s-openapi"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eae6d236dfb2b60d27cdbcb3d20511713aff6d23f9bf2f3d6b594c232ea99e04"
+dependencies = [
+ "base64 0.12.1",
+ "bytes 0.5.4",
+ "chrono",
+ "serde",
+ "serde-value",
+ "serde_json",
+]
+
+[[package]]
 name = "kernel32-sys"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1462,9 +1476,9 @@ dependencies = [
 
 [[package]]
 name = "kube"
-version = "0.33.0"
+version = "0.34.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e753b759a9d9a36bd435c22ec9d31b6c8b89c452e5fd7932abf374ede02cc028"
+checksum = "aa1b018930b98da87122377ee0f5093d3fb25df762db489c1a321d92e0177afb"
 dependencies = [
  "Inflector",
  "base64 0.12.1",
@@ -1475,7 +1489,7 @@ dependencies = [
  "futures",
  "futures-util",
  "http",
- "k8s-openapi",
+ "k8s-openapi 0.8.0",
  "log",
  "openssl",
  "reqwest",
