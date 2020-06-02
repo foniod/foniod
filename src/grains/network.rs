@@ -41,10 +41,11 @@ impl EBPFGrain<'static> for Network {
                     Message::Receive(conn, size) => ("volume.in", conn, size),
                 };
 
-                let proto = match conn.typ {
-                    IPPROTO_TCP => "tcp",
-                    IPPROTO_UDP => "udp",
-                    _ => return None,
+                let proto = match conn.typ
+		{
+                    IPPROTO_TCP => "tcp".to_string(),
+                    IPPROTO_UDP => "udp".to_string(),
+                    unknown => format!("{}", unknown),
                 };
 
                 let mut tags = conn_tags(&conn);
