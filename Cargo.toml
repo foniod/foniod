@@ -78,7 +78,7 @@ features = ["rustls"]
 optional = true
 
 [dependencies.rusoto_s3]
-version = "0.43.0"
+version = "0.44.0"
 default-features = false
 features = ["rustls"]
 optional = true
