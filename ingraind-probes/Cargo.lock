@@ -218,7 +218,7 @@ name = "ingraind-probes"
 version = "0.1.0"
 dependencies = [
  "cty 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "memoffset 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memoffset 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "redbpf-macros 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "redbpf-probes 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -274,7 +274,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "memoffset"
-version = "0.5.4"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "autocfg 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -662,7 +662,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum llvm-sys 90.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "191f83195c348af813546379e057429b13f5f2009896d45c52a1235ede6d2b84"
 "checksum log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)" = "14b6052be84e6b71ab17edffc2eeabf5c2c3ae1fdb464aae35ac50c67a44e1f7"
 "checksum memchr 2.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3728d817d99e5ac407411fa471ff9800a778d88a24685968b36824eaf4bee400"
-"checksum memoffset 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "b4fc2c02a7e374099d4ee95a193111f72d2110197fe200272371758f6c3643d8"
+"checksum memoffset 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)" = "c198b026e1bbf08a937e94c6c60f9ec4a2267f5b0d2eec9c1b21b061ce2be55f"
 "checksum nom 4.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "2ad2a91a8e869eeb30b9cb3119ae87773a8f4ae617f41b1eb9c154b2905f7bd6"
 "checksum num-integer 0.1.42 (registry+https://github.com/rust-lang/crates.io-index)" = "3f6ea62e9d81a77cd3ee9a2a5b9b609447857f3d358704331e4ef39eb247fcba"
 "checksum num-traits 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)" = "c62be47e61d1842b9170f0fdeec8eba98e60e90e5446449a0545e5152acd7096"

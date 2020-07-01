@@ -7,7 +7,7 @@ edition = '2018'
 cty = "0.2"
 redbpf-macros = "1.0"
 redbpf-probes = "1.0"
-memoffset = "0.5.4"
+memoffset = "0.5.5"
 
 [features]
 default = []
