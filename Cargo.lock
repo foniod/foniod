@@ -1345,7 +1345,7 @@ dependencies = [
  "hyper",
  "hyper-rustls",
  "ingraind-probes",
- "k8s-openapi",
+ "k8s-openapi 0.9.0",
  "kube",
  "lazy-socket",
  "lazy_static",
@@ -1434,9 +1434,23 @@ dependencies = [
  "http",
  "percent-encoding",
  "serde",
- "serde-value",
+ "serde-value 0.6.0",
  "serde_json",
  "url",
+]
+
+[[package]]
+name = "k8s-openapi"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57f95fd36c08ce592e67400a0f1a66f432196997d5a7e9a97e8743c33d8a9312"
+dependencies = [
+ "base64 0.12.1",
+ "bytes",
+ "chrono",
+ "serde",
+ "serde-value 0.7.0",
+ "serde_json",
 ]
 
 [[package]]
@@ -1464,7 +1478,7 @@ dependencies = [
  "futures",
  "futures-util",
  "http",
- "k8s-openapi",
+ "k8s-openapi 0.7.1",
  "log",
  "openssl",
  "reqwest",
@@ -1850,6 +1864,15 @@ name = "ordered-float"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18869315e81473c951eb56ad5558bbc56978562d3ecfb87abb7a1e944cea4518"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "ordered-float"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fe9037165d7023b1228bc4ae9a2fa1a2b0095eca6c2998c624723dfd01314a5"
 dependencies = [
  "num-traits",
 ]
@@ -2468,7 +2491,17 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a65a7291a8a568adcae4c10a677ebcedbc6c9cec91c054dee2ce40b0e3290eb"
 dependencies = [
- "ordered-float",
+ "ordered-float 1.0.2",
+ "serde",
+]
+
+[[package]]
+name = "serde-value"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3a1a3341211875ef120e117ea7fd5228530ae7e7036a779fdc9117be6b3282c"
+dependencies = [
+ "ordered-float 2.0.0",
  "serde",
 ]
 
