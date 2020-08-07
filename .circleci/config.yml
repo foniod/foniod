@@ -124,13 +124,13 @@ jobs:
     working_directory: /build
     resource_class: large
     docker:
-      - image: fedora:31
+      - image: fedora:32
     steps:
       - checkout
       - run:
           name: Install deps
           command: |
-            yum install -y clang-9.0.0 llvm-9.0.0 llvm-libs-9.0.0 llvm-devel-9.0.0 llvm-static-9.0.0 capnproto kernel kernel-devel elfutils-libelf-devel ca-certificates openssl-devel
+            yum install -y clang-10.0.0 llvm-10.0.0 llvm-libs-10.0.0 llvm-devel-10.0.0 llvm-static-10.0.0 capnproto kernel kernel-devel elfutils-libelf-devel ca-certificates openssl-devel
 
       - install_rust
 
@@ -159,7 +159,7 @@ jobs:
     working_directory: /build
     resource_class: large
     docker:
-      - image: quay.io/redsift/ingraind-build:19.10
+      - image: quay.io/redsift/ingraind-build:18.04
     steps:
       - checkout
 
@@ -271,7 +271,7 @@ jobs:
     working_directory: /build
     resource_class: large
     docker:
-      - image: quay.io/redsift/ingraind-build:19.10
+      - image: quay.io/redsift/ingraind-build:18.04
     steps:
       - checkout
       - attach_workspace:
@@ -300,6 +300,9 @@ workflows:
     jobs:
       - terraform_arm:
           name: 'terraform - ubuntu/arm64'
+          filters:
+            branches:
+              ignore: /.*/
 
       - terraform:
           name: 'terraform - ubuntu 18.04'
@@ -308,19 +311,17 @@ workflows:
             - ubuntu 18.04
           filters:
             branches:
-              only:
-                - master
+              ignore: /.*/
 
       - terraform:
-          name: 'terraform - fedora 31'
-          ami: 'fedora-31'
+          name: 'terraform - fedora 32'
+          ami: 'fedora-32'
           binary: 'target/release/ingraind'
           requires:
-            - fedora 31
+            - fedora 32
           filters:
             branches:
-              only:
-                - master
+              ignore: /.*/
 
       - ubuntu:
           name: "ubuntu 18.04"
@@ -332,7 +333,7 @@ workflows:
             - ubuntu 18.04
 
       - fedora:
-          name: "fedora 31"
+          name: "fedora 32"
 
   elrepo7_docker:
     jobs:
@@ -400,16 +401,16 @@ workflows:
             branches:
               ignore: /.*/
 
-  fedora31_docker:
+  fedora32_docker:
     jobs:
       - build_rh_binary:
           context: org-global
-          name: build fedora31
+          name: build fedora32
           yum_repo: fedora
       - build_docker_image:
-          tags: latest-fedora31 ${CIRCLE_SHA1:0:7}-fedora31 ${CIRCLE_TAG/%/-fedora31}
+          tags: latest-fedora32 ${CIRCLE_SHA1:0:7}-fedora32 ${CIRCLE_TAG/%/-fedora32}
           requires:
-            - build fedora31
+            - build fedora32
           filters:
             tags:
               only: /^v.*/
