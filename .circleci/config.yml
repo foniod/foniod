@@ -124,7 +124,7 @@ jobs:
     working_directory: /build
     resource_class: large
     docker:
-      - image: fedora:31
+      - image: fedora:32
     steps:
       - checkout
       - run:
@@ -314,11 +314,11 @@ workflows:
               ignore: /.*/
 
       - terraform:
-          name: 'terraform - fedora 31'
-          ami: 'fedora-31'
+          name: 'terraform - fedora 32'
+          ami: 'fedora-32'
           binary: 'target/release/ingraind'
           requires:
-            - fedora 31
+            - fedora 32
           filters:
             branches:
               ignore: /.*/
@@ -333,7 +333,7 @@ workflows:
             - ubuntu 18.04
 
       - fedora:
-          name: "fedora 31"
+          name: "fedora 32"
 
   elrepo7_docker:
     jobs:
@@ -401,16 +401,16 @@ workflows:
             branches:
               ignore: /.*/
 
-  fedora31_docker:
+  fedora32_docker:
     jobs:
       - build_rh_binary:
           context: org-global
-          name: build fedora31
+          name: build fedora32
           yum_repo: fedora
       - build_docker_image:
-          tags: latest-fedora31 ${CIRCLE_SHA1:0:7}-fedora31 ${CIRCLE_TAG/%/-fedora31}
+          tags: latest-fedora32 ${CIRCLE_SHA1:0:7}-fedora32 ${CIRCLE_TAG/%/-fedora32}
           requires:
-            - build fedora31
+            - build fedora32
           filters:
             tags:
               only: /^v.*/
