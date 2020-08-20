@@ -119,12 +119,7 @@ pub fn conn_details(_regs: Registers) -> Option<Connection> {
 
     let dport = socket.skc_dport()?;
     let sport = socket.skc_num()?;
-
-    let typ = {
-        let typ = unsafe { bpf_probe_read(&socket._bitfield_1 as *const _ as *const u32) }.ok()?;
-
-        (typ & SK_FL_PROTO_MASK) >> SK_FL_PROTO_SHIFT
-    };
+    let typ = socket.sk_protocol()?;
 
     unsafe {
         task_to_socket.delete(&pid_tgid);
@@ -138,6 +133,6 @@ pub fn conn_details(_regs: Registers) -> Option<Connection> {
         daddr: daddr.into(),
         sport: sport as u32,
         dport: dport as u32,
-        typ,
+        typ: typ as u32,
     })
 }
