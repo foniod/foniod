@@ -3,7 +3,8 @@ use actix::prelude::*;
 use actix::AsyncContext;
 use bollard::{
     container::ListContainersOptions,
-    system::{EventsOptions, EventsResults},
+    system::EventsOptions,
+    service::SystemEventsResponse,
     Docker,
 };
 use chrono::{Duration, Utc};
@@ -108,10 +109,10 @@ impl Container {
         ctx.spawn(fut.map(move |containers, actor, ctx| match containers {
             Ok(containers) => {
                 let mut state = actor.state.write().unwrap();
-                for container in containers {
+                for container in containers.iter().filter(|c| c.names.is_some() && c.id.is_some()) {
                     let mut info = ContainerInfo::new();
-                    info.names.extend(container.names.iter().cloned());
-                    state.containers.insert(container.id.clone(), info);
+                    info.names.extend(container.names.as_ref().unwrap().clone().drain(..));
+		    state.containers.insert(container.id.as_ref().unwrap().clone(), info);
                 }
 
                 let mut filters = HashMap::new();
@@ -195,10 +196,10 @@ impl StreamHandler<Result<WatchEvent<Pod>, kube::Error>> for Container {
     }
 }
 
-impl StreamHandler<Result<EventsResults, bollard::errors::Error>> for Container {
+impl StreamHandler<Result<SystemEventsResponse, bollard::errors::Error>> for Container {
     fn handle(
         &mut self,
-        event: Result<EventsResults, bollard::errors::Error>,
+        event: Result<SystemEventsResponse, bollard::errors::Error>,
         _ctx: &mut Context<Self>,
     ) {
         let event = match event {
@@ -209,14 +210,26 @@ impl StreamHandler<Result<EventsResults, bollard::errors::Error>> for Container 
             }
         };
 
-        assert!(event.type_ == "container");
+        assert!(event._type == Some("container".to_string()));
 
         let mut state = self.state.write().unwrap();
         let containers = &mut state.containers;
-        let id = event.actor.id.clone();
-        let attrs = &event.actor.attributes;
 
-        match event.action.as_str() {
+	if event.action.is_none() || event.actor.is_none() {
+	    return;
+	}
+
+	let action = event.action.unwrap();
+	let actor = event.actor.unwrap();
+
+	if actor.id.is_none() || actor.attributes.is_none() {
+	    return;
+	}
+
+        let id = actor.id.unwrap();
+        let attrs = actor.attributes.unwrap();
+
+        match action.as_str() {
             "create" => {
                 let mut info = ContainerInfo::new();
                 info.names.insert(attrs.get("name").unwrap().clone());
