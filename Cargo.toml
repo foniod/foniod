@@ -9,7 +9,7 @@ build = "build.rs"
 edition = "2018"
 
 [build-dependencies]
-cargo-bpf = { version = "^1.0.1", default-features = false, features = ["build"] }
+cargo-bpf = { version = "^1.1.0", default-features = false, features = ["build"] }
 
 [build-dependencies.capnpc]
 version = "^0.13"
@@ -26,7 +26,7 @@ failure = "0.1"
 lazy_static = "1.1.0"
 
 lazy-socket = "0.3"
-redbpf = "^1.0.1"
+redbpf = "^1.1.0"
 redbpf-probes = "^1.0"
 
 serde = "^1.0"

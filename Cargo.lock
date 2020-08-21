@@ -410,9 +410,9 @@ dependencies = [
 
 [[package]]
 name = "bpf-sys"
-version = "1.0.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60ec51e6c85ed8b679057b66422d2d2aef9fbc1ba7f63a5e2376dd65006d1943"
+checksum = "3397a98aff1f8bee4a5d5bdd5e18860051bfdfa5e1dde7672bd980cab1c08baf"
 dependencies = [
  "bindgen",
  "cc",
@@ -476,9 +476,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-bpf"
-version = "1.0.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c3e5097c912828eaa95affa761ca0a8d9d6b27de82d5ed891a926d75159af74"
+checksum = "9c592225373bb941c8c64a17655ba28770210796a09b1a306302d142fe54b93a"
 dependencies = [
  "bindgen",
  "bpf-sys",
@@ -2046,9 +2046,9 @@ dependencies = [
 
 [[package]]
 name = "redbpf"
-version = "1.0.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "095d063ad2886689eff9b9e894eeb8c14705aae7930f8f9e4809a576d6d905aa"
+checksum = "60eb4435deaca00f1610bd4444faed342bc3cda397d5cb148fbad5e70e076d87"
 dependencies = [
  "bindgen",
  "bpf-sys",
