@@ -2,6 +2,7 @@
 #![no_main]
 use redbpf_probes::kprobe::prelude::*;
 use ingraind_probes::network::{Connection, Message};
+use core::convert::TryInto;
 
 program!(0xFFFFFFFE, "GPL");
 
@@ -117,9 +118,14 @@ pub fn conn_details(_regs: Registers) -> Option<Connection> {
         };
     }
 
-    let dport = socket.skc_dport()?;
-    let sport = socket.skc_num()?;
-    let typ = socket.sk_protocol()?;
+    let dport: u32 = socket.skc_dport()? as u32;
+    let sport: u32 = socket.skc_num()? as u32;
+
+    #[cfg(kernel_version = "5.7")]
+    let typ: u32 = socket.sk_protocol()? as u32;
+
+    #[cfg(not(kernel_version = "5.7"))]
+    let typ: u32 = socket.sk_protocol() as u32;
 
     unsafe {
         task_to_socket.delete(&pid_tgid);
@@ -131,8 +137,8 @@ pub fn conn_details(_regs: Registers) -> Option<Connection> {
         comm: bpf_get_current_comm(),
         saddr: saddr.into(),
         daddr: daddr.into(),
-        sport: sport as u32,
-        dport: dport as u32,
-        typ: typ as u32,
+        sport,
+        dport,
+        typ,
     })
 }
