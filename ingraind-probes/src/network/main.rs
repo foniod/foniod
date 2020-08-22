@@ -2,7 +2,6 @@
 #![no_main]
 use redbpf_probes::kprobe::prelude::*;
 use ingraind_probes::network::{Connection, Message};
-use core::convert::TryInto;
 
 program!(0xFFFFFFFE, "GPL");
 
@@ -124,7 +123,7 @@ pub fn conn_details(_regs: Registers) -> Option<Connection> {
     #[cfg(any(kernel_version = "5.7", kernel_version = "5.6"))]
     let typ: u32 = socket.sk_protocol()? as u32;
 
-    #[cfg(not(kernel_version = "5.7"))]
+    #[cfg(not(any(kernel_version = "5.7", kernel_version = "5.6")))]
     let typ: u32 = socket.sk_protocol() as u32;
 
     unsafe {
