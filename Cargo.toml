@@ -27,7 +27,7 @@ lazy_static = "1.1.0"
 
 lazy-socket = "0.3"
 redbpf = "^1.1.0"
-redbpf-probes = "^1.0"
+redbpf-probes = "^1.1"
 
 serde = "^1.0"
 serde_derive = "^1.0"
