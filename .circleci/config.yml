@@ -139,6 +139,7 @@ jobs:
           command: |
             echo export KERNEL_SOURCE=/usr/src/kernels/$(rpm -qa kernel-devel |cut -d- -f3-)/ >> $BASH_ENV
             echo export LLC=llc >> $BASH_ENV
+            echo unset RUSTC_WRAPPER >> $BASH_ENV
 
       - cargo_build:
           type: debug
