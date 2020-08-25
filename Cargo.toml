@@ -9,7 +9,7 @@ build = "build.rs"
 edition = "2018"
 
 [build-dependencies]
-cargo-bpf = { version = "^1.1.0", default-features = false, features = ["build"] }
+cargo-bpf = { version = "^1.1.1", default-features = false, features = ["build"] }
 
 [build-dependencies.capnpc]
 version = "^0.13"
