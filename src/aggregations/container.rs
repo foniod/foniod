@@ -118,8 +118,8 @@ impl Container {
                 let mut filters = HashMap::new();
                 filters.insert("type".to_string(), vec!["container".to_string()]);
                 let options = EventsOptions::<String> {
-                    since: start,
-                    until: Utc::now() + Duration::weeks(52 * 100),
+                    since: Some(start),
+                    until: Some(Utc::now() + Duration::weeks(52 * 100)),
                     filters,
                 };
                 let events = client.events(Some(options));
@@ -210,7 +210,7 @@ impl StreamHandler<Result<SystemEventsResponse, bollard::errors::Error>> for Con
             }
         };
 
-        assert!(event._type == Some("container".to_string()));
+        assert!(event.typ == Some("container".to_string()));
 
         let mut state = self.state.write().unwrap();
         let containers = &mut state.containers;
