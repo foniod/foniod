@@ -117,14 +117,18 @@ pub fn conn_details(_regs: Registers) -> Option<Connection> {
         };
     }
 
-    let dport: u32 = socket.skc_dport()? as u32;
-    let sport: u32 = socket.skc_num()? as u32;
+    let dport = socket.skc_dport()? as u32;
+    let sport = socket.skc_num()? as u32;
 
     #[cfg(any(kernel_version = "5.7", kernel_version = "5.6"))]
-    let typ: u32 = socket.sk_protocol()? as u32;
+    let typ = socket.sk_protocol()? as u32;
 
     #[cfg(not(any(kernel_version = "5.7", kernel_version = "5.6")))]
-    let typ: u32 = socket.sk_protocol() as u32;
+    let typ: u32 = {
+       let typ = unsafe { bpf_probe_read(&socket._bitfield_1 as *const _ as *const u32) }.ok()?;
+       (typ & SK_FL_PROTO_MASK) >> SK_FL_PROTO_SHIFT
+    };
+
 
     unsafe {
         task_to_socket.delete(&pid_tgid);
