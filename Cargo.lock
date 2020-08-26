@@ -1409,7 +1409,7 @@ dependencies = [
  "regex",
  "rusoto_core",
  "rusoto_s3",
- "rustls 0.17.0",
+ "rustls 0.18.1",
  "serde",
  "serde_derive",
  "serde_json",
