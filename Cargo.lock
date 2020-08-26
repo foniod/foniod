@@ -426,9 +426,9 @@ dependencies = [
 
 [[package]]
 name = "bpf-sys"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3397a98aff1f8bee4a5d5bdd5e18860051bfdfa5e1dde7672bd980cab1c08baf"
+checksum = "faf50f39ae38fbcf2243a2591c23da3f0870710be617c4038499e637f2098e87"
 dependencies = [
  "bindgen",
  "cc",
@@ -492,9 +492,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-bpf"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c592225373bb941c8c64a17655ba28770210796a09b1a306302d142fe54b93a"
+checksum = "f46e6cb48f8db83f80fd454198611a99f222d205554979c673f3ef6faad8a7c8"
 dependencies = [
  "bindgen",
  "bpf-sys",
@@ -2235,9 +2235,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.10.7"
+version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12427a5577082c24419c9c417db35cfeb65962efc7675bb6b0d5f1f9d315bfe6"
+checksum = "e9eaa17ac5d7b838b7503d118fa16ad88f440498bf9ffe5424e621f93190d61e"
 dependencies = [
  "async-compression",
  "base64 0.12.3",
