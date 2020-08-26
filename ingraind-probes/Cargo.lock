@@ -65,7 +65,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "bpf-sys"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -81,11 +81,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "cargo-bpf"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "bpf-sys 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bpf-sys 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.76 (registry+https://github.com/rust-lang/crates.io-index)",
  "llvm-sys 100.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -394,7 +394,7 @@ name = "redbpf-probes"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "cargo-bpf 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cargo-bpf 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cty 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "redbpf-macros 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -637,9 +637,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum autocfg 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 "checksum bindgen 0.51.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ebd71393f1ec0509b553aa012b9b58e81dadbdff7130bd3b8cba576e69b32f75"
 "checksum bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
-"checksum bpf-sys 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3397a98aff1f8bee4a5d5bdd5e18860051bfdfa5e1dde7672bd980cab1c08baf"
+"checksum bpf-sys 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "faf50f39ae38fbcf2243a2591c23da3f0870710be617c4038499e637f2098e87"
 "checksum byteorder 1.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "08c48aae112d48ed9f069b33538ea9e3e90aa263cfa3d1c24309612b1f7472de"
-"checksum cargo-bpf 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9c592225373bb941c8c64a17655ba28770210796a09b1a306302d142fe54b93a"
+"checksum cargo-bpf 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f46e6cb48f8db83f80fd454198611a99f222d205554979c673f3ef6faad8a7c8"
 "checksum cc 1.0.59 (registry+https://github.com/rust-lang/crates.io-index)" = "66120af515773fb005778dc07c261bd201ec8ce50bd6e7144c927753fe013381"
 "checksum cexpr 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "fce5b5fb86b0c57c20c834c1b412fd09c77c8a59b9473f86272709e78874cd1d"
 "checksum cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)" = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
