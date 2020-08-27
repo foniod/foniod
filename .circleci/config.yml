@@ -1,18 +1,5 @@
 version: 2.1
 commands:
-  install_rust:
-    steps:
-      - run:
-          name: Install rust
-          command: |
-            curl --proto '=https' --tlsv1.2 -sSf -o rustup.sh https://sh.rustup.rs
-            chmod 755 rustup.sh
-            ./rustup.sh -y
-            . /root/.cargo/env
-            cat /root/.cargo/env >> $BASH_ENV
-            rustup default stable
-            rustup target add x86_64-unknown-linux-musl
-            rustup component add rustfmt
   cargo_build:
     parameters:
       type:
@@ -98,16 +85,17 @@ jobs:
     parameters:
       tag:
         type: string
-        default: "latest"
-      kernel_version:
-        type: string
-        default: "$(uname -r)"
+        default: "18.04"
     working_directory: /build
     resource_class: large
     docker:
-      - image: quay.io/redsift/ingraind-build:18.04
+      - image: quay.io/redsift/ingraind-build:<< parameters.tag >>
     steps:
       - checkout
+      - run:
+          name: Configure env vars
+          command: |
+              echo export KERNEL_SOURCE=/lib/modules/$(ls /lib/modules |head -n1)/build/ |tee $BASH_ENV
       - cargo_build:
           type: release
           # only do release builds for terraform workflows
@@ -124,37 +112,30 @@ jobs:
     working_directory: /build
     resource_class: large
     docker:
-      - image: fedora:32
+      - image: quay.io/redsift/ingraind-build:fedora
     steps:
       - checkout
       - run:
-          name: Install deps
-          command: |
-            yum install -y clang-10.0.0 llvm-10.0.0 llvm-libs-10.0.0 llvm-devel-10.0.0 llvm-static-10.0.0 capnproto kernel kernel-devel elfutils-libelf-devel ca-certificates openssl-devel
-
-      - install_rust
-
-      - run:
           name: Configure env vars
           command: |
-            echo export KERNEL_SOURCE=/usr/src/kernels/$(rpm -qa kernel-devel |cut -d- -f3-)/ >> $BASH_ENV
-            echo export LLC=llc >> $BASH_ENV
-            echo unset RUSTC_WRAPPER >> $BASH_ENV
+            echo export KERNEL_SOURCE=/usr/src/kernels/$(rpm -qa kernel-devel |cut -d- -f3-)/ |tee $BASH_ENV
 
       - cargo_build:
           type: debug
-          binary: target/debug/ingraind
+          flags: --target=x86_64-unknown-linux-musl
+          binary: target/x86_64-unknown-linux-musl/debug/ingraind
 
       - cargo_build:
           type: release
+          flags: --target=x86_64-unknown-linux-musl
           # only do release builds for terraform workflows
           condition: "[ -n \"$AWS_EC2_SSH_KEY_ID\" ]"
-          binary: target/release/ingraind
+          binary: target/x86_64-unknown-linux-musl/release/ingraind
 
       - persist_to_workspace:
           root: "./"
           paths:
-            - "target/release/ingraind"
+            - "target/x86_64-unknown-linux-musl/release/ingraind"
 
   gke:
     working_directory: /build
@@ -272,7 +253,7 @@ jobs:
     working_directory: /build
     resource_class: large
     docker:
-      - image: quay.io/redsift/ingraind-build:18.04
+      - image: quay.io/redsift/ingraind-build:fedora
     steps:
       - checkout
       - attach_workspace:
@@ -282,8 +263,8 @@ jobs:
           name: Set up kernel for environment
           command: |
             yumdownloader --disablerepo=* --enablerepo=<< parameters.yum_repo >> << parameters.kernel_pkg >>
-            rpm --nodeps -i << parameters.kernel_pkg >>*.rpm
-            echo KERNEL_SOURCE=/usr/src/kernels/$(ls /usr/src/kernels |head -n1) >> $BASH_ENV
+            rpm --nodeps -i --force << parameters.kernel_pkg >>*.rpm
+            echo export KERNEL_SOURCE=/usr/src/kernels/$(basename *.rpm .rpm |sed 's/<< parameters.kernel_pkg >>-//') >> $BASH_ENV
 
       - cargo_build:
           type: release
@@ -332,6 +313,10 @@ workflows:
           tags: latest-ubuntu-18.04 ${CIRCLE_SHA1:0:7}-ubuntu-18.04 ${CIRCLE_TAG/%/-ubuntu-18.04}
           requires:
             - ubuntu 18.04
+
+      - ubuntu:
+          name: "ubuntu 20.04"
+          tag: "20.04"
 
       - fedora:
           name: "fedora 32"
@@ -396,22 +381,6 @@ workflows:
           tags: latest-centos8 ${CIRCLE_SHA1:0:7}-centos8 ${CIRCLE_TAG/%/-centos8}
           requires:
             - build centos8
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
-
-  fedora32_docker:
-    jobs:
-      - build_rh_binary:
-          context: org-global
-          name: build fedora32
-          yum_repo: fedora
-      - build_docker_image:
-          tags: latest-fedora32 ${CIRCLE_SHA1:0:7}-fedora32 ${CIRCLE_TAG/%/-fedora32}
-          requires:
-            - build fedora32
           filters:
             tags:
               only: /^v.*/
