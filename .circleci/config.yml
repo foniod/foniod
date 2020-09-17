@@ -336,7 +336,7 @@ workflows:
             tags:
               only: /^v.*/
             branches:
-              only: /master/
+              ignore: /.*/
 
   elrepo8_docker:
     jobs:
@@ -353,7 +353,7 @@ workflows:
             tags:
               only: /^v.*/
             branches:
-              only: /master/
+              ignore: /.*/
 
   amzn2_docker:
     jobs:
@@ -369,7 +369,7 @@ workflows:
             tags:
               only: /^v.*/
             branches:
-              only: /master/
+              ignore: /.*/
 
   centos8_docker:
     jobs:
@@ -385,7 +385,7 @@ workflows:
             tags:
               only: /^v.*/
             branches:
-              only: /master/
+              ignore: /.*/
 
   gke_docker:
     jobs:
@@ -402,4 +402,4 @@ workflows:
             tags:
               only: /^v.*/
             branches:
-              only: /master/
+              ignore: /.*/
