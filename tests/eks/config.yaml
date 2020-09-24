@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingraind-config
+  namespace: default
+data:
+  ingrain-toml: |-
+    [log]
+    type = "EnvLogger"
+    log_level = "DEBUG"
+
+    [[probe]]
+    pipelines = ["staging"]
+    [probe.config]
+    type = "Files"
+    monitor_dirs = ["/root/rootfs"]
+
+    [[probe]]
+    pipelines = ["staging"]
+    [probe.config]
+    type = "Network"
+
+    [pipeline.staging.config]
+    backend = "Console"
+
+    [[pipeline.staging.steps]]
+    type = "Container"
+    system = "Kubernetes"
+
+    [[pipeline.staging.steps]]
+    type = "AddSystemDetails"
+
+    [[pipeline.staging.steps]]
+    type = "Regex"
+    patterns = [{ key = "process_str", regex = "conn\\d+", replace_with = "docker_proxy"}]
+
+    [[pipeline.staging.steps]]
+    type = "Buffer"
+    enable_histograms = false
+    interval_s = 30
