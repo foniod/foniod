@@ -100,13 +100,12 @@ jobs:
           type: release
           # only do release builds for terraform workflows
           condition: "[ -n \"$AWS_EC2_SSH_KEY_ID\" ]"
-          flags: --target=x86_64-unknown-linux-musl
-          binary: target/x86_64-unknown-linux-musl/release/ingraind
+          binary: target/release/ingraind
 
       - persist_to_workspace:
           root: "./"
           paths:
-            - "target/x86_64-unknown-linux-musl/release/ingraind"
+            - "target/release/ingraind"
 
   fedora:
     working_directory: /build
