@@ -137,6 +137,11 @@ jobs:
             - "target/x86_64-unknown-linux-musl/release/ingraind"
 
   gke:
+    parameters:
+      version:
+        type: string
+      git_sha:
+        type: string
     working_directory: /build
     resource_class: large
     docker:
@@ -154,9 +159,9 @@ jobs:
           name: Configure kernel tree
           command: |
             mkdir cos-kernel && cd cos-kernel
-            wget -O kernel.tgz https://chromium.googlesource.com/chromiumos/third_party/kernel/+archive/8549f18963962124c0f0d73667e59dbfc17c5218.tar.gz
+            wget -O kernel.tgz https://cos.googlesource.com/third_party/kernel/+archive/<< parameters.git_sha >>.tar.gz
             tar -xf kernel.tgz
-            zcat /build/tests/gke/config-gke-4.14.138+.gz > .config
+            zcat /build/tests/gke/config-gke-<< parameters.version >>.gz > .config
             make olddefconfig
             make prepare CC=gcc-8
             echo export KERNEL_SOURCE=/build/cos-kernel >> $BASH_ENV
@@ -164,13 +169,11 @@ jobs:
 
       - cargo_build:
           type: debug
-          flags: --target=x86_64-unknown-linux-musl
-          binary: target/x86_64-unknown-linux-musl/debug/ingraind
+          binary: target/debug/ingraind
 
       - cargo_build:
           type: release
-          flags: --target=x86_64-unknown-linux-musl
-          binary: target/x86_64-unknown-linux-musl/release/ingraind
+          binary: target/release/ingraind
 
       - persist_to_workspace:
           root: "./"
@@ -178,6 +181,9 @@ jobs:
             - "target/x86_64-unknown-linux-musl/release/ingraind"
 
   run_test_gke:
+    parameters:
+      version:
+        type: string
     environment:
       GCLOUD_PROJECT: ingrain-playground
       GCLOUD_PRIMARY_ZONE: europe-west1-b
@@ -201,7 +207,7 @@ jobs:
           name: Deploy
           command: |
             cd tests/gke
-            ./run-test.sh $DOCKER_IMAGE:${CIRCLE_SHA1:0:7}-gke
+            ./run-test.sh $DOCKER_IMAGE:${CIRCLE_SHA1:0:7}-gke-<< parameters.version >>
 
   build_docker_image:
     parameters:
@@ -386,15 +392,20 @@ workflows:
             branches:
               ignore: /.*/
 
-  gke_docker:
+  gke_docker-4.14:
     jobs:
-      - gke
+      - gke:
+          name: gke-4.14
+          version: 4.14.174+
+          git_sha: refs/heads/release-R73-11647.B-cos-4.14
       - build_docker_image:
           name: build gke image
-          tags: latest-gke ${CIRCLE_SHA1:0:7}-gke ${CIRCLE_TAG/%/-gke}
+          tags: latest-gke ${CIRCLE_SHA1:0:7}-gke-4.14.174+ ${CIRCLE_TAG/%/-gke-4.14.174+}
+          binary: "target/release/ingraind"
           requires:
-            - gke
+            - gke-4.14
       - run_test_gke:
+          version: 4.14.174+
           requires:
             - build gke image
           filters:
@@ -402,3 +413,16 @@ workflows:
               only: /^v.*/
             branches:
               ignore: /.*/
+
+  gke_docker-4.19:
+    jobs:
+      - gke:
+          name: gke-4.19
+          version: 4.19.112+
+          git_sha: refs/heads/release-R77-12371.B-cos-4.19
+      - build_docker_image:
+          name: build gke image
+          tags: latest-gke ${CIRCLE_SHA1:0:7}-gke-4.19.112+ ${CIRCLE_TAG/%/-gke-4.19.112+}
+          binary: "target/release/ingraind"
+          requires:
+            - gke-4.19
