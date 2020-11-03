@@ -145,7 +145,7 @@ jobs:
     working_directory: /build
     resource_class: large
     docker:
-      - image: quay.io/redsift/ingraind-build:18.04
+      - image: quay.io/redsift/ingraind-build:20.04
     steps:
       - checkout
 
@@ -168,17 +168,13 @@ jobs:
             cd ..
 
       - cargo_build:
-          type: debug
-          binary: target/debug/ingraind
-
-      - cargo_build:
           type: release
           binary: target/release/ingraind
 
       - persist_to_workspace:
           root: "./"
           paths:
-            - "target/x86_64-unknown-linux-musl/release/ingraind"
+            - "target/release/ingraind"
 
   run_test_gke:
     parameters:
