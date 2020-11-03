@@ -392,7 +392,7 @@ workflows:
     jobs:
       - gke:
           name: gke-4.14
-          version: 4.14.174+
+          version: 4.14.174
           git_sha: refs/heads/release-R73-11647.B-cos-4.14
       - build_docker_image:
           name: build gke image
