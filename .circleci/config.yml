@@ -396,12 +396,12 @@ workflows:
           git_sha: refs/heads/release-R73-11647.B-cos-4.14
       - build_docker_image:
           name: build gke image
-          tags: latest-gke ${CIRCLE_SHA1:0:7}-gke-4.14.174+ ${CIRCLE_TAG/%/-gke-4.14.174+}
+          tags: latest-gke ${CIRCLE_SHA1:0:7}-gke-4.14.174 ${CIRCLE_TAG/%/-gke-4.14.174}
           binary: "target/release/ingraind"
           requires:
             - gke-4.14
       - run_test_gke:
-          version: 4.14.174+
+          version: 4.14.174
           requires:
             - build gke image
           filters:
@@ -414,11 +414,11 @@ workflows:
     jobs:
       - gke:
           name: gke-4.19
-          version: 4.19.112+
+          version: 4.19.112
           git_sha: refs/heads/release-R77-12371.B-cos-4.19
       - build_docker_image:
           name: build gke image
-          tags: latest-gke ${CIRCLE_SHA1:0:7}-gke-4.19.112+ ${CIRCLE_TAG/%/-gke-4.19.112+}
+          tags: latest-gke ${CIRCLE_SHA1:0:7}-gke-4.19.112 ${CIRCLE_TAG/%/-gke-4.19.112}
           binary: "target/release/ingraind"
           requires:
             - gke-4.19
