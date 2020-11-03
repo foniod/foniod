@@ -161,7 +161,7 @@ jobs:
             mkdir cos-kernel && cd cos-kernel
             wget -O kernel.tgz https://cos.googlesource.com/third_party/kernel/+archive/<< parameters.git_sha >>.tar.gz
             tar -xf kernel.tgz
-            zcat /build/tests/gke/config-gke-<< parameters.version >>.gz > .config
+            zcat /build/tests/gke/config-gke-<< parameters.version >>+.gz > .config
             make olddefconfig
             make prepare CC=gcc-8
             echo export KERNEL_SOURCE=/build/cos-kernel >> $BASH_ENV
