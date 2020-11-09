@@ -9,7 +9,7 @@
 </p>
 <p align="center">
  <a href="https://circleci.com/gh/redsift/ingraind"><img src="https://circleci.com/gh/redsift/ingraind.svg?style=shield" alt="CircleCI" /></a>
- <a href="https://app.element.io/#/room/!vCJcBZDeGUXaqSvPpL:rustch.at?via=rustch.at"><img src="https://img.shields.io/matrix/redbpf:rustch.at.svg?label=element&server_fqdn=rustch.at" alt="CircleCI" /></a>
+ <a href="https://app.element.io/#/room/!vCJcBZDeGUXaqSvPpL:rustch.at?via=rustch.at"><img src="https://img.shields.io/matrix/redbpf:rustch.at.svg?label=chat&server_fqdn=rustch.at" alt="CircleCI" /></a>
 </p>
 
 ingraind is a security monitoring agent built around [RedBPF](https://github.com/redsift/redbpf)
