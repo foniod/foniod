@@ -99,7 +99,10 @@ impl Handler<Message> for HTTP {
             req.headers_mut()
                 .insert(header::CONTENT_TYPE, self.content_type.parse().unwrap());
 
-            actix::spawn(self.client.request(req).map(|_| ()));
+            actix::spawn(self.client.request(req).map(|r| {
+                info!("sent to upstream: {:?}", r.map(|r| r.status()));
+                ()
+            }));
         }
     }
 }
