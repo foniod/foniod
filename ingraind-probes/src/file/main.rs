@@ -1,9 +1,10 @@
 #![no_std]
 #![no_main]
-use redbpf_probes::kprobe::prelude::*;
 use ingraind_probes::file::{
     Access, FileAccess, PathList, PathSegment, PATH_LIST_LEN, PATH_SEGMENT_LEN,
 };
+use redbpf_probes::kprobe::prelude::*;
+use unroll::unroll_for_loops;
 
 enum AccessType {
     Read,
@@ -102,6 +103,7 @@ fn do_track_file_access(regs: Registers, access_type: AccessType) -> Option<()> 
 }
 
 #[inline]
+#[unroll_for_loops]
 fn dentry_to_path(mut dentry: *mut dentry, path_list: &mut PathList) -> Option<InodePolicy> {
     if dentry.is_null() {
         return None;

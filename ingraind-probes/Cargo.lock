@@ -215,6 +215,7 @@ dependencies = [
  "memoffset",
  "redbpf-macros",
  "redbpf-probes",
+ "unroll",
 ]
 
 [[package]]
@@ -530,6 +531,16 @@ name = "unicode-xid"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7fe0bb3479651439c9112f72b6c505038574c9fbb575ed1bf3b797fa39dd564"
+
+[[package]]
+name = "unroll"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ad948c1cb799b1a70f836077721a92a35ac177d4daddf4c20a633786d4cf618"
+dependencies = [
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "vec_map"
