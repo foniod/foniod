@@ -5,7 +5,7 @@ edition = '2018'
 
 [dependencies]
 cty = "0.2"
-memoffset = "0.5.6"
+memoffset = "0.6.1"
 redbpf-macros = "^1.2"
 redbpf-probes = "^1.2"
 unroll = "0.1"
