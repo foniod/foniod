@@ -304,7 +304,7 @@ jobs:
             pkg=<< parameters.kernel_pkg >>-devel-<< parameters.kernel_version >>.rpm
             s3cmd get s3://redsift-ops/kernels/<< parameters.distro >>/$pkg $pkg
             rpm --nodeps -i --force $pkg
-            echo KERNEL_SOURCE=/usr/src/kernels/$(ls /usr/src/kernels |head -n1) >> $BASH_ENV
+            echo export KERNEL_SOURCE=/usr/src/kernels/$(rpm -qa kernel-devel |cut -d- -f3-)/ |tee $BASH_ENV
 
       - cargo_build:
           type: release
