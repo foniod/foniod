@@ -397,12 +397,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e76a319e55a4ef27c8c383215fa3160167bd8a883e8d27c0ecd57ed81bca2af"
 
 [[package]]
-name = "capnpc"
-version = "0.13.1"
+name = "capnp"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81855cee80548f7a2ee549d3bc2e55ed5f7cabe469e85614046e5475712f75c1"
+checksum = "ee33f13b9419d35f9ae6e0ee2e5ef6bd059a4d0da2fda16a88ddaf57dfe9acca"
+
+[[package]]
+name = "capnpc"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9789829f1feed89b96c50bf4268872596c66bc996d49a30661fc6df0ecf4ad3"
 dependencies = [
- "capnp",
+ "capnp 0.14.0",
 ]
 
 [[package]]
@@ -1389,7 +1395,7 @@ dependencies = [
  "bollard",
  "bytes 0.6.0",
  "cadence",
- "capnp",
+ "capnp 0.13.6",
  "capnpc",
  "cargo-bpf",
  "chrono",
