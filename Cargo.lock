@@ -1391,7 +1391,7 @@ dependencies = [
  "failure",
  "futures",
  "hdrhistogram",
- "hyper 0.13.9",
+ "hyper 0.14.2",
  "hyper-rustls 0.21.0",
  "ingraind-probes",
  "k8s-openapi",
