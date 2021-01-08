@@ -56,11 +56,12 @@ chrono = "0.4"
 ingraind-probes = { path = "ingraind-probes" }
 
 [dependencies.hyper]
-version = "0.13"
+version = "0.14"
 optional = true
 
 [dependencies.hyper-rustls]
-version = "0.21"
+version = "0.22"
+features = ["webpki-roots"]
 optional = true
 
 [dependencies.cadence]

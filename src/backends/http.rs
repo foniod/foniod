@@ -31,7 +31,7 @@ impl HTTP {
     pub fn new(config: HTTPConfig) -> HTTP {
         let client = Client::builder()
             .pool_max_idle_per_host(0)
-            .build(HttpsConnector::new());
+            .build(HttpsConnector::with_webpki_roots());
         let uri = config.uri.parse().unwrap();
 
         let headers = {
