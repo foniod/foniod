@@ -137,7 +137,7 @@ dependencies = [
  "flate2",
  "futures-core",
  "memchr",
- "pin-project-lite 0.2.1",
+ "pin-project-lite 0.2.4",
  "tokio 1.0.1",
 ]
 
@@ -1004,7 +1004,7 @@ dependencies = [
  "futures-sink",
  "futures-task",
  "memchr",
- "pin-project-lite 0.2.1",
+ "pin-project-lite 0.2.4",
  "pin-utils",
  "proc-macro-hack",
  "proc-macro-nested",
@@ -1246,9 +1246,9 @@ dependencies = [
 
 [[package]]
 name = "hyper"
-version = "0.14.2"
+version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12219dc884514cb4a6a03737f4413c0e01c23a1b059b0156004b23f1e19dccbe"
+checksum = "5ee5fc98172988e4394a3094002a75125e8fb864a88318732e8b613ec5adbda3"
 dependencies = [
  "bytes 1.0.0",
  "futures-channel",
@@ -1260,7 +1260,7 @@ dependencies = [
  "httparse",
  "httpdate",
  "itoa",
- "pin-project 1.0.3",
+ "pin-project-lite 0.2.4",
  "socket2",
  "tokio 1.0.1",
  "tower-service",
@@ -1276,7 +1276,7 @@ checksum = "5f9f7a97316d44c0af9b0301e65010573a853a9fc97046d7331d7f6bc0fd5a64"
 dependencies = [
  "ct-logs 0.8.0",
  "futures-util",
- "hyper 0.14.2",
+ "hyper 0.14.3",
  "log",
  "rustls",
  "rustls-native-certs",
@@ -1293,7 +1293,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6183ddfa99b85da61a140bea0efc93fdf56ceaa041b37d553518030827f9905"
 dependencies = [
  "bytes 1.0.0",
- "hyper 0.14.2",
+ "hyper 0.14.3",
  "native-tls",
  "tokio 1.0.1",
  "tokio-native-tls",
@@ -1358,7 +1358,7 @@ dependencies = [
  "failure",
  "futures",
  "hdrhistogram",
- "hyper 0.14.2",
+ "hyper 0.14.3",
  "hyper-rustls",
  "ingraind-probes",
  "k8s-openapi",
@@ -1994,9 +1994,9 @@ checksum = "c917123afa01924fc84bb20c4c03f004d9c38e5127e3c039bbf7f4b9c76a2f6b"
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.1"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e36743d754ccdf9954c2e352ce2d4b106e024c814f6499c2dadff80da9a442d8"
+checksum = "439697af366c49a6d0a010c56a0d97685bc140ce0d377b13a2ea2aa42d64a827"
 
 [[package]]
 name = "pin-utils"
@@ -2245,7 +2245,7 @@ dependencies = [
  "futures-util",
  "http",
  "http-body 0.4.0",
- "hyper 0.14.2",
+ "hyper 0.14.3",
  "hyper-tls",
  "ipnet",
  "js-sys",
@@ -2254,7 +2254,7 @@ dependencies = [
  "mime",
  "native-tls",
  "percent-encoding",
- "pin-project-lite 0.2.1",
+ "pin-project-lite 0.2.4",
  "serde",
  "serde_json",
  "serde_urlencoded 0.7.0",
@@ -2305,7 +2305,7 @@ dependencies = [
  "crc32fast",
  "futures",
  "http",
- "hyper 0.14.2",
+ "hyper 0.14.3",
  "hyper-rustls",
  "lazy_static",
  "log",
@@ -2328,7 +2328,7 @@ dependencies = [
  "chrono",
  "dirs-next 2.0.0",
  "futures",
- "hyper 0.14.2",
+ "hyper 0.14.3",
  "serde",
  "serde_json",
  "shlex",
@@ -2361,11 +2361,11 @@ dependencies = [
  "hex",
  "hmac",
  "http",
- "hyper 0.14.2",
+ "hyper 0.14.3",
  "log",
  "md5",
  "percent-encoding",
- "pin-project-lite 0.2.1",
+ "pin-project-lite 0.2.4",
  "rusoto_credential",
  "rustc_version 0.2.3",
  "serde",
@@ -3008,7 +3008,7 @@ dependencies = [
  "mio 0.7.7",
  "num_cpus",
  "once_cell",
- "pin-project-lite 0.2.1",
+ "pin-project-lite 0.2.4",
  "signal-hook-registry",
  "tokio-macros",
  "winapi 0.3.9",
@@ -3053,7 +3053,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4cdeb73537e63f98adcd73138af75e3f368ccaecffaa29d7eb61b9f5a440457"
 dependencies = [
  "futures-core",
- "pin-project-lite 0.2.1",
+ "pin-project-lite 0.2.4",
  "tokio 1.0.1",
 ]
 
@@ -3082,7 +3082,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "log",
- "pin-project-lite 0.2.1",
+ "pin-project-lite 0.2.4",
  "tokio 1.0.1",
  "tokio-stream",
 ]
@@ -3121,7 +3121,7 @@ checksum = "9f47026cdc4080c07e49b37087de021820269d996f581aac150ef9e5583eefe3"
 dependencies = [
  "cfg-if 1.0.0",
  "log",
- "pin-project-lite 0.2.1",
+ "pin-project-lite 0.2.4",
  "tracing-core",
 ]
 
