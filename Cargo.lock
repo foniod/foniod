@@ -1367,7 +1367,7 @@ dependencies = [
  "lazy_static",
  "log",
  "metrohash",
- "mio 0.6.23",
+ "mio 0.7.7",
  "rayon",
  "redbpf",
  "redbpf-probes",
