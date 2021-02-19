@@ -96,6 +96,7 @@ The `ingraind-probes` directory contains the BPF programs written in Rust.
 
 For more information, take a look at the [Wiki](https://github.com/redsift/ingraind/wiki)
 
-# Red Sift is hiring
+# Code of Conduct
 
-Check out our [Careers](https://redsift.bamboohr.com/jobs/) page for a list of open positions!
+This project is for everyone. We ask that our users and contributors
+take a few minutes to review our [code of conduct](https://github.com/ingraind/project/blob/main/CODE_OF_CONDUCT.md).
