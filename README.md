@@ -96,7 +96,18 @@ The `ingraind-probes` directory contains the BPF programs written in Rust.
 
 For more information, take a look at the [Wiki](https://github.com/redsift/ingraind/wiki)
 
-# Code of Conduct
+# Contribution
 
 This project is for everyone. We ask that our users and contributors
 take a few minutes to review our [code of conduct](https://github.com/ingraind/project/blob/main/CODE_OF_CONDUCT.md).
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the GPL-3.0 license, shall
+be licensed as GPL-3.0, without any additional terms or conditions.
+
+For further advice on getting started, please consult the
+[Contributor's
+Guide](https://github.com/ingraind/project/blob/main/CONTRIBUTING.md). Please
+note that all contributions MUST contain a [Developer Certificate of
+Origin](https://github.com/ingraind/project/blob/developer-certificate-of-origin/CONTRIBUTING.md#developer-certificate-of-origin)
+sign-off line.
