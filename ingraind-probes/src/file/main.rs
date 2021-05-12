@@ -16,14 +16,14 @@ program!(0xFFFFFFFE, "GPL");
 const S_IFMT: u16 = 0o00170000;
 const S_IFREG: u16 = 0o0100000;
 
-#[map("actionlist")]
-static mut actionlist: HashMap<u64, u8> = HashMap::with_max_entries(10240);
-
 #[map("files")]
-static mut files: HashMap<u64, *const file> = HashMap::with_max_entries(10240);
+static mut files: HashMap<u64, *const file> = HashMap::with_max_entries(1024);
 
 #[map("rw")]
 static mut rw: PerfMap<FileAccess> = PerfMap::with_max_entries(1024);
+
+#[map("actionlist")]
+static mut actionlist: HashMap<u64, u8> = HashMap::with_max_entries(1024);
 
 #[kprobe("vfs_read")]
 pub fn trace_read_entry(regs: Registers) {
@@ -125,7 +125,7 @@ fn dentry_to_path(mut dentry: *mut dentry, path_list: &mut PathList) -> Option<I
         let read = unsafe {
             bpf_probe_read_str(
                 segment.name.as_mut_ptr() as *mut _,
-                PATH_SEGMENT_LEN as i32,
+                PATH_SEGMENT_LEN as u32,
                 name.name as *const _,
             )
         };

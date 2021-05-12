@@ -1,6 +1,6 @@
 [package]
 name = "ingraind"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Peter Parkanyi <peter@redsift.io>"]
 license = "GPL-3.0"
 description = "eBPF-based system monitoring agent"
@@ -9,25 +9,24 @@ build = "build.rs"
 edition = "2018"
 
 [build-dependencies]
-cargo-bpf = { version = "^1.2", default-features = false, features = ["build"] }
+cargo-bpf = { path = "../redbpf/cargo-bpf" , default-features = false, features = ["build"] }
 
 [build-dependencies.capnpc]
 version = "^0.14"
 optional = true
 
 [dependencies]
-actix = "0.10"
+actix = "0.11"
 futures = "0.3"
-tokio = { version = "0.2", features = ["udp", "time", "stream"]}
+tokio = { version = "1.5", features = ["net", "signal", "macros"]}
 bytes = "1.0"
-mio = "0.6"
 
 failure = "0.1"
-lazy_static = "1.1.0"
+lazy_static = "^1.1.0"
 
 lazy-socket = "0.3"
-redbpf = "^1.2"
-redbpf-probes = "^1.2"
+redbpf = { path = "../redbpf/redbpf" }
+redbpf-probes = { path = "../redbpf/redbpf-probes" }
 
 serde = "^1.0"
 serde_derive = "^1.0"

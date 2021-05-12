@@ -36,53 +36,57 @@ fn main() {
         std::process::exit(1);
     }));
 
-    let system = actix::System::new("userspace");
-    let io = actix::Arbiter::new();
+    let system = actix::System::new();
+    system.block_on(async {
+        let io = actix::Arbiter::new();
 
-    let mut config: config::Config = {
-        let file = env::args().nth(1).expect("Usage: ingraind <config file>");
-        let content = fs::read(file).expect("Unable to read config file");
-        toml::from_slice(content.as_slice()).expect("Error while parsing config file")
-    };
+        let mut config: config::Config = {
+            let file = env::args().nth(1).expect("Usage: ingraind <config file>");
+            let content = fs::read(file).expect("Unable to read config file");
+            toml::from_slice(content.as_slice()).expect("Error while parsing config file")
+        };
 
-    init_logging(&config);
-    let backends = config
-        .pipeline
-        .drain()
-        .map(|(key, pipeline)| {
-            let mut backend = pipeline.backend.into_recipient();
-            let mut steps = pipeline.steps.unwrap_or_else(|| vec![]);
-            steps.reverse();
+        init_logging(&config);
+        let backends = config
+            .pipeline
+            .drain()
+            .map(|(key, pipeline)| {
+                let mut backend = pipeline.backend.into_recipient();
+                let mut steps = pipeline.steps.unwrap_or_else(|| vec![]);
+                steps.reverse();
 
-            for step in steps.drain(..) {
-                backend = step.into_recipient(backend);
-            }
+                for step in steps.drain(..) {
+                    backend = step.into_recipient(backend);
+                }
 
-            (key, backend)
-        })
-        .collect::<HashMap<String, Recipient<Message>>>();
+                (key, backend)
+            })
+            .collect::<HashMap<String, Recipient<Message>>>();
 
-    let probe_actors: Vec<_> = config
-        .probe
-        .drain(..)
-        .map(|probe| {
-            let recipients = probe
-                .pipelines
-                .iter()
-                .map(|p| {
-                    backends
-                        .get(p)
-                        .unwrap_or_else(|| panic!("Invalid configuration: pipeline {} not found!", p))
-                        .clone()
-                })
-                .collect::<Vec<Recipient<Message>>>();
-            probe.grain.into_probe_actor(recipients)
-        })
-        .collect();
+        let probe_actors: Vec<_> = config
+            .probe
+            .drain(..)
+            .map(|probe| {
+                let recipients = probe
+                    .pipelines
+                    .iter()
+                    .map(|p| {
+                        backends
+                            .get(p)
+                            .unwrap_or_else(|| {
+                                panic!("Invalid configuration: pipeline {} not found!", p)
+                            })
+                            .clone()
+                    })
+                    .collect::<Vec<Recipient<Message>>>();
+                probe.grain.into_probe_actor(recipients)
+            })
+            .collect();
 
-    for actor in probe_actors {
-        actor.start(&io);
-    }
+        for actor in probe_actors {
+            actor.start(&io);
+        }
+    });
 
     system.run().unwrap();
 }
