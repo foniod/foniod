@@ -237,7 +237,7 @@ impl Buffer {
             .map(|s| s * 1000)
             .unwrap_or(config.interval_ms);
         let flush_period = Duration::from_millis(ms);
-        Actor::start_in_arbiter(&actix::Arbiter::new(), move |_| Buffer {
+        Actor::start_in_arbiter(&actix::Arbiter::new().handle(), move |_| Buffer {
             aggregator: Aggregator::new(config.enable_histograms),
             upstream,
             flush_handle: SpawnHandle::default(),
@@ -338,7 +338,6 @@ impl Aggregator {
     pub fn uniques(&self, key: &MeasurementKey) -> Option<usize> {
         self.sets.get(key).map(|am| am.value.len())
     }
-
 }
 
 #[cfg(test)]

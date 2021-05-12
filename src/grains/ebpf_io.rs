@@ -4,50 +4,21 @@ use crate::grains::EventCallback;
 
 use futures::prelude::*;
 use lazy_socket::raw::Socket;
-use mio::unix::EventedFd;
-use mio::{Evented, PollOpt, Ready, Token};
-use std::io;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::pin::Pin;
 use std::slice;
 use std::task::{Context, Poll};
-use tokio::io::PollEvented;
+use tokio::io::unix::AsyncFd;
+use tokio::io::Interest;
 
 use redbpf::PerfMap;
 
-pub struct GrainIo(RawFd);
-
-impl Evented for GrainIo {
-    fn register(
-        &self,
-        poll: &mio::Poll,
-        token: Token,
-        interest: Ready,
-        opts: PollOpt,
-    ) -> io::Result<()> {
-        EventedFd(&self.0).register(poll, token, interest, opts)
-    }
-
-    fn reregister(
-        &self,
-        poll: &mio::Poll,
-        token: Token,
-        interest: Ready,
-        opts: PollOpt,
-    ) -> io::Result<()> {
-        EventedFd(&self.0).reregister(poll, token, interest, opts)
-    }
-
-    fn deregister(&self, poll: &mio::Poll) -> io::Result<()> {
-        EventedFd(&self.0).deregister(poll)
-    }
-}
-
+pub type GrainIo = AsyncFd<RawFd>;
 pub type MessageStream = dyn Stream<Item = Vec<Message>> + Unpin;
 pub type MessageStreams = Vec<Box<MessageStream>>;
 
 pub struct PerfMessageStream {
-    poll: PollEvented<GrainIo>,
+    poll: GrainIo,
     map: PerfMap,
     name: String,
     callback: EventCallback,
@@ -55,8 +26,7 @@ pub struct PerfMessageStream {
 
 impl PerfMessageStream {
     pub fn new(name: String, map: PerfMap, callback: EventCallback) -> Self {
-        let io = GrainIo(map.fd);
-        let poll = PollEvented::new(io).unwrap();
+        let poll = GrainIo::with_interest(map.fd, Interest::READABLE).unwrap();
         PerfMessageStream {
             poll,
             map,
@@ -96,27 +66,28 @@ impl Stream for PerfMessageStream {
     type Item = Vec<Message>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        let ready = Ready::readable();
-        if let Poll::Pending = self.poll.poll_read_ready(cx, ready) {
+        if let Poll::Pending = self.poll.poll_read_ready(cx) {
             return Poll::Pending;
         }
 
         let messages = self.read_messages();
-        self.poll.clear_read_ready(cx, ready).unwrap();
-        Poll::Ready(Some(messages))
+        if let Poll::Ready(Ok(mut readguard)) = self.poll.poll_read_ready(cx) {
+            readguard.clear_ready();
+        }
+
+        return Poll::Ready(Some(messages));
     }
 }
 
 pub struct SocketMessageStream {
-    poll: PollEvented<GrainIo>,
+    poll: GrainIo,
     socket: Socket,
     callback: EventCallback,
 }
 
 impl SocketMessageStream {
     pub fn new(_name: &str, socket: Socket, callback: EventCallback) -> Self {
-        let io = GrainIo(socket.as_raw_fd());
-        let poll = PollEvented::new(io).unwrap();
+        let poll = GrainIo::with_interest(socket.as_raw_fd(), Interest::READABLE).unwrap();
         SocketMessageStream {
             poll,
             socket,
@@ -148,13 +119,13 @@ impl Stream for SocketMessageStream {
     type Item = Vec<Message>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        let ready = Ready::readable();
-        if let Poll::Pending = self.poll.poll_read_ready(cx, ready) {
-            return Poll::Pending;
+        if let Poll::Ready(Ok(mut readguard)) = self.poll.poll_read_ready(cx) {
+            let messages = self.read_messages();
+
+            readguard.clear_ready();
+            return Poll::Ready(Some(messages));
         }
 
-        let messages = self.read_messages();
-        self.poll.clear_read_ready(cx, ready).unwrap();
-        Poll::Ready(Some(messages))
+        Poll::Pending
     }
 }

@@ -145,7 +145,7 @@ impl Actor for Statsd {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         info!("statsd daemon started {}", self.bind_address);
-        let mut socket =
+        let socket =
             UdpSocket::from_std(std::net::UdpSocket::bind(self.bind_address).unwrap()).unwrap();
         let stream = stream::poll_fn(move |ctx| {
             let mut buf = [0u8; 65527];

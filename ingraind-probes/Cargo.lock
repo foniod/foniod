@@ -41,8 +41,6 @@ checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 [[package]]
 name = "bpf-sys"
 version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a174040d5fe0ace2f38ffbb118aeab22f645442c32788683e4e429c56693558"
 dependencies = [
  "bindgen",
  "cc",
@@ -54,8 +52,6 @@ dependencies = [
 [[package]]
 name = "cargo-bpf"
 version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9fd93b27e8f47c90c1af7a699c9c2906bebf588f0a839f52c1baa61f912444b"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -281,8 +277,6 @@ dependencies = [
 [[package]]
 name = "redbpf-macros"
 version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3edeceb8e160a72c4c2328ce333432d036d39478c03b5c99171875bb0110281f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -293,8 +287,6 @@ dependencies = [
 [[package]]
 name = "redbpf-probes"
 version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd29118ffea886083795572ec5264e8ffb238e636300c92346206577f7f876f7"
 dependencies = [
  "cargo-bpf",
  "cty",

@@ -95,17 +95,22 @@ impl Backend {
         match self {
             #[cfg(feature = "s3-backend")]
             Backend::S3 => {
-                Actor::start_in_arbiter(&actix::Arbiter::new(), |_| s3::S3::new()).recipient()
+                Actor::start_in_arbiter(&actix::Arbiter::new().handle(), |_| s3::S3::new())
+                    .recipient()
             }
             #[cfg(feature = "statsd-backend")]
             Backend::StatsD(config) => {
-                Actor::start_in_arbiter(&actix::Arbiter::new(), |_| statsd::Statsd::new(config))
-                    .recipient()
+                Actor::start_in_arbiter(&actix::Arbiter::new().handle(), |_| {
+                    statsd::Statsd::new(config)
+                })
+                .recipient()
             }
             #[cfg(feature = "http-backend")]
             Backend::HTTP(config) => {
-                Actor::start_in_arbiter(&actix::Arbiter::new(), |_| http::HTTP::new(config))
-                    .recipient()
+                Actor::start_in_arbiter(&actix::Arbiter::new().handle(), |_| {
+                    http::HTTP::new(config)
+                })
+                .recipient()
             }
             Backend::Console => console::Console.start().recipient(),
         }
@@ -116,11 +121,12 @@ pub enum ProbeActor {
     EBPF(EBPFActor),
     StatsD(grains::statsd::Statsd),
     Osquery(osquery::Osquery),
-    Test(grains::test::TestProbe)
+    Test(grains::test::TestProbe),
 }
 
 impl ProbeActor {
-    pub fn start(self, io: &Arbiter) {
+    pub fn start(self, arbiter: &Arbiter) {
+        let io = &arbiter.handle();
         match self {
             ProbeActor::EBPF(a) => {
                 Actor::start_in_arbiter(io, |_| a);

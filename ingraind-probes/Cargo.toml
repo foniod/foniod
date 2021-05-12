@@ -6,8 +6,8 @@ edition = '2018'
 [dependencies]
 cty = "0.2"
 memoffset = "0.6.1"
-redbpf-macros = "^1.2"
-redbpf-probes = "^1.2"
+redbpf-macros = { path = "../../redbpf/redbpf-macros" }
+redbpf-probes = { path = "../../redbpf/redbpf-probes" }
 unroll = "0.1"
 
 [features]
