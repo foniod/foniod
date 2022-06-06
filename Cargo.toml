@@ -36,7 +36,7 @@ toml = "^0.5"
 
 rustls = "0.19"
 metrohash = "1"
-regex = "1.4"
+regex = "1.5"
 
 log = { version = "^0.4", features = ["serde"] }
 env_logger = "^0.8.3"
